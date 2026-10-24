@@ -1,0 +1,427 @@
+[
+  {
+    "name": "Api",
+    "access": "-",
+    "has_combos": true,
+    "doc": "Represents a documented API",
+    "props": [
+      {
+        "name": "name",
+        "type": "NonEmptyString(48-255)",
+        "index": true,
+        "doc": "(Human readable) name of this API"
+      },
+      {
+        "type": "creation"
+      }
+    ]
+  },
+  {
+    "name": "ApiNodeGroup",
+    "access": "node.group",
+    "doc": "Defines a group of API nodes",
+    "combo": {
+      "name": "CompleteApiNodeGroup",
+      "children": "ApiNode",
+      "is_always_linked": true,
+      "parent_alias": "group",
+      "child_alias": "node",
+      "children_alias": "nodes",
+      "doc": "Includes the grouped API nodes"
+    },
+    "props": [
+      {
+        "ref": "api",
+        "doc": "ID of the API this node group belongs to",
+        "with": "inApi"
+      },
+      {
+        "name": "name",
+        "type": "NonEmptyString(48-255)",
+        "index": true,
+        "doc": "(Human readable) name of this node group"
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "Description of this group's function or theme"
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  },
+  {
+    "name": "ApiNode",
+    "access": "node",
+    "has_combos": true,
+    "doc": "Represents an individual API node implementation",
+    "props": [
+      {
+        "name": "groupId",
+        "ref": "api_node_group",
+        "with": "inGroup",
+        "doc": "ID of the node group this node belongs to"
+      },
+      {
+        "name": "name",
+        "type": "NonEmptyString(48-255)",
+        "doc": "Human-readable name of this node"
+      },
+      {
+        "name": "nameNoSpaces",
+        "name_plural": "namesNoSpaces",
+        "type": "NonEmptyString(48-255)",
+        "index": true,
+        "with": "withNameMatching",
+        "in": "withNameMatchingAnyOf",
+        "doc": "A lowercase version of the node name, with no whitespace included. Used for indexing & search."
+      },
+      {
+        "name": "relativePath",
+        "type": "NonEmptyString(48-255)",
+        "index": true,
+        "with": "withRelativePath",
+        "doc": "Path of this node, relative to the parent node (if defined) or the API root (if no parent is defined). \nMay contain path parameters."
+      },
+      {
+        "name": "parentId",
+        "ref": "api_node",
+        "type": "Option[Int]",
+        "with": "underParent",
+        "doc": "ID of the node that appears directly above/before this node on the path. \nNone if no parent node appears between this node and the API root."
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "A description of this API node."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  },
+  {
+    "name": "PathParametersSchemaLink",
+    "name_plural": "PathParameterSchemaLinks",
+    "access": "params.path",
+    "has_combos": true,
+    "doc": "Applies a specific schema to the path parameters received by an API node.",
+    "props": [
+      {
+        "name": "nodeId",
+        "ref": "api_node",
+        "with": "ofNode",
+        "doc": "ID of the API node that accepts these parameters."
+      },
+      {
+        "name": "modelTypeId",
+        "ref": "model_type",
+        "with": "ofModelType",
+        "doc": "ID of the model type that describes the received path parameters."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  },
+  {
+    "name": "ApiNodeMethodImplementation",
+    "access": "node.impl",
+    "has_combos": true,
+    "doc": "Describes how a specific HTTP method is implemented in an API node.",
+    "props": [
+      {
+        "name": "nodeId",
+        "ref": "api_node",
+        "with": "ofNode",
+        "doc": "ID of the API node that contains this implementation."
+      },
+      {
+        "name": "method",
+        "type": "Method",
+        "index": true,
+        "with": "ofMethod",
+        "doc": "The implemented method."
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "A description of this implementation."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      },
+      {
+        "name": "requiresRequestBody",
+        "name_plural": "requireRequestBodies",
+        "type": "Boolean",
+        "doc": "Whether a request body is required for this implementation."
+      }
+    ]
+  },
+  {
+    "name": "ApiNodeMethodImplementationModelSchemaLink",
+    "generic": true,
+    "access": "node.impl.link.model",
+    "doc": "Links a model schema to to an API node's method implementation.",
+    "props": [
+      {
+        "name": "implementationId",
+        "ref": "api_node_method_implementation",
+        "with": "ofImplementation",
+        "doc": "ID of the method implementation that uses the linked schema."
+      },
+      {
+        "name": "modelTypeId",
+        "ref": "model_schema",
+        "with": "ofModelType",
+        "doc": "ID of the schema that defines the type of model accepted by the linked implementation."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  },
+  {
+    "name": "QueryParametersSchemaLink",
+    "name_plural": "QueryParameterSchemaLinks",
+    "parent": "ApiNodeMethodImplementationModelSchemaLink",
+    "access": "params.query",
+    "has_combos": true,
+    "doc": "Applies a specific schema to the query parameters accepted by an API node.",
+    "props": []
+  },
+  {
+    "name": "RequestBodySchema",
+    "parent": "ApiNodeMethodImplementationModelSchemaLink",
+    "access": "body",
+    "has_combos": true,
+    "doc": "Applies a specific schema to the request body accepted by an API node. \nMultiple alternative schemas may be defined separately.",
+    "props": [
+      {
+        "name": "customContentType",
+        "type": "String(32-255)",
+        "doc": "Non-standard content type expected from the request body, if applicable."
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "Description of the expected request body."
+      },
+      {
+        "name": "isArray",
+        "name_plural": "areArrays",
+        "type": "Boolean",
+        "doc": "Whether a JSON array is expected."
+      }
+    ]
+  },
+  {
+    "name": "PossibleResponseStatus",
+    "name_plural": "PossibleResponseStatuses",
+    "access": "response.status",
+    "doc": "Defines a possible response status for an API node method call.",
+    "combo": {
+      "name": "PossibleResponse",
+      "child": "ResponseContentType",
+      "is_always_linked": false,
+      "parent_alias": "status",
+      "child_alias": "body"
+    },
+    "props": [
+      {
+        "name": "implementationId",
+        "ref": "api_node_method_implementation",
+        "with": "fromImplementation",
+        "doc": "ID of the implementation that may return this response status."
+      },
+      {
+        "name": "statusCode",
+        "type": "Int(999)",
+        "index": true,
+        "with": "withCode",
+        "doc": "HTTP status code that may be returned by the API node method call."
+      },
+      {
+        "name": "description",
+        "type": "String(96-1024)",
+        "doc": "Description of what this status signifies."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      },
+      {
+        "name": "hasBody",
+        "name_plural": "haveBodies",
+        "type": "UncertainBoolean",
+        "doc": "Whether a response body is returned with this status. Uncertain if not specified in the documentation."
+      }
+    ]
+  },
+  {
+    "name": "ResponseContentType",
+    "access": "response.body",
+    "has_combos": true,
+    "doc": "Defines how an API node's response body is formed.",
+    "props": [
+      {
+        "name": "statusId",
+        "ref": "possible_response_status",
+        "with": "withStatus",
+        "in": "withStatuses",
+        "doc": "ID of the status this type of response body is returned with."
+      },
+      {
+        "name": "contentType",
+        "type": "Option[Enum[PropertyType]]",
+        "doc": "If this body is non-empty, specifies the type of content it contains."
+      },
+      {
+        "name": "modelTypeId",
+        "ref": "model_schema",
+        "type": "Option[Int]",
+        "doc": "If this body contains a JSON object or objects, contains the ID of the model schema that describes the applicable object structure."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      },
+      {
+        "name": "isArray",
+        "name_plural": "areArrays",
+        "type": "Boolean",
+        "doc": "Whether this response body contains an array of values. False if no more than one value may be returned."
+      },
+      {
+        "name": "isEmpty",
+        "name_plural": "areEmpty",
+        "type": "Boolean",
+        "doc": "Whether this response body is empty / no response body is returned."
+      }
+    ]
+  },
+  {
+    "name": "NodeAuthLink",
+    "generic": true,
+    "access": "node.auth",
+    "doc": "Common trait for links between API nodes and possible authorization requirements",
+    "props": [
+      {
+        "name": "nodeId",
+        "ref": "api_node",
+        "with": "ofNode",
+        "doc": "ID of the node that accepts the linked authorization method."
+      },
+      {
+        "name": "authId",
+        "type": "Int",
+        "index": true,
+        "with": "acceptingAuth",
+        "doc": "ID of the authorization element accepted by the linked node."
+      },
+      {
+        "name": "method",
+        "type": "Option[Enum[Method]]",
+        "index": true,
+        "with": "forMethod",
+        "doc": "The HTTP method that the linked authorization method is used for. \nNone if the authorization method is used as a default for all methods (where not overridden)."
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "A description concerning this authorization method's function in the linked node."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  },
+  {
+    "name": "NodeAuthTypeLink",
+    "parent": "NodeAuthLink",
+    "access": "node.auth",
+    "doc": "Describes an authorization type accepted by an API node.",
+    "combo": {
+      "name": "DetailedNodeAuthTypeLink",
+      "child": "AuthTokenType",
+      "is_always_linked": true,
+      "parent_alias": "link",
+      "child_alias": "token",
+      "doc": "Includes the authorization type accepted by the linked node."
+    },
+    "props": [
+      {
+        "name": "authTypeId",
+        "parent": "authId",
+        "ref": "auth_token_type",
+        "doc": "ID of the authorization type accepted by the linked node."
+      }
+    ]
+  },
+  {
+    "name": "NodeAuthScopeLink",
+    "parent": "NodeAuthLink",
+    "access": "node.auth.scope",
+    "doc": "Describes an authorization scope required by an API node. \nIf multiple scopes are linked, they typically represent alternative auth scopes, usually for different purposes.",
+    "combo": {
+      "children": "AdditionalNodeAuthScopeRequirement",
+      "is_always_linked": false,
+      "parent_alias": "link",
+      "child_alias": "additionalRequirement",
+      "children_alias": "additionalRequirements",
+      "doc": "Includes possible additional scope requirements with a node-scope link"
+    },
+    "props": [
+      {
+        "parent": "authId",
+        "name": "scopeId",
+        "ref": "scope",
+        "with": "requiringScope",
+        "in": "requiringScopes",
+        "doc": "ID of the authorization scope required by the linked node."
+      }
+    ]
+  },
+  {
+    "name": "AdditionalNodeAuthScopeRequirement",
+    "access": "node.auth.scope",
+    "doc": "Links an additional required scope to an auth-scope link",
+    "props": [
+      {
+        "name": "scopeLinkId",
+        "ref": "node_auth_scope_link",
+        "with": "extendingLink",
+        "doc": "ID of the auth-scope link that requires the additional scope"
+      },
+      {
+        "ref": "scope",
+        "with": "requiringScope",
+        "doc": "ID of the additional authorization scope required by the node."
+      }
+    ]
+  }
+]

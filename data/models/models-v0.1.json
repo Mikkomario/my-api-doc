@@ -1,0 +1,83 @@
+{
+  "project": "MyApiDoc",
+  "version": "v0.1",
+  "author": "Mikko Hilpinen",
+  "database": "my_api_doc_db",
+  "package": "vf.myapidoc",
+  "enums": [
+    {
+      "name": "PropertyType",
+      "doc": "An enumeration for different data types in input and output models",
+      "values": [
+        {
+          "name": "AnyProp",
+          "default": true,
+          "doc": "An undefined property type. Used when the type is not known or doesn't match any other type."
+        },
+        {
+          "name": "StringProp"
+        },
+        {
+          "name": "IntProp"
+        },
+        {
+          "name": "DecimalProp",
+          "doc": "A property type for decimal numbers: Double and Float."
+        },
+        {
+          "name": "LongProp"
+        },
+        {
+          "name": "BooleanProp",
+          "doc": "A boolean property type. Transmitted in JSON as `true` or `false`."
+        },
+        {
+          "name": "InstantProp",
+          "doc": "A timestamp property type. Transmitted in JSON as ISO 8601 strings."
+        },
+        {
+          "name": "DurationProp",
+          "doc": "A property for representing durations. Transmitted in JSON by coupling amount and unit, e.g. \"48 seconds\" or \"2min\""
+        },
+        {
+          "name": "ModelProp",
+          "doc": "A JSON object type. Usually coupled with a model type reference."
+        }
+      ]
+    },
+    {
+      "name": "TokenUseType",
+      "doc": "An enumeration for different token use types",
+      "values": [
+        {
+          "name": "Bearer",
+          "default": true,
+          "doc": "Represents a case where the token is used for bearer authentication"
+        },
+        {
+          "name": "Basic",
+          "doc": "Represents the basic authentication use-case, which combines username and password."
+        }
+      ]
+    }
+  ],
+  "data_types": {
+    "Method": {
+      "type": "utopia.access.model.enumeration.Method",
+      "sql": "VARCHAR(8)",
+      "from_value": { "code": "Method($v.getString)", "reference": "utopia.access.model.enumeration.Method" },
+      "option_from_value": { "code": "$v.string.map(Method.apply)", "reference": "utopia.access.model.enumeration.Method" },
+      "to_value": { "code": "$v.name", "reference": "utopia.flow.generic.casting.ValueConversions._" },
+      "option_to_value": { "code": "$v.map { _.name }", "reference": "utopia.flow.generic.casting.ValueConversions._" },
+      "default": { "code": "Method.Get", "reference": "utopia.access.model.enumeration.Method" },
+      "sql_default": "'GET'",
+      "prop_name": "method",
+      "index": true
+    }
+  },
+  "classes": {
+    "schema": "schema",
+    "api": "api",
+    "auth": "auth"
+  }
+}

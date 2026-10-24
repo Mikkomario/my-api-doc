@@ -1,0 +1,126 @@
+[
+  {
+    "name": "ModelSchema",
+    "access": "model",
+    "doc": "Defines properties in an input or output model / JSON object.",
+    "combo": {
+      "name": "CompleteModelSchema",
+      "children": "PropertySchema",
+      "is_always_linked": true,
+      "parent_alias": "model",
+      "child_alias": "property",
+      "children_alias": "properties",
+      "doc": "Includes the declared properties in a model schema."
+    },
+    "props": [
+      {
+        "ref": "api",
+        "doc": "ID of the API this model type belongs to.",
+        "with": "inApi"
+      },
+      {
+        "name": "name",
+        "type": "String(64-255)",
+        "index": true,
+        "doc": "Name of this model type (/class). Empty if unnamed. \nNamed model types are often referenced from multiple sources, while unnamed types are typically single-use.",
+        "with": "named",
+        "in": "withNames"
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "Description of this model type's role / function."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  },
+  {
+    "name": "PropertySchema",
+    "access": "prop",
+    "doc": "Defines an individual property in a model schema.",
+    "stored": true,
+    "has_combos": true,
+    "props": [
+      {
+        "name": "modelTypeId",
+        "ref": "ModelSchema",
+        "with": "ofModelType",
+        "doc": "ID of the model type that this property belongs to."
+      },
+      {
+        "name": "name",
+        "type": "String(64-255)",
+        "index": true,
+        "doc": "Name of this property, as it should appear in the input or output model / JSON object."
+      },
+      {
+        "name": "dataType",
+        "type": "Enum[PropertyType]",
+        "doc": "This property's expected value type."
+      },
+      {
+        "name": "contentTypeId",
+        "ref": "ModelSchema",
+        "type": "Option[Int]",
+        "with": "containingModelOfType",
+        "in": "containingModelsOfType",
+        "doc": "If this property contains a model/object, this is the ID of the contained model's type. \nNone if this property uses some other data type."
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "A description of this property's role/function."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      },
+      {
+        "name": "isArray",
+        "name_plural": "areArrays",
+        "type": "Boolean",
+        "default": false,
+        "doc": "Whether this property is an array of values. False if this property contains a single value."
+      },
+      {
+        "name": "isOptional",
+        "name_plural": "areOptional",
+        "type": "Boolean",
+        "default": false,
+        "doc": "Whether this property may be omitted from the input and/or output."
+      }
+    ]
+  },
+  {
+    "name": "AlternativePropertyType",
+    "access": "prop.types",
+    "doc": "Defines an alternative supported data type for a property.",
+    "props": [
+      {
+        "name": "propId",
+        "ref": "property_schema",
+        "with": "ofProperty",
+        "in": "ofProperties",
+        "doc": "ID of the property that has this alternative type"
+      },
+      {
+        "name": "altType",
+        "type": "Enum[PropertyType]",
+        "doc": "Alternative data type supported by the linked property"
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  }
+]

@@ -1,0 +1,63 @@
+[
+  {
+    "name": "AuthTokenType",
+    "access": "token",
+    "doc": "Represents some (custom) token type used by the documented API.",
+    "props": [
+      {
+        "ref": "api",
+        "with": "forApi",
+        "doc": "ID of the API where this token type is used."
+      },
+      {
+        "name": "name",
+        "type": "NonEmptyString(48-255)",
+        "doc": "(Human-readable) name of this token type"
+      },
+      {
+        "name": "nameNoSpaces",
+        "name_plural": "namesWithoutSpaces",
+        "type": "NonEmptyString(48-255)",
+        "index": true,
+        "doc": "A lowercase copy of this token's name with all whitespaces removed. Used for indexing and search.",
+        "with": "withNameMatching",
+        "in": "withNameMatchingAnyOf"
+      },
+      {
+        "name": "useType",
+        "type": "Enum[TokenUseType]",
+        "doc": "Determines how this token is applied."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  },
+  {
+    "name": "Scope",
+    "doc": "Represents an authorization scope in the documented API.",
+    "props": [
+      {
+        "ref": "api",
+        "with": "forApi",
+        "doc": "ID of the API where this scope is used."
+      },
+      {
+        "name": "name",
+        "type": "NonEmptyString(48-255)",
+        "index": true,
+        "with": "withName",
+        "doc": "Name / identifier of this scope."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
+  }
+]
