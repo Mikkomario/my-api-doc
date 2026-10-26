@@ -90,23 +90,6 @@ CREATE TABLE `api_node_method_implementation`(
 	CONSTRAINT anmi_an_node_ref_fk FOREIGN KEY anmi_an_node_ref_idx (node_id) REFERENCES `api_node`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
--- Applies a specific schema to the path parameters received by an API node.
--- node_id:          ID of the API node that accepts these parameters.
--- model_type_id:    ID of the model type that describes the received path parameters.
--- created:          Time when this path parameters schema link was added to the database
--- deprecated_after: Time when this path parameters schema link became deprecated. None while this path parameters schema link is still valid.
-CREATE TABLE `path_parameters_schema_link`(
-	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
-	`node_id` INT NOT NULL, 
-	`model_type_id` INT NOT NULL, 
-	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-	`deprecated_after` DATETIME, 
-	INDEX ppsl_created_idx (`created`), 
-	INDEX ppsl_deprecated_after_idx (`deprecated_after`), 
-	CONSTRAINT ppsl_an_node_ref_fk FOREIGN KEY ppsl_an_node_ref_idx (node_id) REFERENCES `api_node`(`id`) ON DELETE CASCADE, 
-	CONSTRAINT ppsl_mt_model_type_ref_fk FOREIGN KEY ppsl_mt_model_type_ref_idx (model_type_id) REFERENCES `model_type`(`id`) ON DELETE CASCADE
-)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
-
 -- Defines a possible response status for an API node method call.
 -- implementation_id: ID of the implementation that may return this response status.
 -- status_code:       HTTP status code that may be returned by the API node method call.
@@ -311,6 +294,23 @@ CREATE TABLE `node_auth_type_link`(
 	INDEX natl_deprecated_after_idx (`deprecated_after`), 
 	CONSTRAINT natl_an_node_ref_fk FOREIGN KEY natl_an_node_ref_idx (node_id) REFERENCES `api_node`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT natl_att_auth_type_ref_fk FOREIGN KEY natl_att_auth_type_ref_idx (auth_type_id) REFERENCES `auth_token_type`(`id`) ON DELETE CASCADE
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+-- Applies a specific schema to the path parameters received by an API node.
+-- node_id:          ID of the API node that accepts these parameters.
+-- model_type_id:    ID of the model type that describes the received path parameters.
+-- created:          Time when this path parameters schema link was added to the database
+-- deprecated_after: Time when this path parameters schema link became deprecated. None while this path parameters schema link is still valid.
+CREATE TABLE `path_parameters_schema_link`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`node_id` INT NOT NULL, 
+	`model_type_id` INT NOT NULL, 
+	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	`deprecated_after` DATETIME, 
+	INDEX ppsl_created_idx (`created`), 
+	INDEX ppsl_deprecated_after_idx (`deprecated_after`), 
+	CONSTRAINT ppsl_an_node_ref_fk FOREIGN KEY ppsl_an_node_ref_idx (node_id) REFERENCES `api_node`(`id`) ON DELETE CASCADE, 
+	CONSTRAINT ppsl_ms_model_type_ref_fk FOREIGN KEY ppsl_ms_model_type_ref_idx (model_type_id) REFERENCES `model_schema`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
 -- Applies a specific schema to the query parameters accepted by an API node.

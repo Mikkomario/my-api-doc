@@ -1,6 +1,6 @@
 # My Api Doc
 Version: **v0.1**  
-Updated: 2026-10-15
+Updated: 2026-10-26
 
 ## Table of Contents
 - [Enumerations](#enumerations)
@@ -8,9 +8,13 @@ Updated: 2026-10-15
   - [Token Use Type](#token-use-type)
 - [Packages & Classes](#packages-and-classes)
   - [Api](#api)
+    - [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement)
+    - [Api](#api)
     - [Api Node](#api-node)
     - [Api Node Group](#api-node-group)
     - [Api Node Method Implementation](#api-node-method-implementation)
+    - [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link)
+    - [Node Auth Link](#node-auth-link)
     - [Node Auth Scope Link](#node-auth-scope-link)
     - [Node Auth Type Link](#node-auth-type-link)
     - [Path Parameters Schema Link](#path-parameters-schema-link)
@@ -24,6 +28,7 @@ Updated: 2026-10-15
   - [Schema](#schema)
     - [Alternative Property Type](#alternative-property-type)
     - [Model Schema](#model-schema)
+    - [Possible Property Value](#possible-property-value)
     - [Property Schema](#property-schema)
 
 ## Enumerations
@@ -35,14 +40,15 @@ An enumeration for different data types in input and output models
 Key: `id: Int`  
 
 **Values:**
-- **String Prop** (1)
-- **Int Prop** (2)
-- **Decimal Prop** (3) - A property type for decimal numbers: Double and Float.
-- **Long Prop** (4)
-- **Boolean Prop** (5) - A boolean property type. Transmitted in JSON as `true` or `false`.
-- **Instant Prop** (6) - A timestamp property type. Transmitted in JSON as ISO 8601 strings.
-- **Duration Prop** (7) - A property for representing durations. Transmitted in JSON by coupling amount and unit, e.g. "48 seconds" or "2min"
-- **Model Prop** (8) - A JSON object type. Usually coupled with a model type reference.
+- **Any Prop** (1) - An undefined property type. Used when the type is not known or doesn't match any other type.
+- **String Prop** (2)
+- **Int Prop** (3)
+- **Decimal Prop** (4) - A property type for decimal numbers: Double and Float.
+- **Long Prop** (5)
+- **Boolean Prop** (6) - A boolean property type. Transmitted in JSON as `true` or `false`.
+- **Instant Prop** (7) - A timestamp property type. Transmitted in JSON as ISO 8601 strings.
+- **Duration Prop** (8) - A property for representing durations. Transmitted in JSON by coupling amount and unit, e.g. "48 seconds" or "2min"
+- **Model Prop** (9) - A JSON object type. Usually coupled with a model type reference.
 
 Utilized by the following 2 classes:
 - [Alternative Property Type](#alternative-property-type)
@@ -62,19 +68,50 @@ Utilized by the following 1 classes:
 
 ## Packages and Classes
 Below are listed all classes introduced in My Api Doc, grouped by package and in alphabetical order.  
-There are a total number of 3 packages and 15 classes
+There are a total number of 3 packages and 20 classes
 
 ### Api
-This package contains the following 10 classes: [Api Node](#api-node), [Api Node Group](#api-node-group), [Api Node Method Implementation](#api-node-method-implementation), [Node Auth Scope Link](#node-auth-scope-link), [Node Auth Type Link](#node-auth-type-link), [Path Parameters Schema Link](#path-parameters-schema-link), [Possible Response Status](#possible-response-status), [Query Parameters Schema Link](#query-parameters-schema-link), [Request Body Schema](#request-body-schema), [Response Content Type](#response-content-type)
+This package contains the following 14 classes: [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement), [Api](#api), [Api Node](#api-node), [Api Node Group](#api-node-group), [Api Node Method Implementation](#api-node-method-implementation), [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link), [Node Auth Link](#node-auth-link), [Node Auth Scope Link](#node-auth-scope-link), [Node Auth Type Link](#node-auth-type-link), [Path Parameters Schema Link](#path-parameters-schema-link), [Possible Response Status](#possible-response-status), [Query Parameters Schema Link](#query-parameters-schema-link), [Request Body Schema](#request-body-schema), [Response Content Type](#response-content-type)
+
+#### Additional Node Auth Scope Requirement
+Links an additional required scope to an auth-scope link
+
+##### Details
+
+##### Properties
+Additional Node Auth Scope Requirement contains the following 2 properties:
+- **Scope Link Id** - `scopeLinkId: Int` - ID of the auth-scope link that requires the additional scope
+  - Refers to [Node Auth Scope Link](#node-auth-scope-link)
+- **Scope Id** - `scopeId: Int` - ID of the additional authorization scope required by the node.
+  - Refers to [Scope](#scope)
+
+#### Api
+Represents a documented API
+
+##### Details
+- **Chronologically** indexed
+- Uses 2 database **indices**: `name`, `created`
+
+##### Properties
+Api contains the following 2 properties:
+- **Name** - `name: String` - (Human readable) name of this API
+- **Created** - `created: Instant` - Time when this api was added to the database
+
+##### Referenced from
+- [Api Node Group](#api-node-group).`apiId`
+- [Auth Token Type](#auth-token-type).`apiId`
+- [Model Schema](#model-schema).`apiId`
+- [Scope](#scope).`apiId`
 
 #### Api Node
 Represents an individual API node implementation
 
 ##### Details
-- Uses 2 database **indices**: `name_no_spaces`, `relative_path`
+- Fully **versioned**
+- Uses 4 database **indices**: `name_no_spaces`, `relative_path`, `created`, `deprecated_after`
 
 ##### Properties
-Api Node contains the following 6 properties:
+Api Node contains the following 8 properties:
 - **Group Id** - `groupId: Int` - ID of the node group this node belongs to
   - Refers to [Api Node Group](#api-node-group)
 - **Name** - `name: String` - Human-readable name of this node
@@ -85,10 +122,13 @@ May contain path parameters.
 None if no parent node appears between this node and the API root.
   - Refers to [Api Node](#api-node)
 - **Description** - `description: String` - A description of this API node.
+- **Created** - `created: Instant` - Time when this api node was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node became deprecated. None while this api node is still valid.
 
 ##### Referenced from
 - [Api Node](#api-node).`parentId`
 - [Api Node Method Implementation](#api-node-method-implementation).`nodeId`
+- [Node Auth Link](#node-auth-link).`nodeId`
 - [Node Auth Scope Link](#node-auth-scope-link).`nodeId`
 - [Node Auth Type Link](#node-auth-type-link).`nodeId`
 - [Path Parameters Schema Link](#path-parameters-schema-link).`nodeId`
@@ -97,12 +137,18 @@ None if no parent node appears between this node and the API root.
 Defines a group of API nodes
 
 ##### Details
-- Uses **index**: `name`
+- Combines with multiple [Api Nodes](#api-node), creating a **Complete Api Node Group**
+- Fully **versioned**
+- Uses 3 database **indices**: `name`, `created`, `deprecated_after`
 
 ##### Properties
-Api Node Group contains the following 2 properties:
+Api Node Group contains the following 5 properties:
+- **Api Id** - `apiId: Int` - ID of the API this node group belongs to
+  - Refers to [Api](#api)
 - **Name** - `name: String` - (Human readable) name of this node group
 - **Description** - `description: String` - Description of this group's function or theme
+- **Created** - `created: Instant` - Time when this api node group was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node group became deprecated. None while this api node group is still valid.
 
 ##### Referenced from
 - [Api Node](#api-node).`groupId`
@@ -111,76 +157,134 @@ Api Node Group contains the following 2 properties:
 Describes how a specific HTTP method is implemented in an API node.
 
 ##### Details
-- Uses **index**: `method_id`
+- Fully **versioned**
+- Uses 3 database **indices**: `method`, `created`, `deprecated_after`
 
 ##### Properties
-Api Node Method Implementation contains the following 3 properties:
+Api Node Method Implementation contains the following 6 properties:
 - **Node Id** - `nodeId: Int` - ID of the API node that contains this implementation.
   - Refers to [Api Node](#api-node)
 - **Method** - `method: Method` - The implemented method.
 - **Description** - `description: String` - A description of this implementation.
+- **Created** - `created: Instant` - Time when this api node method implementation was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node method implementation became deprecated. None while this api node method implementation is still valid.
+- **Requires Request Body** - `requiresRequestBody: Boolean` - Whether a request body is required for this implementation.
 
 ##### Referenced from
+- [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link).`implementationId`
 - [Possible Response Status](#possible-response-status).`implementationId`
 - [Query Parameters Schema Link](#query-parameters-schema-link).`implementationId`
 - [Request Body Schema](#request-body-schema).`implementationId`
+
+#### Api Node Method Implementation Model Schema Link
+Links a model schema to to an API node's method implementation.
+
+##### Details
+- Fully **versioned**
+- Uses 2 database **indices**: `created`, `deprecated_after`
+
+##### Properties
+Api Node Method Implementation Model Schema Link contains the following 4 properties:
+- **Implementation Id** - `implementationId: Int` - ID of the method implementation that uses the linked schema.
+  - Refers to [Api Node Method Implementation](#api-node-method-implementation)
+- **Model Type Id** - `modelTypeId: Int` - ID of the schema that defines the type of model accepted by the linked implementation.
+  - Refers to [Model Schema](#model-schema)
+- **Created** - `created: Instant` - Time when this api node method implementation model schema link was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node method implementation model schema link became deprecated. None while this api node method implementation model schema link is still valid.
+
+#### Node Auth Link
+Common trait for links between API nodes and possible authorization requirements
+
+##### Details
+- Fully **versioned**
+- Uses 4 database **indices**: `auth_id`, `method`, `created`, `deprecated_after`
+
+##### Properties
+Node Auth Link contains the following 6 properties:
+- **Node Id** - `nodeId: Int` - ID of the node that accepts the linked authorization method.
+  - Refers to [Api Node](#api-node)
+- **Auth Id** - `authId: Int` - ID of the authorization element accepted by the linked node.
+- **Method** - `method: Option[Method]` - The HTTP method that the linked authorization method is used for. 
+None if the authorization method is used as a default for all methods (where not overridden).
+- **Description** - `description: String` - A description concerning this authorization method's function in the linked node.
+- **Created** - `created: Instant` - Time when this node auth link was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this node auth link became deprecated. None while this node auth link is still valid.
 
 #### Node Auth Scope Link
 Describes an authorization scope required by an API node. 
 If multiple scopes are linked, they typically represent alternative auth scopes, usually for different purposes.
 
 ##### Details
-- Uses **index**: `method_id`
+- Fully **versioned**
+- Uses 4 database **indices**: `scope_id`, `method`, `created`, `deprecated_after`
 
 ##### Properties
-Node Auth Scope Link contains the following 4 properties:
-- **Node Id** - `nodeId: Int` - ID of the node that requires the linked authorization scope.
+Node Auth Scope Link contains the following 6 properties:
+- **Node Id** - `nodeId: Int` - ID of the node that accepts the linked authorization method.
   - Refers to [Api Node](#api-node)
 - **Scope Id** - `scopeId: Int` - ID of the authorization scope required by the linked node.
   - Refers to [Scope](#scope)
-- **Method** - `method: Option[Method]` - Method for which the linked authorization scope is required. None if the scope is required for all methods.
-- **Also Required Id** - `alsoRequiredId: Option[Int]` - ID of another scope link that must also be met. None if no additional scopes are required.
-  - Refers to [Node Auth Scope Link](#node-auth-scope-link)
+- **Method** - `method: Option[Method]` - The HTTP method that the linked authorization method is used for. 
+None if the authorization method is used as a default for all methods (where not overridden).
+- **Description** - `description: String` - A description concerning this authorization method's function in the linked node.
+- **Created** - `created: Instant` - Time when this node auth link was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this node auth link became deprecated. None while this node auth link is still valid.
 
 ##### Referenced from
-- [Node Auth Scope Link](#node-auth-scope-link).`alsoRequiredId`
+- [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement).`scopeLinkId`
 
 #### Node Auth Type Link
+Describes an authorization type accepted by an API node.
 
 ##### Details
+- Fully **versioned**
+- Uses 4 database **indices**: `auth_type_id`, `method`, `created`, `deprecated_after`
 
 ##### Properties
-Node Auth Type Link contains the following 2 properties:
+Node Auth Type Link contains the following 6 properties:
 - **Node Id** - `nodeId: Int` - ID of the node that accepts the linked authorization method.
   - Refers to [Api Node](#api-node)
 - **Auth Type Id** - `authTypeId: Int` - ID of the authorization type accepted by the linked node.
   - Refers to [Auth Token Type](#auth-token-type)
+- **Method** - `method: Option[Method]` - The HTTP method that the linked authorization method is used for. 
+None if the authorization method is used as a default for all methods (where not overridden).
+- **Description** - `description: String` - A description concerning this authorization method's function in the linked node.
+- **Created** - `created: Instant` - Time when this node auth link was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this node auth link became deprecated. None while this node auth link is still valid.
 
 #### Path Parameters Schema Link
 Applies a specific schema to the path parameters received by an API node.
 
 ##### Details
+- Fully **versioned**
+- Uses 2 database **indices**: `created`, `deprecated_after`
 
 ##### Properties
-Path Parameters Schema Link contains the following 2 properties:
+Path Parameters Schema Link contains the following 4 properties:
 - **Node Id** - `nodeId: Int` - ID of the API node that accepts these parameters.
   - Refers to [Api Node](#api-node)
 - **Model Type Id** - `modelTypeId: Int` - ID of the model type that describes the received path parameters.
-  - Refers to *model_type* from another module
+  - Refers to [Model Schema](#model-schema)
+- **Created** - `created: Instant` - Time when this path parameters schema link was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this path parameters schema link became deprecated. None while this path parameters schema link is still valid.
 
 #### Possible Response Status
 Defines a possible response status for an API node method call.
 
 ##### Details
-- Combines with [Response Content Type](#response-content-type), creating a **Possible Response**
-- Uses **index**: `status_code`
+- May combine with [Response Content Type](#response-content-type), creating a **Possible Response**
+- Fully **versioned**
+- Uses 3 database **indices**: `status_code`, `created`, `deprecated_after`
 
 ##### Properties
-Possible Response Status contains the following 3 properties:
+Possible Response Status contains the following 6 properties:
 - **Implementation Id** - `implementationId: Int` - ID of the implementation that may return this response status.
   - Refers to [Api Node Method Implementation](#api-node-method-implementation)
 - **Status Code** - `statusCode: Int` - HTTP status code that may be returned by the API node method call.
 - **Description** - `description: String` - Description of what this status signifies.
+- **Created** - `created: Instant` - Time when this possible response status was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this possible response status became deprecated. None while this possible response status is still valid.
+- **Has Body** - `hasBody: UncertainBoolean` - Whether a response body is returned with this status. Uncertain if not specified in the documentation.
 
 ##### Referenced from
 - [Response Content Type](#response-content-type).`statusId`
@@ -189,41 +293,54 @@ Possible Response Status contains the following 3 properties:
 Applies a specific schema to the query parameters accepted by an API node.
 
 ##### Details
+- Fully **versioned**
+- Uses 2 database **indices**: `created`, `deprecated_after`
 
 ##### Properties
-Query Parameters Schema Link contains the following 2 properties:
+Query Parameters Schema Link contains the following 4 properties:
 - **Implementation Id** - `implementationId: Int` - ID of the method implementation that uses the linked schema.
   - Refers to [Api Node Method Implementation](#api-node-method-implementation)
-- **Model Type Id** - `modelTypeId: Int` - ID of the schema that defines the query parameters accepted by the linked implementation.
+- **Model Type Id** - `modelTypeId: Int` - ID of the schema that defines the type of model accepted by the linked implementation.
   - Refers to [Model Schema](#model-schema)
+- **Created** - `created: Instant` - Time when this api node method implementation model schema link was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node method implementation model schema link became deprecated. None while this api node method implementation model schema link is still valid.
 
 #### Request Body Schema
 Applies a specific schema to the request body accepted by an API node. 
 Multiple alternative schemas may be defined separately.
 
 ##### Details
+- Fully **versioned**
+- Uses 2 database **indices**: `created`, `deprecated_after`
 
 ##### Properties
-Request Body Schema contains the following 4 properties:
-- **Implementation Id** - `implementationId: Int` - ID of the method implementation that expects this type of request body.
+Request Body Schema contains the following 7 properties:
+- **Implementation Id** - `implementationId: Int` - ID of the method implementation that uses the linked schema.
   - Refers to [Api Node Method Implementation](#api-node-method-implementation)
-- **Model Type Id** - `modelTypeId: Int` - ID of the schema that defines the request body accepted by the linked implementation.
+- **Model Type Id** - `modelTypeId: Int` - ID of the schema that defines the type of model accepted by the linked implementation.
   - Refers to [Model Schema](#model-schema)
-- **Custom Content Type** - `customContentType: String` - Non-standard content type expected from the request body.
+- **Created** - `created: Instant` - Time when this api node method implementation model schema link was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node method implementation model schema link became deprecated. None while this api node method implementation model schema link is still valid.
+- **Custom Content Type** - `customContentType: String` - Non-standard content type expected from the request body, if applicable.
+- **Description** - `description: String` - Description of the expected request body.
 - **Is Array** - `isArray: Boolean` - Whether a JSON array is expected.
 
 #### Response Content Type
 Defines how an API node's response body is formed.
 
 ##### Details
+- Fully **versioned**
+- Uses 2 database **indices**: `created`, `deprecated_after`
 
 ##### Properties
-Response Content Type contains the following 5 properties:
+Response Content Type contains the following 7 properties:
 - **Status Id** - `statusId: Int` - ID of the status this type of response body is returned with.
   - Refers to [Possible Response Status](#possible-response-status)
 - **Content Type** - `contentType: Option[PropertyType]` - If this body is non-empty, specifies the type of content it contains.
 - **Model Type Id** - `modelTypeId: Option[Int]` - If this body contains a JSON object or objects, contains the ID of the model schema that describes the applicable object structure.
   - Refers to [Model Schema](#model-schema)
+- **Created** - `created: Instant` - Time when this response content type was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this response content type became deprecated. None while this response content type is still valid.
 - **Is Array** - `isArray: Boolean` - Whether this response body contains an array of values. False if no more than one value may be returned.
 - **Is Empty** - `isEmpty: Boolean` - Whether this response body is empty / no response body is returned.
 
@@ -234,13 +351,18 @@ This package contains the following 2 classes: [Auth Token Type](#auth-token-typ
 Represents some (custom) token type used by the documented API.
 
 ##### Details
-- Uses **index**: `name_no_spaces`
+- Fully **versioned**
+- Uses 3 database **indices**: `name_no_spaces`, `created`, `deprecated_after`
 
 ##### Properties
-Auth Token Type contains the following 3 properties:
+Auth Token Type contains the following 6 properties:
+- **Api Id** - `apiId: Int` - ID of the API where this token type is used.
+  - Refers to [Api](#api)
 - **Name** - `name: String` - (Human-readable) name of this token type
 - **Name No Spaces** - `nameNoSpaces: String` - A lowercase copy of this token's name with all whitespaces removed. Used for indexing and search.
 - **Use Type** - `useType: TokenUseType` - Determines how this token is applied.
+- **Created** - `created: Instant` - Time when this auth token type was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this auth token type became deprecated. None while this auth token type is still valid.
 
 ##### Referenced from
 - [Node Auth Type Link](#node-auth-type-link).`authTypeId`
@@ -249,57 +371,91 @@ Auth Token Type contains the following 3 properties:
 Represents an authorization scope in the documented API.
 
 ##### Details
-- Uses **index**: `name`
+- Fully **versioned**
+- Uses 3 database **indices**: `name`, `created`, `deprecated_after`
 
 ##### Properties
-Scope contains the following 1 properties:
+Scope contains the following 4 properties:
+- **Api Id** - `apiId: Int` - ID of the API where this scope is used.
+  - Refers to [Api](#api)
 - **Name** - `name: String` - Name / identifier of this scope.
+- **Created** - `created: Instant` - Time when this scope was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this scope became deprecated. None while this scope is still valid.
 
 ##### Referenced from
+- [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement).`scopeId`
 - [Node Auth Scope Link](#node-auth-scope-link).`scopeId`
 
 ### Schema
-This package contains the following 3 classes: [Alternative Property Type](#alternative-property-type), [Model Schema](#model-schema), [Property Schema](#property-schema)
+This package contains the following 4 classes: [Alternative Property Type](#alternative-property-type), [Model Schema](#model-schema), [Possible Property Value](#possible-property-value), [Property Schema](#property-schema)
 
 #### Alternative Property Type
 Defines an alternative supported data type for a property.
 
 ##### Details
+- Fully **versioned**
+- Uses 2 database **indices**: `created`, `deprecated_after`
 
 ##### Properties
-Alternative Property Type contains the following 2 properties:
+Alternative Property Type contains the following 4 properties:
 - **Prop Id** - `propId: Int` - ID of the property that has this alternative type
   - Refers to [Property Schema](#property-schema)
 - **Alt Type** - `altType: PropertyType` - Alternative data type supported by the linked property
+- **Created** - `created: Instant` - Time when this alternative property type was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this alternative property type became deprecated. None while this alternative property type is still valid.
 
 #### Model Schema
 Defines properties in an input or output model / JSON object.
 
 ##### Details
 - Combines with multiple [Property Schemas](#property-schema), creating a **Complete Model Schema**
-- Uses **index**: `name`
+- Fully **versioned**
+- Uses 3 database **indices**: `name`, `created`, `deprecated_after`
 
 ##### Properties
-Model Schema contains the following 2 properties:
+Model Schema contains the following 5 properties:
+- **Api Id** - `apiId: Int` - ID of the API this model type belongs to.
+  - Refers to [Api](#api)
 - **Name** - `name: String` - Name of this model type (/class). Empty if unnamed. 
 Named model types are often referenced from multiple sources, while unnamed types are typically single-use.
 - **Description** - `description: String` - Description of this model type's role / function.
+- **Created** - `created: Instant` - Time when this model schema was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this model schema became deprecated. None while this model schema is still valid.
 
 ##### Referenced from
+- [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link).`modelTypeId`
+- [Path Parameters Schema Link](#path-parameters-schema-link).`modelTypeId`
 - [Property Schema](#property-schema).`modelTypeId`
 - [Property Schema](#property-schema).`contentTypeId`
 - [Query Parameters Schema Link](#query-parameters-schema-link).`modelTypeId`
 - [Request Body Schema](#request-body-schema).`modelTypeId`
 - [Response Content Type](#response-content-type).`modelTypeId`
 
+#### Possible Property Value
+Defines a possible value for an enum property
+
+##### Details
+- Fully **versioned**
+- Uses 2 database **indices**: `created`, `deprecated_after`
+
+##### Properties
+Possible Property Value contains the following 5 properties:
+- **Prop Id** - `propId: Int` - ID of the property that this value may be assigned to
+  - Refers to [Property Schema](#property-schema)
+- **Value** - `value: String` - The value the linked property may have
+- **Description** - `description: String` - Description of this value's role / function
+- **Created** - `created: Instant` - Time when this possible property value was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this possible property value became deprecated. None while this possible property value is still valid.
+
 #### Property Schema
 Defines an individual property in a model schema.
 
 ##### Details
-- Uses **index**: `name`
+- Fully **versioned**
+- Uses 3 database **indices**: `name`, `created`, `deprecated_after`
 
 ##### Properties
-Property Schema contains the following 7 properties:
+Property Schema contains the following 9 properties:
 - **Model Type Id** - `modelTypeId: Int` - ID of the model type that this property belongs to.
   - Refers to [Model Schema](#model-schema)
 - **Name** - `name: String` - Name of this property, as it should appear in the input or output model / JSON object.
@@ -308,8 +464,11 @@ Property Schema contains the following 7 properties:
 None if this property uses some other data type.
   - Refers to [Model Schema](#model-schema)
 - **Description** - `description: String` - A description of this property's role/function.
+- **Created** - `created: Instant` - Time when this property schema was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this property schema became deprecated. None while this property schema is still valid.
 - **Is Array** - `isArray: Boolean`, `false` by default - Whether this property is an array of values. False if this property contains a single value.
 - **Is Optional** - `isOptional: Boolean`, `false` by default - Whether this property may be omitted from the input and/or output.
 
 ##### Referenced from
 - [Alternative Property Type](#alternative-property-type).`propId`
+- [Possible Property Value](#possible-property-value).`propId`

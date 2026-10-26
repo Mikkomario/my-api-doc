@@ -48,7 +48,7 @@
     "props": [
       {
         "name": "modelTypeId",
-        "ref": "ModelSchema",
+        "ref": "model_schema",
         "with": "ofModelType",
         "doc": "ID of the model type that this property belongs to."
       },
@@ -65,7 +65,7 @@
       },
       {
         "name": "contentTypeId",
-        "ref": "ModelSchema",
+        "ref": "model_schema",
         "type": "Option[Int]",
         "with": "containingModelOfType",
         "in": "containingModelsOfType",
