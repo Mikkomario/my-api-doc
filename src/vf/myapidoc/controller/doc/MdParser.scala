@@ -115,7 +115,7 @@ object MdParser
 					if (lastDefinitionLines.exists { _.nonEmpty })
 						definitionsBuilder += (openDefinition -> lastDefinitionLines.dropRightWhile { _.isEmpty })
 					
-					val (key, value) = if (splitIndex >= 0) line.splitAt(splitIndex) else (line, "")
+					val (key, value) = if (splitIndex >= 0) line.take(splitIndex) -> line.drop(splitIndex + 1) else (line, "")
 					openDefinition = key.filter { _.isLetter }.toLowerCase
 					definitionLinesBuilder ++= value.dropWhile { _ == ' ' }.ifNotEmpty
 				}
@@ -160,7 +160,7 @@ object MdParser
 						if (firstChar == ' ' || firstChar == '\t')
 							false
 						else
-							regex.newListItem(line)
+							!regex.newListItem(line)
 					}
 				}
 				// Counts the indentation of each line and checks where new line items are started
@@ -258,7 +258,7 @@ object MdParser
 		if (regex.startsWithListElementMarker(trimmedLine)) {
 			val firstMarkerChar = trimmedLine.head
 			val withoutMarker = {
-				if (firstMarkerChar == ' ')
+				if (firstMarkerChar == '-')
 					trimmedLine.tail.trim
 				else
 					trimmedLine.dropWhile { _.isDigit }.tail.trim
@@ -286,7 +286,7 @@ object MdParser
 	def listToString(list: ValueTree[String], indentation: Int = 0): String = {
 		val base = s"${ "\t" * indentation }- ${ list.value }"
 		if (list.hasChildren)
-			s"$base\n${ list.children.iterator.map { listToString(_, indentation + 1) } }"
+			s"$base\n${ list.children.iterator.map { listToString(_, indentation + 1) }.mkString("\n") }"
 		else
 			base
 	}
