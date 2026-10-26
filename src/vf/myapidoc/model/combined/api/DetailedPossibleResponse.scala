@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Constant
 import vf.myapidoc.model.partial.api.PossibleResponseStatusData
 import vf.myapidoc.model.stored.api.PossibleResponseStatus
 
@@ -18,6 +20,8 @@ case class DetailedPossibleResponse(id: Int, data: PossibleResponseStatusData,
                                     body: Option[DetailedResponseContentType] = None)
 	extends PossibleResponseLike[DetailedResponseContentType, DetailedPossibleResponse]
 {
+	override def toModel = super.toModel + Constant("body", body)
+	
 	override def withId(id: Int): PossibleResponseStatus = copy(id = id)
 	override protected def wrap(factory: PossibleResponseStatusData): DetailedPossibleResponse = copy(data = factory)
 }

@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Model
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.ApiNodeMethodImplementationFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeMethodImplementationData
@@ -31,6 +33,9 @@ case class DetailedApiNodeMethodImplementation(id: Int, data: ApiNodeMethodImple
 	extends ApiNodeMethodImplementation
 		with ApiNodeMethodImplementationFactoryWrapper[ApiNodeMethodImplementationData, DetailedApiNodeMethodImplementation]
 {
+	override def toModel = super.toModel ++ Model.from(
+		"queryParams" -> queryParams, "requestBody" -> requestBodyOptions, "responses" -> responses)
+	
 	override protected def wrap(factory: ApiNodeMethodImplementationData): DetailedApiNodeMethodImplementation =
 		copy(data = factory)
 	override def withId(id: Int): ApiNodeMethodImplementation = copy(id = id)

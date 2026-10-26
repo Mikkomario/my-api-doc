@@ -1,6 +1,8 @@
 package vf.myapidoc.model.combined.schema
 
 import utopia.flow.collection.immutable.Empty
+import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.factory.schema.PropertySchemaFactoryWrapper
 import vf.myapidoc.model.partial.schema.PropertySchemaData
 import vf.myapidoc.model.stored.schema.{AlternativePropertyType, StoredPropertySchema}
@@ -18,6 +20,8 @@ case class DetailedPropertySchema(id: Int, data: PropertySchemaData, contentType
                                   altTypes: Seq[AlternativePropertyType] = Empty)
 	extends StoredPropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, DetailedPropertySchema]
 {
+	override def toModel = super.toModel ++ Model.from("altTypes" -> altTypes, "content" -> contentType)
+	
 	override protected def wrap(factory: PropertySchemaData): DetailedPropertySchema = copy(data = factory)
 	override def withId(id: Int): StoredPropertySchema = copy(id = id)
 }

@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.ApiFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiData
@@ -34,6 +36,8 @@ case class DetailedApi(id: Int, data: ApiData, nodeGroups: Seq[DetailedApiNodeGr
 	
 	
 	// IMPLEMENTED  -----------------------
+	
+	override def toModel = super.toModel ++ Model.from("models" -> models, "nodeGroups" -> nodeGroups)
 	
 	override protected def wrap(factory: ApiData): DetailedApi = copy(data = factory)
 	override def withId(id: Int): Api = copy(id = id)

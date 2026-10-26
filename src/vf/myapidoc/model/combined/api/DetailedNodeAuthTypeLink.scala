@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.model.immutable.Constant
+import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.factory.api.NodeAuthTypeLinkFactoryWrapper
 import vf.myapidoc.model.partial.api.NodeAuthTypeLinkData
 import vf.myapidoc.model.stored.api.{NodeAuthTypeLink, StoredNodeAuthLinkLike}
@@ -61,5 +63,10 @@ trait DetailedNodeAuthTypeLink
 	  * The token that is attached to this link
 	  */
 	def token: AuthTokenType
+	
+	
+	// IMPLEMENTED	--------------------
+
+	override def toModel = super.toModel + Constant("token", token)
 }
 

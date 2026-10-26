@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.model.immutable.Constant
+import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.factory.api.NodeAuthScopeLinkFactoryWrapper
 import vf.myapidoc.model.partial.api.NodeAuthScopeLinkData
 import vf.myapidoc.model.stored.api.{NodeAuthScopeLink, StoredNodeAuthLinkLike}
@@ -23,6 +25,8 @@ case class DetailedNodeAuthScopeLink(id: Int, data: NodeAuthScopeLinkData, scope
 	extends NodeAuthScopeLink with StoredNodeAuthLinkLike[NodeAuthScopeLinkData, DetailedNodeAuthScopeLink]
 		with NodeAuthScopeLinkFactoryWrapper[NodeAuthScopeLinkData, DetailedNodeAuthScopeLink]
 {
+	override def toModel = super.toModel + Constant("scopes", scopes)
+	
 	override def withId(id: Int): DetailedNodeAuthScopeLink = copy(id = id)
 	override protected def wrap(factory: NodeAuthScopeLinkData): DetailedNodeAuthScopeLink = copy(data = factory)
 }

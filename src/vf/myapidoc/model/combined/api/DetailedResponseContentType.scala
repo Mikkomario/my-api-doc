@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Constant
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.ResponseContentTypeFactoryWrapper
 import vf.myapidoc.model.partial.api.ResponseContentTypeData
@@ -21,6 +23,8 @@ case class DetailedResponseContentType(id: Int, data: ResponseContentTypeData,
 	extends ResponseContentType
 		with ResponseContentTypeFactoryWrapper[ResponseContentTypeData, DetailedResponseContentType]
 {
+	override def toModel = super.toModel + Constant("content", modelType)
+	
 	override def withId(id: Int): ResponseContentType = copy(id = id)
 	override protected def wrap(factory: ResponseContentTypeData): DetailedResponseContentType = copy(data = factory)
 }

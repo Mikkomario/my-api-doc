@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Constant
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.RequestBodySchemaFactoryWrapper
 import vf.myapidoc.model.partial.api.RequestBodySchemaData
@@ -21,6 +23,8 @@ case class DetailedRequestBodySchema(id: Int, data: RequestBodySchemaData, model
 		with StoredApiNodeMethodImplementationModelSchemaLinkLike[RequestBodySchemaData, DetailedRequestBodySchema]
 		with RequestBodySchemaFactoryWrapper[RequestBodySchemaData, DetailedRequestBodySchema]
 {
+	override def toModel = super.toModel + Constant("content", modelType)
+	
 	override protected def wrap(factory: RequestBodySchemaData): DetailedRequestBodySchema = copy(data = factory)
 	override def withId(id: Int): DetailedRequestBodySchema = copy(id = id)
 }

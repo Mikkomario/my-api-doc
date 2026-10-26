@@ -1,5 +1,7 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.ApiNodeFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeData
@@ -35,6 +37,12 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 	
 	
 	// IMPLEMENTED  -----------------------
+	
+	override def toModel = super.toModel ++ Model.from(
+		"parent" -> parents.headOption.map { p => Model.from("id" -> p.id, "name" -> p.name) },
+		"absolutePath" -> absolutePath, "directPathParams" -> directPathParams,
+		"directAuth" -> Model.from("tokens" -> definedTokenTypes, "scopes" -> definedScopes),
+		"implementations" -> implementations)
 	
 	override protected def wrap(factory: ApiNodeData): DetailedApiNode = copy(data = factory)
 	override def withId(id: Int): ApiNode = copy(id = id)
