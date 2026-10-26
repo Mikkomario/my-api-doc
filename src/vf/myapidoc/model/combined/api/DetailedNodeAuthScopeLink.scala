@@ -20,9 +20,9 @@ object DetailedNodeAuthScopeLink
  * @since 23.10.2026, v0.1
  */
 case class DetailedNodeAuthScopeLink(id: Int, data: NodeAuthScopeLinkData, scopes: Seq[Scope])
-	extends NodeAuthScopeLink with StoredNodeAuthLinkLike[NodeAuthScopeLinkData, DetailedNodeAuthTypeLink]
-		with NodeAuthScopeLinkFactoryWrapper[NodeAuthScopeLinkData, DetailedNodeAuthTypeLink]
+	extends NodeAuthScopeLink with StoredNodeAuthLinkLike[NodeAuthScopeLinkData, DetailedNodeAuthScopeLink]
+		with NodeAuthScopeLinkFactoryWrapper[NodeAuthScopeLinkData, DetailedNodeAuthScopeLink]
 {
-	override def withId(id: Int): NodeAuthScopeLink = copy(id = id)
-	override protected def wrap(factory: NodeAuthScopeLinkData): NodeAuthScopeLink = copy(data = factory)
+	override def withId(id: Int): DetailedNodeAuthScopeLink = copy(id = id)
+	override protected def wrap(factory: NodeAuthScopeLinkData): DetailedNodeAuthScopeLink = copy(data = factory)
 }
