@@ -174,12 +174,12 @@ object ApiDocDb
 	}
 	
 	/**
-	 * Stores a full API documentation
+	 * Stores full API documentation
 	 * @param name Name of the targeted API
 	 * @param namedModels Named models in the specified API
 	 * @param nodeGroups Node groups in the specified API
 	 * @param connection Implicit DB connection
-	 * @return Named model references that couldn't be resolved
+	 * @return Stored API entry + named model references that couldn't be resolved
 	 */
 	def storeApi(name: String, namedModels: Iterable[NewNamedModel], nodeGroups: Iterable[NewApiNodeGroup])
 	            (implicit connection: Connection) =
@@ -187,7 +187,7 @@ object ApiDocDb
 		// Pulls the existing API documentation
 		val existingVersion = AccessApi.withName(name).pull.map(pullDetailsFor)
 		// If no existing documentation was found, inserts a new API entry
-		val api = existingVersion.getOrElse { ApiDbModel.insert(ApiData(name)) }
+		val api = StoreResult.existingOrInsert[Api](existingVersion) { ApiDbModel.insert(ApiData(name)) }
 		// Stores the named model types
 		val (storedNamedModels, unmatchedModelReferences) = storeApiModels(api.id, namedModels)
 		
@@ -215,7 +215,7 @@ object ApiDocDb
 				}
 		}
 		
-		unmatchedModelReferences
+		api -> unmatchedModelReferences
 	}
 	
 	/**
@@ -242,10 +242,12 @@ object ApiDocDb
 		
 		// Handles model updates
 		val (updatedModels, delayedUpdatedModelPropInserts) = modelMatches.splitMap { case (model, existing) =>
-			updateNamedModel(existing, model, modelNameToId)
+			StoreResult.existed(existing) -> ModelSchemaDb.updateNamed(existing, model, modelNameToId)
 		}
 		// Inserts the new models
-		val (insertedNewModels, delayedNewModelPropInserts) = newModels.splitMap { insertModel(apiId, _, modelNameToId) }
+		val (insertedNewModels, delayedNewModelPropInserts) = newModels.splitMap {
+			ModelSchemaDb.insert(apiId, _, modelNameToId)
+		}
 		
 		// Resolves the delayed property inserts, if at all possible
 		val missingReferences = Pair(delayedUpdatedModelPropInserts, delayedNewModelPropInserts)
@@ -284,7 +286,7 @@ object ApiDocDb
 		implicit val scopes: MapAccess[String, StoreResult[Scope]] = AuthDb.storeApiScopes(apiId,
 			nodeGroups.iterator.flatMap { _.scopeNamesIterator }.toSet)
 		
-		val nodesByGroup = updateMatches(existing.nodeGroups, nodeGroups) {
+		val nodesByGroup = updateExclusiveMatches(existing.nodeGroups, nodeGroups) {
 			_.name.toLowerCase } { _.name.toLowerCase } {
 			// Case: Match => Updates the group name & description, if necessary
 			(existing, group) =>
@@ -364,7 +366,7 @@ object ApiDocDb
 		updateScopeLinks(existing.id, existing.definedScopes, node.allScopes)
 		
 		// Updates the method implementations
-		updateMatches(existing.implementations, node.methodImplementations) { _.method } { _.method } {
+		updateExclusiveMatches(existing.implementations, node.methodImplementations) { _.method } { _.method } {
 			// Case: Matching implementation => Updates the existing implementation
 			(existing, implementation) =>
 				// Updates the direct properties, if needed
@@ -433,7 +435,7 @@ object ApiDocDb
 		else
 			existingParams match {
 				// Case: Updating existing path params => Updates
-				case Some(existingParams) => updateNamelessModel(existingParams, params, modelNameToId)
+				case Some(existingParams) => ModelSchemaDb.updateNameless(existingParams, params, modelNameToId)
 				// Case: Adding new path params => Inserts
 				case None => insertPathParams(apiId, nodeId, params, modelNameToId)
 			}
@@ -441,7 +443,7 @@ object ApiDocDb
 	private def insertPathParams(apiId: Int, nodeId: Int, params: Iterable[NewProperty],
 	                             modelNameToId: Map[String, Int])
 	                            (implicit connection: Connection) =
-		insertModelSchemaUse(apiId, params, modelNameToId) { modelId =>
+		ModelSchemaDb.insertNamelessUseCase(apiId, params, modelNameToId) { modelId =>
 			PathParametersSchemaLinkDbModel.insert(PathParametersSchemaLinkData(nodeId, modelId))
 		}
 	
@@ -451,7 +453,7 @@ object ApiDocDb
 	                                 storedTypes: MapAccess[String, StoreResult[AuthTokenType]]): Unit =
 	{
 		// Matches by targeted method & token type ID
-		updateMatches(
+		updateExclusiveMatches(
 			existingTokenLinks,
 			tokenTypes.iterator.map { case (method, typeName, description) =>
 				(method, storedTypes(typeName).id, description)
@@ -492,7 +494,7 @@ object ApiDocDb
 		//      1. Targeted method
 		//      2. Primary scope ID
 		//      3. Other scope IDs (unordered)
-		updateMatches(existingScopeLinks,
+		updateExclusiveMatches(existingScopeLinks,
 			scopeLinks.iterator.map { case (method, scopes, description) =>
 				val matchedScopes = scopes.map(storedScopes.apply)
 				(method, matchedScopes.head.id, matchedScopes.view.tail.map { _.id }.toSet, description)
@@ -569,7 +571,7 @@ object ApiDocDb
 				}
 				// Case: Updated query params => Updates the existing entries
 				else
-					updateNamelessModel(existing, params, modelNameToId)
+					ModelSchemaDb.updateNameless(existing, params, modelNameToId)
 			
 			case None =>
 				// Case: Added query params => Inserts the new entries
@@ -579,7 +581,7 @@ object ApiDocDb
 	private def insertQueryParams(apiId: Int, implementationId: Int, params: Iterable[NewProperty],
 	                              modelNameToId: Map[String, Int])
 	                             (implicit connection: Connection) =
-		insertModelSchemaUse(apiId, params, modelNameToId) { modelId =>
+		ModelSchemaDb.insertNamelessUseCase(apiId, params, modelNameToId) { modelId =>
 			QueryParametersSchemaLinkDbModel.insert(QueryParametersSchemaLinkData(implementationId, modelId))
 		}
 	
@@ -592,7 +594,7 @@ object ApiDocDb
 		//      1. Referenced named model type ID
 		//      2. Whether an array is received
 		//      3. Custom content type
-		updateMatches(existingOptions,
+		updateExclusiveMatches(existingOptions,
 			bodyOptions.iterator.map { body =>
 				val modelTypeId = body.referencedType.ifNotEmpty.flatMap { n => modelNameToId.get(standardizeRef(n)) }
 				body -> modelTypeId
@@ -607,7 +609,7 @@ object ApiDocDb
 					
 				// Updates the referenced model type
 				if (body.properties.nonEmpty)
-					updateNamelessModel(existing.modelType, body.properties, modelNameToId)
+					ModelSchemaDb.updateNameless(existing.modelType, body.properties, modelNameToId)
 				
 				()
 				
@@ -630,7 +632,8 @@ object ApiDocDb
 			// Case: Named type reference => Attempts to resolve it
 			case Some(typeReference) => modelNameToId.get(standardizeRef(typeReference))
 			// Case: Unnamed model => Inserts a new model schema
-			case None => insertNamelessModelSchema(apiId, body.properties, modelNameToId).map { _.id }
+			case None =>
+				ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id }
 		}
 		// Logs if the model type couldn't be resolved
 		if (schemaId.isEmpty)
@@ -651,7 +654,7 @@ object ApiDocDb
 	                                   (implicit connection: Connection) =
 	{
 		// Matches against existing statuses by using status codes
-		updateMatches(existing, responses) { _.statusCode } { _._1 } {
+		updateExclusiveMatches(existing, responses) { _.statusCode } { _._1 } {
 			// Case: Updating an existing status entry
 			case (existing, (_, body, description, hasBody)) =>
 				// Updates the description & hasBody -properties
@@ -705,7 +708,9 @@ object ApiDocDb
 									ResponseContentTypeDbModel.insert(ResponseContentTypeData(existing.id,
 										contentType = newBodyType.flatMap { _.leftOption },
 										modelTypeId = newBodyType.flatMap { _.rightOption.flatMap { _.orElse {
-											insertNamelessModelSchema(apiId, body.properties, modelNameToId).map { _.id }
+											ModelSchemaDb.insertNameless(apiId, body.properties,
+												modelNameToId)
+												.map { _.id }
 										} } },
 										isArray = body.isArray, isEmpty = body.isEmpty))
 								}
@@ -713,7 +718,7 @@ object ApiDocDb
 								//       if applicable
 								else
 									existingBody.modelType.filter { _.isNameless }.foreach {
-										updateNamelessModel(_, body.properties, modelNameToId)
+										ModelSchemaDb.updateNameless(_, body.properties, modelNameToId)
 									}
 								
 							// Case: Adding a new response body
@@ -762,7 +767,9 @@ object ApiDocDb
 			case Right(modelTypeId) =>
 				modelTypeId
 					// Handles the nameless model type insert, if applicable
-					.orElse { insertNamelessModelSchema(apiId, body.properties, modelNameToId).map { _.id } }
+					.orElse {
+						ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id }
+					}
 					.map { Right(_) }
 		}
 		ResponseContentTypeDbModel.insert(ResponseContentTypeData(statusId,
@@ -799,266 +806,5 @@ object ApiDocDb
 					Some(Right(None))
 		}
 	
-	private def insertModelSchemaUse(apiId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
-	                                (linkUsage: Int => Unit)
-	                                (implicit connection: Connection) =
-	{
-		val result = insertNamelessModelSchema(apiId, params, modelNameToId)
-		// Links the model to the node/implementation
-		result.foreach { schema => linkUsage(schema.id) }
-		
-		result
-	}
-	private def insertNamelessModelSchema(apiId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
-	                                     (implicit connection: Connection) =
-	{
-		// Case: No path parameters to attach
-		if (params.isEmpty)
-			None
-		else {
-			// Inserts a nameless model for these parameters
-			val model = ModelSchemaDbModel.insert(ModelSchemaData(apiId))
-			// Attaches the parameters
-			params.foreach { p =>
-				// TODO: Log if referenced model type can't be resolved
-				insertProperty(model.id, _, referencedModelTypeId = p.referencedType.ifNotEmpty.flatMap { n =>
-					modelNameToId.get(standardizeRef(n))
-				})
-			}
-			Some(model)
-		}
-	}
-	
-	private def updateNamedModel(existing: CompleteModelSchema, model: NewNamedModel,
-	                             modelNameToId: mutable.Map[String, Int])
-	                            (implicit connection: Connection) =
-	{
-		modelNameToId(standardizeRef(model.name)) = existing.id
-		updateModel(existing, model.properties, modelNameToId)
-	}
-	private def updateNamelessModel(existing: CompleteModelSchema, properties: IterableOnce[NewProperty],
-	                                modelNameToId: collection.Map[String, Int])
-	                               (implicit connection: Connection) =
-	{
-		val (stored, delayedInserts) = updateModel(existing, properties, modelNameToId)
-		// Case: Some model type references couldn't be resolved => Logs and inserts without a model reference
-		if (delayedInserts.nonEmpty) {
-			scribe.in("update.model.nameless.unresolvedReferences").recoverable(
-				"Some model references couldn't be resolved", Model.from(
-					"missingModelTypes" -> delayedInserts.map { _._2 }))
-			delayedInserts.foreach { _._3(None) }
-		}
-		stored
-	}
-	private def updateModel(existing: CompleteModelSchema, properties: IterableOnce[NewProperty],
-	                        modelNameToId: collection.Map[String, Int])
-	                       (implicit connection: Connection) =
-	{
-		// Handles the property updates
-		val lazyAlreadyReferencedModelNames = Lazy {
-			AccessModelSchemas(existing.properties.iterator.flatMap { _.contentTypeId }).idToName
-				.view.mapValues(standardizeRef).toMap
-		}
-		val lazyExistingAltTypes = Lazy {
-			AccessAlternativePropertyTypes.active.ofProperties(existing.properties.view.map { _.id })
-				.pullAndGroupBy { _.propId }
-		}
-		
-		val delayedInserts = updateMatches(existing.properties, properties) { _.name } { _.name } { (existing, prop) =>
-			tryUpdateProperty(existing, existingAltTypes = lazyExistingAltTypes.value(existing.id),
-				existingModelTypeReference = existing.contentTypeId match {
-					case Some(referencedTypeId) =>
-						lazyAlreadyReferencedModelNames.value.getOrElse(referencedTypeId, "???")
-					case None => ""
-				},
-				property = prop, modelNameToId = modelNameToId)
-				.leftOption
-		} { AccessPropertySchemas(_).deprecate() } { newProps =>
-			newProps.map { tryInsertProperty(existing.id, _, modelNameToId).leftOption }
-		}.flatten
-		
-		StoreResult.existed(existing) -> delayedInserts
-	}
-	
-	private def insertModel(apiId: Int, model: NewNamedModel, modelNameToId: mutable.Map[String, Int])
-	                       (implicit connection: Connection) =
-	{
-		// Inserts the model schema to the DB
-		val stored = ModelSchemaDbModel.insert(ModelSchemaData(apiId, model.name, model.description))
-		val referenceKey = standardizeRef(model.name)
-		modelNameToId += (referenceKey -> stored.id)
-		
-		// Inserts the properties, where possible
-		val delayedPropInserts = model.properties.flatMap { tryInsertProperty(stored.id, _, modelNameToId).leftOption }
-		
-		StoreResult.inserted(stored) -> delayedPropInserts
-	}
-	
-	private def tryUpdateProperty(existing: StoredPropertySchema,
-	                              existingAltTypes: => Iterable[AlternativePropertyType],
-	                              existingModelTypeReference: => String, property: NewProperty,
-	                              modelNameToId: collection.Map[String, Int])
-	                             (implicit connection: Connection) =
-	{
-		val modelRef = standardizeRef(property.referencedType)
-		
-		// Checks whether a completely new property version should be introduced
-		val shouldReplace = {
-			if (existing.data ~== property) {
-				// Case: No direct conflicts => Checks whether the referenced model ID was changed (if known)
-				if (existingModelTypeReference == modelRef)
-					existing.contentTypeId.exists { existingReferencedModelId =>
-						modelNameToId.get(modelRef).exists { _ != existingReferencedModelId }
-					}
-				// Case: Changed reference name => Replaces
-				else
-					true
-			}
-			// Case: Direct conflict => Replaces
-			else
-				true
-		}
-		// Case: Replacing the existing property version => Deprecates it and inserts a new version
-		if (shouldReplace) {
-			existing.access.deprecate()
-			tryInsertProperty(existing.modelTypeId, property, modelNameToId)
-		}
-		// Case: Referenced model type can't be resolved yet
-		//       => Delays this update, since an ID change may introduce a conflict
-		else if (modelRef.nonEmpty && !modelNameToId.contains(modelRef))
-			Left(modelRef, property.referencedType, { referencedModelTypeId: Option[Int] =>
-				// Case: No conflict => Updates the property
-				if (existing.contentTypeId == referencedModelTypeId)
-					updateProperty(existing, existingAltTypes, property)
-				// Case: Model type ID was updated => Deprecates the old version and inserts a new property
-				else {
-					existing.access.deprecate()
-					insertProperty(existing.modelTypeId, property, referencedModelTypeId)
-				}
-			})
-		// Case: Referenced model type can be resolved => Proceeds to update the property
-		else
-			Right(updateProperty(existing, existingAltTypes, property))
-	}
-	// Assumes that the properties match and don't conflict
-	private def updateProperty(existing: StoredPropertySchema, existingAltTypes: => Iterable[AlternativePropertyType],
-	                            property: NewProperty)
-	                           (implicit connection: Connection) =
-	{
-		// Updates the property description
-		if (existing.description != property.description)
-			existing.access.description.set(property.description)
-		
-		// Checks for alt type updates
-		val newAltTypes = property.dataTypes.drop(1)
-		val _existingAltTypes = existingAltTypes
-		// Deprecates alt types that are no longer applicable
-		AccessAlternativePropertyTypes(
-			_existingAltTypes.iterator.filterNot { t => newAltTypes.contains(t.altType) }.map { _.id })
-			.deprecate()
-		// Inserts new alt types, if applicable
-		AlternativePropertyTypeDbModel.insert(
-			newAltTypes.iterator.filterNot { t => _existingAltTypes.exists { _.altType == t } }
-				.map { t => AlternativePropertyTypeData(existing.id, t) }.toOptimizedSeq)
-		
-		StoreResult.existed(existing)
-	}
-	
-	/**
-	 * Attempts to insert a property to the DB.
-	 * Delays the insert if a model reference cannot be resolved.
-	 * @param modelId ID of the model that contains this property
-	 * @param property Property to insert
-	 * @param modelNameToId A map that maps model type IDs to standardized model type names
-	 * @param connection Implicit DB connection
-	 * @return Yields either:
-	 *         - Right: Stored property
-	 *         - Left: Delayed insert, containing 3 values:
-	 *              1. Missing model type reference (standardized)
-	 *              1. Name of the missing model type, as written in this property
-	 *              1. A function that receives the model type ID and yields the stored property.
-	 *                 Accepts None as a backup, in case the reference can never be resolved.
-	 */
-	private def tryInsertProperty(modelId: Int, property: NewProperty, modelNameToId: collection.Map[String, Int])
-	                             (implicit connection: Connection) =
-	{
-		// Standardizes the referenced type name
-		val ref = standardizeRef(property.referencedType)
-		
-		// Case: Property insert is not yet possible because the reference hasn't been resolved
-		//       => Creates a function for inserting this property once the reference resolves
-		if (ref.nonEmpty && !modelNameToId.contains(ref))
-			Left((ref, property.referencedType,
-				{ referencedTypeId: Option[Int] => insertProperty(modelId, property, referencedTypeId) }))
-		// Case: Property insert is possible => Performs it immediately
-		else
-			Right(insertProperty(modelId, property, ref.ifNotEmpty.map(modelNameToId.apply)))
-	}
-	private def insertProperty(modelId: Int, property: NewProperty, referencedModelTypeId: Option[Int])
-	                           (implicit connection: Connection) =
-	{
-		// Inserts the property to the DB
-		val stored = PropertySchemaDbModel.insert(PropertySchemaData(modelTypeId = modelId, name = property.name,
-			dataType = property.dataTypes.headOption.getOrElse(AnyProp), contentTypeId = referencedModelTypeId,
-			description = property.description, isArray = property.isArray, isOptional = property.isOptional))
-		
-		// Registers the alternative property types, if applicable
-		if (property.dataTypes.hasSize > 1)
-			AlternativePropertyTypeDbModel.insert(
-				property.dataTypes.tail.map { AlternativePropertyTypeData(stored.id, _) })
-		
-		StoreResult.inserted(stored)
-	}
-	
-	private def updateMatches[E <: HasId[Int], N, K, R](existingEntries: IterableOnce[E], newEntries: IterableOnce[N])
-	                                                   (existingToKey: E => K)(newToKey: N => K)
-	                                                   (updateExisting: (E, N) => R)
-	                                                   (deprecateIds: Set[Int] => Unit)
-	                                                   (insertEntries: Seq[N] => IterableOnce[R]) =
-		existingEntries.nonEmptyIterator match {
-			case Some(existingIter) =>
-				newEntries.nonEmptyCollection match {
-					// Case: Both existing and new entries are present => Matches existing and new items
-					case Some(newEntries) =>
-						val resultsBuilder = OptimizedIndexedSeq.newBuilder[R]
-						
-						val existingByKey = existingIter.map { e => existingToKey(e) -> e }.toMap
-						val (entriesToInsert, matchedExistingIds) = newEntries.divideWith { newEntry =>
-							val key = newToKey(newEntry)
-							existingByKey.get(key) match {
-								// Case: Match => Updates the existing item
-								case Some(existing) =>
-									resultsBuilder += updateExisting(existing, newEntry)
-									Right(existing.id)
-									
-									// Case: No match => Prepares an insert
-								case None => Left(newEntry)
-							}
-						}
-						
-						// Deprecates all unmatched existing items
-						NotEmpty(existingByKey.valuesIterator.map { _.id }.toSet -- matchedExistingIds)
-							.foreach(deprecateIds)
-						// Performs the inserts
-						if (entriesToInsert.nonEmpty)
-							resultsBuilder ++= insertEntries(entriesToInsert)
-						
-						resultsBuilder.result()
-						
-					// Case: There are no new entries => Deprecates all existing items
-					case None =>
-						deprecateIds(existingIter.map { _.id }.toSet)
-						Empty
-				}
-			// Case: There are no existing entries => Inserts the new entries, if present
-			case None =>
-				newEntries.nonEmptyCollection match {
-					case Some(newEntries) => insertEntries(newEntries.toOptimizedSeq).toOptimizedSeq
-					case None => Empty
-				}
-		}
-	
 	private def standardizePath(path: String) = path.replaceEachMatchOf(pathParamR, "*").toLowerCase
-	
-	private def standardizeRef(reference: String) = reference.filter { _.isLetter }.toLowerCase
 }

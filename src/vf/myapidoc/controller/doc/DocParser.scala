@@ -420,7 +420,7 @@ object DocParser
 		var array = false
 		val descriptionBuilder = OptimizedIndexedSeq.newBuilder[ValueTree[String]]
 		var children: Seq[NewProperty] = Empty
-		var possibleValues: Map[String, ValueTree[String]] = Map()
+		var possibleValues: Seq[(String, String)] = Empty
 		
 		propInput.children.foreach { detail =>
 			// Checks for key-value syntax
@@ -452,9 +452,11 @@ object DocParser
 						possibleValues = detail.children.iterator
 							.map { possibleValue =>
 								val parts = possibleValue.value.splitAtFirst(":").map { _.trim }
-								parts.first -> possibleValue.withValue(parts.second)
+								val description = Pair(parts.second, listToString(possibleValue.children))
+									.filter { _.nonEmpty }.mkString("\n")
+								parts.first -> description
 							}
-							.toMap
+							.toOptimizedSeq
 					
 				case "properties" | "props" =>
 					if (children.nonEmpty)

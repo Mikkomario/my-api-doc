@@ -80,7 +80,7 @@ object AuthDb
 					else
 						tokenTypeName -> Bearer
 				}
-				Pair(name, standardizeName(name)) -> (useCase: TokenUseType)
+				Pair(name, standardizeRef(name)) -> (useCase: TokenUseType)
 			}
 			.toSet
 		
@@ -98,7 +98,7 @@ object AuthDb
 		}
 		
 		// Yields a map that automatically standardizes the input
-		storedTypes.mapInputView(standardizeName)
+		storedTypes.mapInputView(standardizeRef)
 	}
 	
 	/**
@@ -131,6 +131,5 @@ object AuthDb
 		stored.mapInputView(standardizeScope)
 	}
 	
-	private def standardizeName(name: String) = name.filter { _.isLetter }.toLowerCase
 	private def standardizeScope(scope: String) = scope.filterNot { _ == '`' }.trim.toLowerCase
 }

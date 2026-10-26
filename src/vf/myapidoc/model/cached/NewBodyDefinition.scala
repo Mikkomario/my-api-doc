@@ -2,6 +2,9 @@ package vf.myapidoc.model.cached
 
 import utopia.access.model.ContentType
 import utopia.flow.collection.immutable.Empty
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.operator.MaybeEmpty
 
 object NewBodyDefinition
@@ -26,9 +29,12 @@ object NewBodyDefinition
 case class NewBodyDefinition(properties: Seq[NewProperty] = Empty, referencedType: String = "",
                              contentType: Option[ContentType] = None, details: String = "",
                              isArray: Boolean = false)
-	extends MaybeEmpty[NewBodyDefinition]
+	extends MaybeEmpty[NewBodyDefinition] with ModelConvertible
 {
 	override def self: NewBodyDefinition = this
 	
 	override def isEmpty: Boolean = properties.isEmpty && referencedType.isEmpty
+	
+	override def toModel: Model = Model.from("description" -> details, "contentType" -> contentType.map { _.toString },
+		"array" -> isArray, "references" -> referencedType, "properties" -> properties)
 }

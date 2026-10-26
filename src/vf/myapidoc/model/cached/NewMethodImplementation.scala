@@ -2,6 +2,9 @@ package vf.myapidoc.model.cached
 
 import utopia.access.model.enumeration.Method
 import utopia.flow.collection.immutable.Empty
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.util.UncertainBoolean.{CertainlyFalse, CertainlyTrue}
 import utopia.flow.util.{Mutate, UncertainBoolean}
 
@@ -37,6 +40,7 @@ case class NewMethodImplementation(method: Method, tokenOptions: Seq[(String, St
                                    responseBody: Option[NewBodyDefinition] = None, description: String = "",
                                    responseHasBody: UncertainBoolean = UncertainBoolean,
                                    requestBodyIsOptional: Boolean = false)
+	extends ModelConvertible
 {
 	// COMPUTED -------------------------
 	
@@ -76,6 +80,22 @@ case class NewMethodImplementation(method: Method, tokenOptions: Seq[(String, St
 		else
 			defaultResult
 	}
+	
+	
+	// IMPLEMENTED  ---------------------
+	
+	override def toModel: Model = Model.from("method" -> method.name, "description" -> description,
+		"auth" -> Model.from(
+			"tokens" -> tokenOptions.map { case (tokenType, desc) =>
+				Model.from("type" -> tokenType, "description" -> desc)
+			},
+			"scope" -> scopes.map { case (parts, description) =>
+				Model.from("parts" -> parts, "description" -> description)
+			}),
+		"query" -> queryParams, "requiresRequestBody" -> !requestBodyIsOptional, "requestBody" -> requestBodyOptions,
+		"responses" -> responses.map { case (status, body, description, hasBody) =>
+			Model.from("status" -> status, "description" -> description, "hasBody" -> hasBody, "body" -> body)
+		})
 	
 	
 	// OTHER ----------------------------

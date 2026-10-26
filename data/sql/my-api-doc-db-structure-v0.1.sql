@@ -1,7 +1,7 @@
 -- 
 -- Database structure for my api doc models
 -- Version: v0.1
--- Last generated: 2026-10-22
+-- Last generated: 2026-10-26
 --
 
 CREATE DATABASE IF NOT EXISTS `my_api_doc_db` 
@@ -200,6 +200,24 @@ CREATE TABLE `alternative_property_type`(
 	CONSTRAINT apt_ps_prop_ref_fk FOREIGN KEY apt_ps_prop_ref_idx (prop_id) REFERENCES `property_schema`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
+-- Defines a possible value for an enum property
+-- prop_id:          ID of the property that this value may be assigned to
+-- value:            The value the linked property may have
+-- description:      Description of this value's role / function
+-- created:          Time when this possible property value was added to the database
+-- deprecated_after: Time when this possible property value became deprecated. None while this possible property value is still valid.
+CREATE TABLE `possible_property_value`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`prop_id` INT NOT NULL, 
+	`value` VARCHAR(24) NOT NULL, 
+	`description` VARCHAR(255), 
+	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	`deprecated_after` DATETIME, 
+	INDEX ppv_created_idx (`created`), 
+	INDEX ppv_deprecated_after_idx (`deprecated_after`), 
+	CONSTRAINT ppv_ps_prop_ref_fk FOREIGN KEY ppv_ps_prop_ref_idx (prop_id) REFERENCES `property_schema`(`id`) ON DELETE CASCADE
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
 
 --	Auth	----------
 
@@ -271,7 +289,7 @@ CREATE TABLE `node_auth_scope_link`(
 	CONSTRAINT nasl_s_scope_ref_fk FOREIGN KEY nasl_s_scope_ref_idx (scope_id) REFERENCES `scope`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
--- Common trait for links between API nodes and possible authorization requirements
+-- Describes an authorization type accepted by an API node.
 -- node_id:          ID of the node that accepts the linked authorization method.
 -- auth_type_id:     ID of the authorization type accepted by the linked node.
 -- method:           The HTTP method that the linked authorization method is used for. 

@@ -122,5 +122,35 @@
         "type": "deprecation"
       }
     ]
+  },
+  {
+    "name": "PossiblePropertyValue",
+    "access": "prop.value",
+    "doc": "Defines a possible value for an enum property",
+    "props": [
+      {
+        "name": "propId",
+        "ref": "property_schema",
+        "with": "ofProperty",
+        "in": "ofProperties",
+        "doc": "ID of the property that this value may be assigned to"
+      },
+      {
+        "name": "value",
+        "type": "NonEmptyString(24-128)",
+        "doc": "The value the linked property may have"
+      },
+      {
+        "name": "description",
+        "type": "String(255-2048)",
+        "doc": "Description of this value's role / function"
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      }
+    ]
   }
 ]

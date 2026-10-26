@@ -23,6 +23,10 @@ object MyApiDocTables extends Tables(cPool)
 	  * for a property.)
 	  */
 	lazy val alternativePropertyType = apply("alternative_property_type")
+	/**
+	 * Table that contains possible property values (Defines a possible value for an enum property)
+	 */
+	lazy val possiblePropertyValue = apply("possible_property_value")
 	
 	/**
 	  * Table that contains api nodes (Represents an individual API node implementation)

@@ -2,6 +2,9 @@ package vf.myapidoc.model.cached
 
 import utopia.flow.collection.immutable.Empty
 import utopia.flow.collection.template.MapAccess
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.util.StringExtensions._
 
 /**
@@ -24,7 +27,10 @@ import utopia.flow.util.StringExtensions._
 case class NewApiNode(name: String, path: String, parentName: String = "", pathParams: Seq[NewProperty] = Empty,
                       tokenOptions: Seq[(String, String)] = Empty, scope: Seq[(Seq[String], String)] = Empty,
                       methodImplementations: Seq[NewMethodImplementation] = Empty, description: String = "")
+	extends ModelConvertible
 {
+	// COMPUTED -------------------------
+	
 	def tokenTypeNamesIterator = tokenOptions.iterator.map { _._1 } ++
 		methodImplementations.iterator.flatMap { _.tokenTypeNamesIterator }
 	def scopeNamesIterator = scope.iterator.flatMap { _._1 } ++
@@ -41,6 +47,25 @@ case class NewApiNode(name: String, path: String, parentName: String = "", pathP
 			methodImplementations.view.flatMap { impl =>
 				impl.scopes.view.map { case (scopes, description) => (Some(impl.method), scopes, description) }
 			}
+	
+	
+	// IMPLEMENTED  ---------------------
+	
+	override def toModel: Model = Model.from("name" -> name, "parent" -> parentName,
+		"path" -> Model.from("relative" -> path, "params" -> pathParams),
+		"description" -> description,
+		"auth" -> Model.from(
+			"tokens" -> tokenOptions.map { case (tokenType, description) =>
+				Model.from("type" -> tokenType, "description" -> description)
+			},
+			"scope" -> scope.map { case (parts, description) =>
+				Model.from("parts" -> parts, "description" -> description)
+			},
+		),
+		"implementations" -> methodImplementations)
+	
+	
+	// OTHER    -------------------------
 			
 	def fullPathUsing(nodeByName: MapAccess[String, NewApiNode]): String = parentName.ifNotEmpty match {
 		case Some(parentName) => s"${ nodeByName(parentName).fullPathUsing(nodeByName) }/$path"
