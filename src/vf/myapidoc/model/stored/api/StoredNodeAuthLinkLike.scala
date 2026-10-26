@@ -21,15 +21,10 @@ trait StoredNodeAuthLinkLike[Data <: NodeAuthLinkDataLike[Data], +Repr]
 	// IMPLEMENTED	--------------------
 	
 	override def authId = data.authId
-	
 	override def created = data.created
-	
 	override def deprecatedAfter = data.deprecatedAfter
-	
 	override def description = data.description
-	
 	override def method = data.method
-	
 	override def nodeId = data.nodeId
 	
 	override protected def wrappedFactory = data

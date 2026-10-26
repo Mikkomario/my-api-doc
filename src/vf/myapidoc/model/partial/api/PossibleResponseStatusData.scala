@@ -50,8 +50,7 @@ object PossibleResponseStatusData extends FromModelFactoryWithSchema[PossibleRes
   * @since 22.10.2026, v0.1
   */
 case class PossibleResponseStatusData(implementationId: Int, statusCode: Int, description: String = "", 
-	created: Instant = Now, deprecatedAfter: Option[Instant] = None, 
-	hasBody: UncertainBoolean = UncertainBoolean) 
+	created: Instant = Now, deprecatedAfter: Option[Instant] = None, hasBody: UncertainBoolean = UncertainBoolean)
 	extends PossibleResponseStatusFactory[PossibleResponseStatusData] with ModelConvertible
 {
 	// COMPUTED	--------------------
@@ -60,7 +59,6 @@ case class PossibleResponseStatusData(implementationId: Int, statusCode: Int, de
 	  * Whether this possible response status has already been deprecated
 	  */
 	def isDeprecated = deprecatedAfter.isDefined
-	
 	/**
 	  * Whether this possible response status is still valid (not deprecated)
 	  */
@@ -69,21 +67,15 @@ case class PossibleResponseStatusData(implementationId: Int, statusCode: Int, de
 	
 	// IMPLEMENTED	--------------------
 	
-	override def toModel = 
-		Model(Vector("implementationId" -> implementationId, "statusCode" -> statusCode, 
-			"description" -> description, "created" -> created, "deprecatedAfter" -> deprecatedAfter, 
-			"hasBody" -> hasBody.exact))
+	override def toModel = Model(Vector("implementationId" -> implementationId, "statusCode" -> statusCode,
+		"description" -> description, "created" -> created, "deprecatedAfter" -> deprecatedAfter,
+		"hasBody" -> hasBody.exact))
 	
 	override def withCreated(created: Instant) = copy(created = created)
-	
 	override def withDeprecatedAfter(deprecatedAfter: Instant) = copy(deprecatedAfter = Some(deprecatedAfter))
-	
 	override def withDescription(description: String) = copy(description = description)
-	
 	override def withHasBody(hasBody: UncertainBoolean) = copy(hasBody = hasBody)
-	
 	override def withImplementationId(implementationId: Int) = copy(implementationId = implementationId)
-	
 	override def withStatusCode(statusCode: Int) = copy(statusCode = statusCode)
 }
 

@@ -1,7 +1,9 @@
 package vf.myapidoc.model.combined.api
 
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
+import vf.myapidoc.model.factory.api.ApiFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiData
+import vf.myapidoc.model.stored.api.Api
 
 /**
  * Includes full API documentation
@@ -13,6 +15,7 @@ import vf.myapidoc.model.partial.api.ApiData
  * @since 23.10.2026, v0.1
  */
 case class DetailedApi(id: Int, data: ApiData, nodeGroups: Seq[DetailedApiNodeGroup], models: Seq[DetailedModelSchema])
+	extends Api with ApiFactoryWrapper[ApiData, DetailedApi]
 {
 	// ATTRIBUTES -------------------------
 	
@@ -28,6 +31,12 @@ case class DetailedApi(id: Int, data: ApiData, nodeGroups: Seq[DetailedApiNodeGr
 	 * @return An iterator that yields all nodes in this API
 	 */
 	def nodesIterator = nodeGroups.iterator.flatMap { _.nodesIterator }
+	
+	
+	// IMPLEMENTED  -----------------------
+	
+	override protected def wrap(factory: ApiData): DetailedApi = copy(data = factory)
+	override def withId(id: Int): Api = copy(id = id)
 	
 	
 	// OTHER    ---------------------------

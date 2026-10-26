@@ -389,7 +389,7 @@ object DocParser
 					(Empty, mainKeyPart, listToString(entry.children))
 			}
 			Some(NewBodyDefinition(properties = properties, referencedType = referencedType,
-				contentType = customContentType, details = details, receivesArray = isArray))
+				contentType = customContentType, details = details, isArray = isArray))
 		}
 	}
 	

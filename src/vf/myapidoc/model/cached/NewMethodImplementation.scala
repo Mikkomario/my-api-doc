@@ -2,6 +2,7 @@ package vf.myapidoc.model.cached
 
 import utopia.access.model.enumeration.Method
 import utopia.flow.collection.immutable.Empty
+import utopia.flow.util.UncertainBoolean.{CertainlyFalse, CertainlyTrue}
 import utopia.flow.util.{Mutate, UncertainBoolean}
 
 /**
@@ -37,8 +38,47 @@ case class NewMethodImplementation(method: Method, tokenOptions: Seq[(String, St
                                    responseHasBody: UncertainBoolean = UncertainBoolean,
                                    requestBodyIsOptional: Boolean = false)
 {
+	// COMPUTED -------------------------
+	
 	def tokenTypeNamesIterator = tokenOptions.iterator.map { _._1 }
 	def scopeNamesIterator = scopes.iterator.flatMap { _._1 }
+	
+	/**
+	 * @return All documented responses from this implementation.
+	 *         Each entry contains:
+	 *         1. Status code
+	 *         1. Response body description, if documented
+	 *         1. Responsee (status) description
+	 *         1. Whether a response body is included
+	 */
+	def responses = {
+		val defaultResult = statusCodes.map { case (statusCode, description) =>
+			val (body, hasBody) = {
+				// Case: Success response => Uses the implementation's body information
+				if (statusCode < 300) {
+					// Case: 204 => Never contains a body
+					if (statusCode == 204)
+						None -> CertainlyFalse
+					else
+						responseBody -> responseHasBody
+				}
+				// Case: Failure response => Won't document a body
+				else
+					None -> UncertainBoolean
+			}
+			(statusCode, body, description, hasBody)
+		}
+		// Ensures that the response body gets documented somehow, if defined
+		if (statusCodes.forall { _._1 >= 300 } && responseBody.isDefined) {
+			val additionalEntry = (200, responseBody, "", CertainlyTrue)
+			additionalEntry +: defaultResult
+		}
+		else
+			defaultResult
+	}
+	
+	
+	// OTHER ----------------------------
 	
 	def withMethod(method: Method) = copy(method = method)
 	def withDescription(description: String) = copy(description = description)

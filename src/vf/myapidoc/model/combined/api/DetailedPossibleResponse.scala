@@ -5,7 +5,7 @@ import vf.myapidoc.model.stored.api.PossibleResponseStatus
 
 object DetailedPossibleResponse
 {
-	def apply(status: PossibleResponseStatus, body: Option[DetailedResponseContentType]) =
+	def apply(status: PossibleResponseStatus, body: Option[DetailedResponseContentType]): DetailedPossibleResponse =
 		DetailedPossibleResponse(status.id, status, body)
 }
 

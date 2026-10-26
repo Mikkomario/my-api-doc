@@ -7,7 +7,7 @@ import vf.myapidoc.model.stored.api.RequestBodySchema
 
 object DetailedRequestBodySchema
 {
-	def apply(schema: RequestBodySchema, modelType: DetailedModelSchema) =
+	def apply(schema: RequestBodySchema, modelType: DetailedModelSchema): DetailedRequestBodySchema =
 		DetailedRequestBodySchema(schema.id, schema.data, modelType)
 }
 

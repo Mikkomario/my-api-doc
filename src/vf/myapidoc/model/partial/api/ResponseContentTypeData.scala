@@ -51,9 +51,10 @@ object ResponseContentTypeData extends FromModelFactoryWithSchema[ResponseConten
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class ResponseContentTypeData(statusId: Int, contentType: Option[PropertyType] = None, 
-	modelTypeId: Option[Int] = None, created: Instant = Now, deprecatedAfter: Option[Instant] = None, 
-	isArray: Boolean = false, isEmpty: Boolean = false) 
+case class ResponseContentTypeData(statusId: Int, contentType: Option[PropertyType] = None,
+                                   modelTypeId: Option[Int] = None, created: Instant = Now,
+                                   deprecatedAfter: Option[Instant] = None, isArray: Boolean = false,
+                                   isEmpty: Boolean = false)
 	extends ResponseContentTypeFactory[ResponseContentTypeData] with ModelConvertible
 {
 	// COMPUTED	--------------------

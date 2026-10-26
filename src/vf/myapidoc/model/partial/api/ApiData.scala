@@ -16,9 +16,8 @@ object ApiData extends FromModelFactoryWithSchema[ApiData]
 {
 	// ATTRIBUTES	--------------------
 	
-	override lazy val schema = 
-		ModelDeclaration(Pair(PropertyDeclaration("name", StringType), PropertyDeclaration("created", 
-			InstantType, isOptional = true)))
+	override lazy val schema = ModelDeclaration(Pair(
+		PropertyDeclaration("name", StringType), PropertyDeclaration("created", InstantType, isOptional = true)))
 	
 	
 	// IMPLEMENTED	--------------------
