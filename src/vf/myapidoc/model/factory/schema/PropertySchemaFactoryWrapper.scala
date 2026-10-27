@@ -1,6 +1,6 @@
 package vf.myapidoc.model.factory.schema
 
-import utopia.flow.util.Mutate
+import utopia.flow.util.{Mutate, UncertainBoolean}
 import vf.myapidoc.model.enumeration.PropertyType
 
 import java.time.Instant
@@ -43,7 +43,7 @@ trait PropertySchemaFactoryWrapper[A <: PropertySchemaFactory[A], +Repr] extends
 	
 	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
 	
-	override def withIsArray(isArray: Boolean) = mapWrapped { _.withIsArray(isArray) }
+	override def withIsArray(isArray: UncertainBoolean) = mapWrapped { _.withIsArray(isArray) }
 	
 	override def withIsOptional(isOptional: Boolean) = mapWrapped { _.withIsOptional(isOptional) }
 	

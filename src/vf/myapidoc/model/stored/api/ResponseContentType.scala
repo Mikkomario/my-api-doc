@@ -5,6 +5,7 @@ import vf.myapidoc.database.access.api.response.body.AccessResponseContentType
 import vf.myapidoc.model.factory.api.ResponseContentTypeFactoryWrapper
 import vf.myapidoc.model.partial.api.ResponseContentTypeData
 
+@deprecated("Deprecated for removal. Replaced with ResponseBodySchema", "v0.1")
 object ResponseContentType extends StandardStoredFactory[ResponseContentTypeData, ResponseContentType]
 {
 	// ATTRIBUTES	--------------------
@@ -49,6 +50,7 @@ object ResponseContentType extends StandardStoredFactory[ResponseContentTypeData
   * @author Mikko Hilpinen
   * @since 23.10.2026, v0.1
   */
+@deprecated("Deprecated for removal. Replaced with ResponseBodySchema", "v0.1")
 trait ResponseContentType 
 	extends StoredModelConvertible[ResponseContentTypeData] with FromIdFactory[Int, ResponseContentType] 
 		with ResponseContentTypeFactoryWrapper[ResponseContentTypeData, ResponseContentType]

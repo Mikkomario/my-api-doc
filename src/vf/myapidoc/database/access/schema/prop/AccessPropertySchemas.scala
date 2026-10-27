@@ -2,8 +2,8 @@ package vf.myapidoc.database.access.schema.prop
 
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, HasValues}
 import utopia.vault.nosql.targeting.many._
+import utopia.vault.nosql.targeting.many.{AccessManyDeprecatingRoot, AccessRowsWrapper, AccessWrapper, DeprecatingWrapRowAccess, TargetingMany, TargetingManyLike, TargetingManyRows, TargetingTimeline, WrapOneToManyAccess}
 import utopia.vault.nosql.targeting.one.TargetingOne
-import vf.myapidoc.database.MyApiDocTables
 import vf.myapidoc.database.access.schema.model.FilterByModelSchema
 import vf.myapidoc.database.reader.schema.PropertySchemaDbReader
 import vf.myapidoc.database.storable.schema.{ModelSchemaDbModel, PropertySchemaDbModel}
@@ -33,7 +33,7 @@ object AccessPropertySchemas
   */
 abstract class AccessPropertySchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
 	extends TargetingTimeline[A, Repr, AccessPropertySchema[A]] with HasValues[AccessPropertySchemaValues] 
-		with FilterPropertySchemas[Repr] with TargetingManyLike[A, Repr, AccessPropertySchema[A]]
+		with FilterPropertySchemas[Repr]
 {
 	// ATTRIBUTES	--------------------
 	
@@ -43,6 +43,7 @@ abstract class AccessPropertySchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](
 		val modelModel = ModelSchemaDbModel
 		join(modelModel.table.onlyJoinIf(modelModel.activeCondition))
 	}
+	
 	lazy val whereActiveModels = FilterByModelSchema(joinActiveModels)
 }
 
@@ -61,6 +62,7 @@ case class AccessPropertySchemaRows[A](wrapped: TargetingManyRows[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingManyRows[A]) = AccessPropertySchemaRows(newTarget)
+	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessPropertySchema(target)
 }
 
@@ -79,6 +81,7 @@ case class AccessCombinedPropertySchemas[A](wrapped: TargetingMany[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingMany[A]) = AccessCombinedPropertySchemas(newTarget)
+	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessPropertySchema(target)
 }
 

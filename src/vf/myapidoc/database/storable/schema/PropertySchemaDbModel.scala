@@ -2,6 +2,7 @@ package vf.myapidoc.database.storable.schema
 
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Value
+import utopia.flow.util.UncertainBoolean
 import utopia.vault.model.immutable.{DbPropertyDeclaration, Storable}
 import utopia.vault.model.template.{DeprecatesAfterDefined, HasIdProperty}
 import utopia.vault.nosql.storable.StorableFactory
@@ -83,7 +84,7 @@ object PropertySchemaDbModel
 	
 	override def apply(data: PropertySchemaData): PropertySchemaDbModel = 
 		apply(None, Some(data.modelTypeId), data.name, Some(data.dataType), data.contentTypeId, 
-			data.description, Some(data.created), data.deprecatedAfter, Some(data.isArray), 
+			data.description, Some(data.created), data.deprecatedAfter, data.isArray.exact, 
 			Some(data.isOptional))
 	
 	override def withContentTypeId(contentTypeId: Int) = apply(contentTypeId = Some(contentTypeId))
@@ -92,14 +93,13 @@ object PropertySchemaDbModel
 	
 	override def withDataType(dataType: PropertyType) = apply(dataType = Some(dataType))
 	
-	override def withDeprecatedAfter(deprecatedAfter: Instant) = apply(deprecatedAfter = 
-		Some(deprecatedAfter))
+	override def withDeprecatedAfter(deprecatedAfter: Instant) = apply(deprecatedAfter =Some(deprecatedAfter))
 	
 	override def withDescription(description: String) = apply(description = description)
 	
 	override def withId(id: Int) = apply(id = Some(id))
 	
-	override def withIsArray(isArray: Boolean) = apply(isArray = Some(isArray))
+	override def withIsArray(isArray: UncertainBoolean) = apply(isArray = isArray.exact)
 	
 	override def withIsOptional(isOptional: Boolean) = apply(isOptional = Some(isOptional))
 	
@@ -154,7 +154,7 @@ case class PropertySchemaDbModel(id: Option[Int] = None, modelTypeId: Option[Int
 	
 	override def withId(id: Int) = copy(id = Some(id))
 	
-	override def withIsArray(isArray: Boolean) = copy(isArray = Some(isArray))
+	override def withIsArray(isArray: UncertainBoolean) = copy(isArray = isArray.exact)
 	
 	override def withIsOptional(isOptional: Boolean) = copy(isOptional = Some(isOptional))
 	

@@ -11,6 +11,7 @@ import utopia.flow.generic.model.mutable.DataType.StringType
 import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.time.Now
+import utopia.flow.util.UncertainBoolean
 import vf.myapidoc.model.cached.NewProperty
 import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.enumeration.PropertyType.AnyProp
@@ -30,7 +31,7 @@ object PropertySchemaData extends FromModelFactory[PropertySchemaData]
 		PropertyDeclaration("description", StringType, isOptional = true),
 		PropertyDeclaration("created", InstantType, isOptional = true),
 		PropertyDeclaration("deprecatedAfter", InstantType, Single("deprecated_after"), isOptional = true),
-		PropertyDeclaration("isArray", BooleanType, Single("is_array"), false),
+		PropertyDeclaration("isArray", BooleanType, Single("is_array"), false, isOptional = true),
 		PropertyDeclaration("isOptional", BooleanType, Single("is_optional"), false)))
 	
 	
@@ -38,8 +39,9 @@ object PropertySchemaData extends FromModelFactory[PropertySchemaData]
 	
 	override def apply(model: HasProperties) = schema.validate(model).map { valid =>
 		PropertySchemaData(valid("modelTypeId").getInt, valid("name").getString,
-			PropertyType.fromValue(valid("dataType")), valid("contentTypeId").int, valid("description").getString,
-			valid("created").getInstant, valid("deprecatedAfter").instant, valid("isArray").getBoolean,
+			PropertyType.fromValue(valid("dataType")),
+			valid("contentTypeId").int, valid("description").getString, valid("created").getInstant,
+			valid("deprecatedAfter").instant, UncertainBoolean(valid("isArray").boolean),
 			valid("isOptional").getBoolean)
 	}
 }
@@ -57,16 +59,16 @@ object PropertySchemaData extends FromModelFactory[PropertySchemaData]
   * @param created         Time when this property schema was added to the database
   * @param deprecatedAfter Time when this property schema became deprecated. None while this 
   *                        property schema is still valid.
-  * @param isArray         Whether this property is an array of values. False if this property 
-  *                        contains a single value.
+  * @param isArray         Whether this property is an array of values. 
+  *                        False if this property contains a single value. Uncertain if both are 
+  *                        possible.
   * @param isOptional      Whether this property may be omitted from the input and/or output.
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class PropertySchemaData(modelTypeId: Int, name: String, dataType: PropertyType,
-                              contentTypeId: Option[Int] = None, description: String = "", created: Instant = Now,
-                              deprecatedAfter: Option[Instant] = None, isArray: Boolean = false,
-                              isOptional: Boolean = false)
+case class PropertySchemaData(modelTypeId: Int, name: String, dataType: PropertyType, 
+	contentTypeId: Option[Int] = None, description: String = "", created: Instant = Now, 
+	deprecatedAfter: Option[Instant] = None, isArray: UncertainBoolean = false, isOptional: Boolean = false) 
 	extends PropertySchemaFactory[PropertySchemaData] with ModelConvertible
 {
 	// COMPUTED	--------------------
@@ -75,7 +77,6 @@ case class PropertySchemaData(modelTypeId: Int, name: String, dataType: Property
 	  * Whether this property schema has already been deprecated
 	  */
 	def isDeprecated = deprecatedAfter.isDefined
-	
 	/**
 	  * Whether this property schema is still valid (not deprecated)
 	  */
@@ -84,16 +85,17 @@ case class PropertySchemaData(modelTypeId: Int, name: String, dataType: Property
 	
 	// IMPLEMENTED	--------------------
 	
-	override def toModel = Model(Vector("modelTypeId" -> modelTypeId, "name" -> name, "dataType" -> dataType.id,
-		"contentTypeId" -> contentTypeId, "description" -> description, "created" -> created,
-		"deprecatedAfter" -> deprecatedAfter, "isArray" -> isArray, "isOptional" -> isOptional))
+	override def toModel = 
+		Model(Vector("modelTypeId" -> modelTypeId, "name" -> name, "dataType" -> dataType.id, 
+			"contentTypeId" -> contentTypeId, "description" -> description, "created" -> created, 
+			"deprecatedAfter" -> deprecatedAfter, "isArray" -> isArray.exact, "isOptional" -> isOptional))
 	
 	override def withContentTypeId(contentTypeId: Int) = copy(contentTypeId = Some(contentTypeId))
 	override def withCreated(created: Instant) = copy(created = created)
 	override def withDataType(dataType: PropertyType) = copy(dataType = dataType)
 	override def withDeprecatedAfter(deprecatedAfter: Instant) = copy(deprecatedAfter = Some(deprecatedAfter))
 	override def withDescription(description: String) = copy(description = description)
-	override def withIsArray(isArray: Boolean) = copy(isArray = isArray)
+	override def withIsArray(isArray: UncertainBoolean) = copy(isArray = isArray)
 	override def withIsOptional(isOptional: Boolean) = copy(isOptional = isOptional)
 	override def withModelTypeId(modelTypeId: Int) = copy(modelTypeId = modelTypeId)
 	override def withName(name: String) = copy(name = name)
@@ -101,19 +103,16 @@ case class PropertySchemaData(modelTypeId: Int, name: String, dataType: Property
 	
 	// OTHER    ------------------------
 	
-	/**
-	 * Checks whether this schema conflicts with the specified property update.
-	 * Assumes that property names are an exact match.
-	 *
-	 * NB: Doesn't check referenced model types or alternative data types, since those are not included in this model.
-	 *
-	 * @param update Read property information
-	 * @return Whether this schema contains no conflicting information with the specified update
-	 */
 	def ~==(update: NewProperty) =
 		isArray == update.isArray && isOptional == update.isOptional &&
 			contentTypeId.isDefined && update.referencedType.isEmpty &&
 			dataType == update.dataTypes.headOption.getOrElse(AnyProp)
+	/**
+	 * Checks whether this schema conflicts with the specified property update.
+	 * Assumes that property names are an exact match.
+	 * NB: Doesn't check referenced model types or alternative data types, since those are not
+	 * included in this model.
+	 */
 	def !~==(update: NewProperty) = !(this ~== update)
 }
 

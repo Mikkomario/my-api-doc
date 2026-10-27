@@ -20,6 +20,7 @@ import java.time.Instant
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Deprecated for removal. Use ResponseBodySchemaDbModel instead", "v0.1")
 object ResponseContentTypeDbModel 
 	extends StorableFactory[ResponseContentTypeDbModel, ResponseContentType, ResponseContentTypeData] 
 		with FromIdFactory[Int, ResponseContentTypeDbModel] with HasIdProperty 
@@ -102,6 +103,7 @@ object ResponseContentTypeDbModel
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Deprecated for removal. Use ResponseBodySchemaDbModel instead", "v0.1")
 case class ResponseContentTypeDbModel(id: Option[Int] = None, statusId: Option[Int] = None, 
 	contentType: Option[PropertyType] = None, modelTypeId: Option[Int] = None, 
 	created: Option[Instant] = None, deprecatedAfter: Option[Instant] = None, 

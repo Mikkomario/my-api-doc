@@ -6,17 +6,11 @@ import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.operator.MaybeEmpty
-
-object NewBodyDefinition
-{
-	/**
-	 * An empty body definition
-	 */
-	lazy val empty = apply()
-}
+import vf.myapidoc.model.enumeration.PropertyType
 
 /**
  * Represents a request or a response body schema that has not yet been stored
+ * @param dataType Type of this body's contents
  * @param properties Supported request body properties
  * @param referencedType Name of the referenced model or property type, if applicable
  * @param contentType Applicable content type, if specified
@@ -26,9 +20,8 @@ object NewBodyDefinition
  * @author Mikko Hilpinen
  * @since 19.10.2026, v0.1
  */
-case class NewBodyDefinition(properties: Seq[NewProperty] = Empty, referencedType: String = "",
-                             contentType: Option[ContentType] = None, details: String = "",
-                             isArray: Boolean = false)
+case class NewBodyDefinition(dataType: PropertyType, properties: Seq[NewProperty] = Empty, referencedType: String = "",
+                             contentType: Option[ContentType] = None, details: String = "", isArray: Boolean = false)
 	extends MaybeEmpty[NewBodyDefinition] with ModelConvertible
 {
 	override def self: NewBodyDefinition = this

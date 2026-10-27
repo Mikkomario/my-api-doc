@@ -1,6 +1,7 @@
 package vf.myapidoc.database.access.schema.prop
 
 import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.util.UncertainBoolean
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, AccessValues}
 import vf.myapidoc.database.storable.schema.PropertySchemaDbModel
 import vf.myapidoc.model.enumeration.PropertyType
@@ -56,7 +57,7 @@ case class AccessPropertySchemaValues(access: AccessManyColumns) extends AccessV
 	/**
 	  * Whether this property is an array of values. False if this property contains a single value.
 	  */
-	lazy val areArrays = apply(model.isArray) { v => v.getBoolean }
+	lazy val areArrays = apply(model.isArray) { v => UncertainBoolean(v.boolean) }
 	/**
 	  * Whether this property may be omitted from the input and/or output.
 	  */

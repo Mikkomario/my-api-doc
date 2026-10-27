@@ -1,5 +1,6 @@
 package vf.myapidoc.model.factory.schema
 
+import utopia.flow.util.UncertainBoolean
 import vf.myapidoc.model.enumeration.PropertyType
 
 import java.time.Instant
@@ -49,7 +50,7 @@ trait PropertySchemaFactory[+A]
 	  * @param isArray New is array to assign
 	  * @return Copy of this item with the specified is array
 	  */
-	def withIsArray(isArray: Boolean): A
+	def withIsArray(isArray: UncertainBoolean): A
 	
 	/**
 	  * @param isOptional New is optional to assign

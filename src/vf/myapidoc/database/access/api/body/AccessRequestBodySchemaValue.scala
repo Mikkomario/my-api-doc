@@ -10,8 +10,7 @@ import vf.myapidoc.database.storable.api.RequestBodySchemaDbModel
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-case class AccessRequestBodySchemaValue(access: AccessColumn) 
-	extends AccessApiNodeMethodImplementationModelSchemaLinkValue
+case class AccessRequestBodySchemaValue(access: AccessColumn) extends AccessBodySchemaValue
 {
 	// ATTRIBUTES	--------------------
 	
@@ -24,12 +23,10 @@ case class AccessRequestBodySchemaValue(access: AccessColumn)
 	  * Non-standard content type expected from the request body, if applicable.
 	  */
 	lazy val customContentType = apply(model.customContentType) { v => v.getString }
-	
 	/**
 	  * Description of the expected request body.
 	  */
 	lazy val description = apply(model.description) { v => v.getString }
-	
 	/**
 	  * Whether a JSON array is expected.
 	  */

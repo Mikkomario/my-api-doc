@@ -5,6 +5,7 @@ import utopia.flow.collection.template.tree.{Tree, TreeLike}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.generic.model.template.ModelConvertible
+import utopia.flow.util.UncertainBoolean
 import vf.myapidoc.model.enumeration.PropertyType
 
 /**
@@ -24,7 +25,7 @@ import vf.myapidoc.model.enumeration.PropertyType
 case class NewProperty(name: String, dataTypes: Seq[PropertyType] = Empty, referencedType: String = "",
                        description: String = "", override val children: Seq[NewProperty] = Empty,
                        possibleValues: Seq[(String, String)] = Empty,
-                       isOptional: Boolean = false, isArray: Boolean = false)
+                       isOptional: Boolean = false, isArray: UncertainBoolean = false)
 	extends Tree with TreeLike[NewProperty] with ModelConvertible
 {
 	override def self: NewProperty = this

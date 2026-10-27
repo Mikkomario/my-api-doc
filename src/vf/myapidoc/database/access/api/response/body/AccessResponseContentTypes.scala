@@ -8,6 +8,7 @@ import vf.myapidoc.database.reader.api.ResponseContentTypeDbReader
 import vf.myapidoc.database.storable.api._
 import vf.myapidoc.model.stored.api.ResponseContentType
 
+@deprecated("Deprecated for removal. Please use AccessResponseBodySchemas instead", "v0.1")
 object AccessResponseContentTypes 
 	extends DeprecatingWrapRowAccess[AccessResponseContentTypeRows](ResponseContentTypeDbModel) 
 		with WrapOneToManyAccess[AccessCombinedResponseContentTypes] 
@@ -30,6 +31,7 @@ object AccessResponseContentTypes
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Deprecated for removal. Please use AccessResponseBodySchemas instead", "v0.1")
 abstract class AccessResponseContentTypes[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
 	extends TargetingTimeline[A, Repr, AccessResponseContentType[A]] 
 		with HasValues[AccessResponseContentTypeValues] with FilterResponseContentTypes[Repr] 
@@ -53,6 +55,7 @@ abstract class AccessResponseContentTypes[A, +Repr <: TargetingManyLike[_, Repr,
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Deprecated for removal. Please use AccessResponseBodySchemas instead", "v0.1")
 case class AccessResponseContentTypeRows[A](wrapped: TargetingManyRows[A]) 
 	extends AccessResponseContentTypes[A, AccessResponseContentTypeRows[A]](wrapped) 
 		with AccessRowsWrapper[A, AccessResponseContentTypeRows[A], AccessResponseContentType[A]]
@@ -73,6 +76,7 @@ case class AccessResponseContentTypeRows[A](wrapped: TargetingManyRows[A])
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Deprecated for removal. Please use AccessResponseBodySchemas instead", "v0.1")
 case class AccessCombinedResponseContentTypes[A](wrapped: TargetingMany[A]) 
 	extends AccessResponseContentTypes[A, AccessCombinedResponseContentTypes[A]](wrapped) 
 		with AccessWrapper[A, AccessCombinedResponseContentTypes[A], AccessResponseContentType[A]]

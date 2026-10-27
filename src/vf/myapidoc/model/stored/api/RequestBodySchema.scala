@@ -2,10 +2,8 @@ package vf.myapidoc.model.stored.api
 
 import utopia.vault.store.StandardStoredFactory
 import vf.myapidoc.database.access.api.body.AccessRequestBodySchema
-import vf.myapidoc.model.combined.api.DetailedRequestBodySchema
-import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.RequestBodySchemaFactoryWrapper
-import vf.myapidoc.model.partial.api.{ApiNodeMethodImplementationModelSchemaLinkData, RequestBodySchemaData}
+import vf.myapidoc.model.partial.api.{BodySchemaData, RequestBodySchemaData}
 
 object RequestBodySchema extends StandardStoredFactory[RequestBodySchemaData, RequestBodySchema]
 {
@@ -52,9 +50,8 @@ object RequestBodySchema extends StandardStoredFactory[RequestBodySchemaData, Re
   * @since 23.10.2026, v0.1
   */
 trait RequestBodySchema 
-	extends RequestBodySchemaFactoryWrapper[RequestBodySchemaData, RequestBodySchema] 
-		with ApiNodeMethodImplementationModelSchemaLinkData 
-		with StoredApiNodeMethodImplementationModelSchemaLinkLike[RequestBodySchemaData, RequestBodySchema]
+	extends RequestBodySchemaFactoryWrapper[RequestBodySchemaData, RequestBodySchema] with BodySchemaData 
+		with StoredBodySchemaLike[RequestBodySchemaData, RequestBodySchema]
 {
 	// COMPUTED	--------------------
 	
@@ -62,9 +59,4 @@ trait RequestBodySchema
 	  * An access point to this request body schema in the database
 	  */
 	def access = AccessRequestBodySchema(id)
-	
-	
-	// OTHER    --------------------
-	
-	def +(bodySchema: DetailedModelSchema) = DetailedRequestBodySchema(this, bodySchema)
 }

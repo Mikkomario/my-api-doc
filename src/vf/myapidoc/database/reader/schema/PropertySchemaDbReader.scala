@@ -32,15 +32,14 @@ object PropertySchemaDbReader
 	override def table = model.table
 	
 	override def fromValid(valid: Model) = Success(StoredPropertySchema(valid(this.model.id.name).getInt,
-		PropertySchemaData(
-			modelTypeId = valid(this.model.modelTypeId.name).getInt,
+		PropertySchemaData(modelTypeId = valid(this.model.modelTypeId.name).getInt,
 			name = valid(this.model.name.name).getString,
 			dataType = PropertyType.fromValue(valid(this.model.dataType.name)),
 			contentTypeId = valid(this.model.contentTypeId.name).int,
 			description = valid(this.model.description.name).getString,
 			created = valid(this.model.created.name).getInstant,
 			deprecatedAfter = valid(this.model.deprecatedAfter.name).instant,
-			isArray = valid(this.model.isArray.name).getBoolean,
+			isArray = valid(this.model.isArray.name).boolean,
 			isOptional = valid(this.model.isOptional.name).getBoolean)))
 }
 

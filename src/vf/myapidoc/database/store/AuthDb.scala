@@ -70,17 +70,8 @@ object AuthDb
 		// Parses the use-cases from the input
 		val items = tokenTypes.iterator
 			.map { tokenTypeName =>
-				val (name, useCase) = {
-					if (tokenTypeName.startsWithIgnoreCase("Basic")) {
-						if (tokenTypeName.lift(5).contains(':'))
-							tokenTypeName.drop(6).trim -> Basic
-						else
-							tokenTypeName -> Basic
-					}
-					else
-						tokenTypeName -> Bearer
-				}
-				Pair(name, standardizeRef(name)) -> (useCase: TokenUseType)
+				val useCase = if (tokenTypeName.startsWithIgnoreCase("Basic")) Basic else Bearer
+				Pair(tokenTypeName, standardizeRef(tokenTypeName)) -> (useCase: TokenUseType)
 			}
 			.toSet
 		

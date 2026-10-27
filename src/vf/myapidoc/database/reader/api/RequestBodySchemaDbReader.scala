@@ -2,6 +2,7 @@ package vf.myapidoc.database.reader.api
 
 import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import vf.myapidoc.database.storable.api.RequestBodySchemaDbModel
+import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.partial.api.RequestBodySchemaData
 import vf.myapidoc.model.stored.api.RequestBodySchema
 
@@ -12,8 +13,7 @@ import java.time.Instant
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-object RequestBodySchemaDbReader 
-	extends ApiNodeMethodImplementationModelSchemaLinkDbReaderLike[RequestBodySchema]
+object RequestBodySchemaDbReader extends BodySchemaDbReaderLike[RequestBodySchema]
 {
 	// ATTRIBUTES	--------------------
 	
@@ -28,24 +28,21 @@ object RequestBodySchemaDbReader
 	override def table = dbProps.table
 	
 	/**
-	  * @param model            Model from which additional data may be read
-	  * @param id               Id to assign to the read/parsed api node method implementation model 
-	  *                         schema link
-	  * @param implementationId implementation id to assign to the new api node method implementation 
-	  *                         model schema link
-	  * @param modelTypeId      model type id to assign to the new api node method implementation 
-	  *                         model schema link
-	  * @param created          created to assign to the new api node method implementation model 
-	  *                         schema link
-	  * @param deprecatedAfter  deprecated after to assign to the new api node method implementation 
-	  *                         model schema link
+	  * @param model           Model from which additional data may be read
+	  * @param id              Id to assign to the read/parsed body schema
+	  * @param parentId        parent id to assign to the new body schema
+	  * @param dataType        data type to assign to the new body schema
+	  * @param modelTypeId     model type id to assign to the new body schema
+	  * @param created         created to assign to the new body schema
+	  * @param deprecatedAfter deprecated after to assign to the new body schema
+	  * @param isArray         is array to assign to the new body schema
 	  */
-	override protected def apply(model: HasProperties, id: Int, implementationId: Int, modelTypeId: Int, 
-		created: Instant, deprecatedAfter: Option[Instant]) = 
-		RequestBodySchema(id, RequestBodySchemaData(implementationId = implementationId, 
+	override protected def apply(model: HasProperties, id: Int, parentId: Int, dataType: PropertyType,
+	                             modelTypeId: Option[Int], created: Instant, deprecatedAfter: Option[Instant],
+	                             isArray: Boolean) =
+		RequestBodySchema(id, RequestBodySchemaData(implementationId = parentId, dataType = dataType,
 			modelTypeId = modelTypeId, created = created, deprecatedAfter = deprecatedAfter, 
-			customContentType = model(dbProps.customContentType.name).getString, 
-			description = model(dbProps.description.name).getString, 
-			isArray = model(dbProps.isArray.name).getBoolean))
+			isArray = isArray, customContentType = model(dbProps.customContentType.name).getString, 
+			description = model(dbProps.description.name).getString))
 }
 

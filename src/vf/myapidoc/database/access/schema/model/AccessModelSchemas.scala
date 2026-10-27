@@ -5,10 +5,10 @@ import utopia.vault.nosql.targeting.many._
 import utopia.vault.nosql.targeting.one.TargetingOne
 import vf.myapidoc.database.MyApiDocTables
 import vf.myapidoc.database.access.api.body.FilterByRequestBodySchema
-import vf.myapidoc.database.access.api.response.body.FilterByResponseContentType
+import vf.myapidoc.database.access.api.response.body.FilterByResponseBodySchema
 import vf.myapidoc.database.access.schema.prop.{AccessPropertySchemaValues, FilterByPropertySchema}
 import vf.myapidoc.database.reader.schema.{CompleteModelSchemaDbReader, ModelSchemaDbReader}
-import vf.myapidoc.database.storable.api.{RequestBodySchemaDbModel, ResponseContentTypeDbModel}
+import vf.myapidoc.database.storable.api.{RequestBodySchemaDbModel, ResponseBodySchemaDbModel}
 import vf.myapidoc.database.storable.schema.{ModelSchemaDbModel, PropertySchemaDbModel}
 import vf.myapidoc.model.stored.schema.ModelSchema
 
@@ -66,8 +66,8 @@ abstract class AccessModelSchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](wra
 	lazy val joinReferencingRequestBodySchemas = join(RequestBodySchemaDbModel.modelTypeId.column)
 	lazy val whereReferencingRequestBodySchemas = FilterByRequestBodySchema(joinReferencingRequestBodySchemas)
 	
-	lazy val joinReferencingResponseContentTypes = join(ResponseContentTypeDbModel.modelTypeId.column)
-	lazy val whereReferencingResponseContentTypes = FilterByResponseContentType(joinReferencingResponseContentTypes)
+	lazy val joinReferencingResponseBodySchemas = join(ResponseBodySchemaDbModel.modelTypeId.column)
+	lazy val whereReferencingResponseBodySchemas = FilterByResponseBodySchema(joinReferencingResponseBodySchemas)
 }
 
 /**

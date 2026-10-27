@@ -3,19 +3,17 @@ package vf.myapidoc.database.store
 import utopia.access.model.enumeration.Method
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.tree.ValueTree
-import utopia.flow.collection.immutable.{Empty, OptimizedIndexedSeq, Pair}
+import utopia.flow.collection.immutable.{Empty, Pair}
 import utopia.flow.collection.mutable.iterator.{LazyInitIterator, OptionsIterator}
 import utopia.flow.collection.template.MapAccess
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.parse.string.Regex
-import utopia.flow.util.EitherExtensions._
 import utopia.flow.util.StringExtensions._
-import utopia.flow.util.{NotEmpty, UncertainBoolean}
-import utopia.flow.view.immutable.caching.Lazy
+import utopia.flow.util.UncertainBoolean
 import utopia.scribe.core.controller.logging.Scribe
 import utopia.vault.database.Connection
-import utopia.vault.store.{HasId, StoreResult}
+import utopia.vault.store.StoreResult
 import vf.myapidoc.database.access.api.AccessApi
 import vf.myapidoc.database.access.api.body.AccessRequestBodySchemas
 import vf.myapidoc.database.access.api.node.AccessApiNodes
@@ -25,25 +23,19 @@ import vf.myapidoc.database.access.api.node.group.AccessApiNodeGroups
 import vf.myapidoc.database.access.api.node.impl.AccessApiNodeMethodImplementations
 import vf.myapidoc.database.access.api.params.path.AccessPathParameterSchemaLinks
 import vf.myapidoc.database.access.api.params.query.AccessQueryParameterSchemaLinks
-import vf.myapidoc.database.access.api.response.body.AccessResponseContentTypes
+import vf.myapidoc.database.access.api.response.body.AccessResponseBodySchemas
 import vf.myapidoc.database.access.api.response.status.AccessPossibleResponseStatuses
 import vf.myapidoc.database.access.auth.scope.AccessScopes
 import vf.myapidoc.database.access.auth.token.AccessAuthTokenTypes
 import vf.myapidoc.database.access.schema.model.AccessModelSchemas
-import vf.myapidoc.database.access.schema.prop.AccessPropertySchemas
-import vf.myapidoc.database.access.schema.prop.types.AccessAlternativePropertyTypes
 import vf.myapidoc.database.storable.api._
-import vf.myapidoc.database.storable.schema.{AlternativePropertyTypeDbModel, ModelSchemaDbModel, PropertySchemaDbModel}
 import vf.myapidoc.model.cached._
 import vf.myapidoc.model.combined.api._
 import vf.myapidoc.model.combined.schema.CompleteModelSchema
-import vf.myapidoc.model.enumeration.PropertyType
-import vf.myapidoc.model.enumeration.PropertyType.AnyProp
 import vf.myapidoc.model.partial.api._
-import vf.myapidoc.model.partial.schema.{AlternativePropertyTypeData, ModelSchemaData, PropertySchemaData}
 import vf.myapidoc.model.stored.api.{Api, ApiNodeMethodImplementation, NodeAuthTypeLink, PossibleResponseStatus}
 import vf.myapidoc.model.stored.auth.{AuthTokenType, Scope}
-import vf.myapidoc.model.stored.schema.{AlternativePropertyType, ModelSchema, StoredPropertySchema}
+import vf.myapidoc.model.stored.schema.ModelSchema
 import vf.myapidoc.util.Common._
 
 import scala.collection.mutable
@@ -110,15 +102,15 @@ object ApiDocDb
 			.modelIdPerImplementationId
 		val requestBodiesPerImplementation = AccessRequestBodySchemas.active.whereActiveNodeGroups.inApi(apiId)
 			.stream {
-				_.map { body => body + modelById(body.modelTypeId) }
+				_.map { body => DetailedRequestBodySchema(body, body.modelTypeId.flatMap(modelById.get)) }
 					.groupToSeqsBy { _.implementationId }.withDefaultValue(Empty)
 			}
 		
-		val responseBodiesByStatusId = AccessResponseContentTypes.active.whereActiveNodeGroups.inApi(apiId)
+		val responseBodiesByStatusId = AccessResponseBodySchemas.active.whereActiveNodeGroups.inApi(apiId)
 			.stream { bodiesIter =>
 				bodiesIter
 					.map { body =>
-						body.statusId -> DetailedResponseContentType(body, body.modelTypeId.flatMap(modelById.get))
+						body.statusId -> DetailedResponseBodySchema(body, body.modelTypeId.flatMap(modelById.get))
 					}
 					.toMap
 			}
@@ -591,16 +583,17 @@ object ApiDocDb
 	                                    (implicit connection: Connection): Unit =
 	{
 		// Matches the body versions using three parameters:
-		//      1. Referenced named model type ID
-		//      2. Whether an array is received
-		//      3. Custom content type
+		//      1. Data type
+		//      2. Referenced named model type ID
+		//      3. Whether an array is received
+		//      4. Custom content type
 		updateExclusiveMatches(existingOptions,
 			bodyOptions.iterator.map { body =>
 				val modelTypeId = body.referencedType.ifNotEmpty.flatMap { n => modelNameToId.get(standardizeRef(n)) }
 				body -> modelTypeId
 			}) {
-			e => (if (e.modelType.hasName) Some(e.modelTypeId) else None, e.isArray, e.customContentType) } {
-			case (body, modelTypeId) => (modelTypeId, body.isArray, body.contentType.mkString) } {
+			e => (e.dataType, e.modelType.filter { _.hasName }.map { _.id }, e.isArray, e.customContentType) } {
+			case (body, modelTypeId) => (body.dataType, modelTypeId, body.isArray, body.contentType.mkString) } {
 			// Case: Match => Updates the description and nameless model properties, if needed
 			case (existing, (body, _)) =>
 				// Updates the details, if necessary
@@ -609,7 +602,7 @@ object ApiDocDb
 					
 				// Updates the referenced model type
 				if (body.properties.nonEmpty)
-					ModelSchemaDb.updateNameless(existing.modelType, body.properties, modelNameToId)
+					existing.modelType.foreach { ModelSchemaDb.updateNameless(_, body.properties, modelNameToId) }
 				
 				()
 				
@@ -631,21 +624,12 @@ object ApiDocDb
 		val schemaId = body.referencedType.ifNotEmpty match {
 			// Case: Named type reference => Attempts to resolve it
 			case Some(typeReference) => modelNameToId.get(standardizeRef(typeReference))
-			// Case: Unnamed model => Inserts a new model schema
-			case None =>
-				ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id }
+			// Case: Unnamed model => Inserts a new nameless model schema, if needed
+			case None => ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id }
 		}
-		// Logs if the model type couldn't be resolved
-		if (schemaId.isEmpty)
-			scribe.in("insert.requestBody").recoverable("Request body had no model schema", Model.from(
-				"implementationId" -> implementationId, "referencedType" -> body.referencedType,
-				"propertyCount" -> body.properties.size))
-				
-		schemaId.map { schemaId =>
-			// Inserts the request body schema
-			RequestBodySchemaDbModel.insert(RequestBodySchemaData(implementationId, schemaId,
-				customContentType = body.contentType.mkString, description = body.details, isArray = body.isArray))
-		}
+		// Inserts the request body schema
+		RequestBodySchemaDbModel.insert(RequestBodySchemaData(implementationId, body.dataType, schemaId,
+			customContentType = body.contentType.mkString, description = body.details, isArray = body.isArray))
 	}
 	
 	private def updateResponsesStatuses(apiId: Int, implementationId: Int, existing: Iterable[DetailedPossibleResponse],
@@ -670,49 +654,28 @@ object ApiDocDb
 							// Case: Possibly updating an existing response body
 							//       => Checks whether there are incompatible changes
 							case Some(existingBody) =>
+								val referencedModelTypeId = body.referencedType.ifNotEmpty.flatMap { ref =>
+									modelNameToId.get(standardizeRef(ref))
+								}
 								// Checks:
-								//      1. Whether yielding one or more instances (isArray)
-								//      2. Whether the referenced **named** model type has changed
-								//      3. If neither response refers to model types,
-								//         whether a basic content type changed
-								val newBodyType = resolveReferencedBodyType(body, modelNameToId)
-								val shouldReplace = (existingBody.isArray != body.isArray) || (newBodyType match {
-									// Case: Now referencing a simple data type
-									//       => Checks whether the previous version did also
-									case Some(Left(simpleType)) =>
-										existingBody.modelTypeId.isDefined ||
-											!existingBody.contentType.contains(simpleType)
-									// Case: Now referencing a model type
-									//       => Checks whether named & matching existing version
-									case Some(Right(modelTypeId)) =>
-										modelTypeId match {
-											// Case: Named model type => The referenced ID must match
-											case Some(namedModelTypeId) =>
-												!existingBody.modelTypeId.contains(namedModelTypeId)
-											// Case: Nameless model
-											//       => Allows for differences,
-											//          as long as the original also referenced a nameless model
-											case None => existingBody.modelType.forall { _.hasName }
-										}
-									// Case: No body => Makes sure the previous didn't have content either
-									case None =>
-										existingBody.modelTypeId.isDefined || existingBody.contentType.isDefined
-								})
-								
+								//      1. Whether the body data type has changed
+								//      2. Whether yielding one or more instances (isArray)
+								//      3. Whether the referenced **named** model type has changed
+								val shouldReplace = existingBody.dataType != body.dataType ||
+									existingBody.isArray != body.isArray ||
+									referencedModelTypeId != existingBody.modelType.filter { _.hasName }.map { _.id }
 								// Case: Replacing the previous body version
 								//       => Deprecates previous entry (including referenced named model types)
 								//          and inserts a new version
 								if (shouldReplace) {
 									existingBody.access.deprecate()
 									existingBody.modelType.filter { _.isNameless }.foreach { _.access.deprecate() }
-									ResponseContentTypeDbModel.insert(ResponseContentTypeData(existing.id,
-										contentType = newBodyType.flatMap { _.leftOption },
-										modelTypeId = newBodyType.flatMap { _.rightOption.flatMap { _.orElse {
-											ModelSchemaDb.insertNameless(apiId, body.properties,
-												modelNameToId)
-												.map { _.id }
-										} } },
-										isArray = body.isArray, isEmpty = body.isEmpty))
+									ResponseBodySchemaDbModel.insert(ResponseBodySchemaData(existing.id,
+										dataType = body.dataType,
+										modelTypeId = referencedModelTypeId.orElse {
+											ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId)
+										},
+										isArray = body.isArray))
 								}
 								// Case: Non-breaking changes (if any) => Updates the nameless model content,
 								//       if applicable
@@ -734,9 +697,9 @@ object ApiDocDb
 			// and (3) associated nameless model schemas
 			removedStatusIds =>
 				AccessPossibleResponseStatuses(removedStatusIds).deprecate()
-				AccessResponseContentTypes.active.withStatuses(removedStatusIds).deprecate()
+				AccessResponseBodySchemas.active.withStatuses(removedStatusIds).deprecate()
 				AccessModelSchemas.active.nameless
-					.whereReferencingResponseContentTypes.withStatuses(removedStatusIds).deprecate()
+					.whereReferencingResponseBodySchemas.withStatuses(removedStatusIds).deprecate()
 		} {
 			// Inserts the missing status (& body) entries
 			newResponses => newResponses.map { case (statusCode, body, description, hasBody) =>
@@ -760,51 +723,13 @@ object ApiDocDb
 	}
 	private def insertResponseBody(apiId: Int, statusId: Int, body: NewBodyDefinition, modelNameToId: Map[String, Int])
 	                              (implicit connection: Connection) =
-	{
-		// Resolves the referenced type
-		val contentTypeId = resolveReferencedBodyType(body, modelNameToId).flatMap {
-			case Left(plainType) => Some(Left(plainType))
-			case Right(modelTypeId) =>
-				modelTypeId
-					// Handles the nameless model type insert, if applicable
-					.orElse {
-						ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id }
-					}
-					.map { Right(_) }
-		}
-		ResponseContentTypeDbModel.insert(ResponseContentTypeData(statusId,
-			contentType = contentTypeId.flatMap { _.leftOption },
-			modelTypeId = contentTypeId.flatMap { _.rightOption }, isArray = body.isArray,
-			isEmpty = body.isEmpty))
-	}
-	private def resolveReferencedBodyType(body: NewBodyDefinition, modelNameToId: Map[String, Int]) =
-		body.referencedType.ifNotEmpty match {
-			case Some(referencedType) =>
-				modelNameToId.get(standardizeRef(referencedType)) match {
-					// Case: Referencing a known model type => Right(Some)
-					case Some(modelTypeId) => Some(Right(Some(modelTypeId)))
-					// Case: Not referencing a known model type => Checks for a plain type reference
-					case None =>
-						PropertyType.findForName(referencedType) match {
-							// Case: Plain type reference => Left(plainType)
-							case Some(plainType) => Some(Left(plainType))
-							// Case: Unresolved reference => Logs and yields None
-							case None =>
-								scribe.in("insert.response.body.resolveReferencedType").recoverable(
-									"Response body type reference couldn't be resolved",
-									Model.from("referencedType" -> referencedType,
-										"propertyCount" -> body.properties.size))
-								None
-						}
-				}
-			case None =>
-				// Case: Empty response => No body is inserted => None
-				if (body.properties.isEmpty)
-					None
-				// Case: Object type response => Right(None)
-				else
-					Some(Right(None))
-		}
+		ResponseBodySchemaDbModel.insert(ResponseBodySchemaData(statusId,
+			dataType = body.dataType,
+			// Resolves the referenced type
+			modelTypeId = body.referencedType.ifNotEmpty.flatMap { ref => modelNameToId.get(standardizeRef(ref)) }
+				// Handles the nameless model type insert, if applicable
+				.orElse { ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id } },
+			isArray = body.isArray))
 	
 	private def standardizePath(path: String) = path.replaceEachMatchOf(pathParamR, "*").toLowerCase
 }

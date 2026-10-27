@@ -208,12 +208,58 @@
     "props": []
   },
   {
+    "name": "BodySchema",
+    "generic": true,
+    "access": "body",
+    "doc": "Common trait for request & response body schemas.",
+    "props": [
+      {
+        "name": "parentId",
+        "type": "Int",
+        "index": true,
+        "with": "ofParent",
+        "doc": "ID of the element that contains this body."
+      },
+      {
+        "name": "dataType",
+        "type": "Enum[PropertyType]",
+        "doc": "Type of this body's contents."
+      },
+      {
+        "name": "modelTypeId",
+        "ref": "model_schema",
+        "type": "Option[Int]",
+        "doc": "If this body contains an object or objects, contains the ID of the model schema that describes the applicable object structure."
+      },
+      {
+        "type": "creation"
+      },
+      {
+        "type": "deprecation"
+      },
+      {
+        "name": "isArray",
+        "name_plural": "areArrays",
+        "type": "Boolean",
+        "doc": "Whether this body contains an array of values. False if no more than one value may be included."
+      }
+    ]
+  },
+  {
     "name": "RequestBodySchema",
-    "parent": "ApiNodeMethodImplementationModelSchemaLink",
+    "parent": "BodySchema",
     "access": "body",
     "has_combos": true,
     "doc": "Applies a specific schema to the request body accepted by an API node. \nMultiple alternative schemas may be defined separately.",
     "props": [
+      {
+        "name": "implementationId",
+        "parent": "parentId",
+        "ref": "api_node_method_implementation",
+        "with": "ofImplementation",
+        "in": "ofImplementations",
+        "doc": "ID of the method implementation that receives this request body."
+      },
       {
         "name": "customContentType",
         "type": "String(32-255)",
@@ -223,12 +269,6 @@
         "name": "description",
         "type": "String(255-2048)",
         "doc": "Description of the expected request body."
-      },
-      {
-        "name": "isArray",
-        "name_plural": "areArrays",
-        "type": "Boolean",
-        "doc": "Whether a JSON array is expected."
       }
     ]
   },
@@ -278,46 +318,19 @@
     ]
   },
   {
-    "name": "ResponseContentType",
+    "name": "ResponseBodySchema",
+    "parent": "BodySchema",
     "access": "response.body",
     "has_combos": true,
     "doc": "Defines how an API node's response body is formed.",
     "props": [
       {
         "name": "statusId",
+        "parent": "parentId",
         "ref": "possible_response_status",
         "with": "withStatus",
         "in": "withStatuses",
         "doc": "ID of the status this type of response body is returned with."
-      },
-      {
-        "name": "contentType",
-        "type": "Option[Enum[PropertyType]]",
-        "doc": "If this body is non-empty, specifies the type of content it contains."
-      },
-      {
-        "name": "modelTypeId",
-        "ref": "model_schema",
-        "type": "Option[Int]",
-        "doc": "If this body contains a JSON object or objects, contains the ID of the model schema that describes the applicable object structure."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
-      },
-      {
-        "name": "isArray",
-        "name_plural": "areArrays",
-        "type": "Boolean",
-        "doc": "Whether this response body contains an array of values. False if no more than one value may be returned."
-      },
-      {
-        "name": "isEmpty",
-        "name_plural": "areEmpty",
-        "type": "Boolean",
-        "doc": "Whether this response body is empty / no response body is returned."
       }
     ]
   },

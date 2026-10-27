@@ -7,7 +7,7 @@ import vf.myapidoc.model.stored.api.PossibleResponseStatus
 
 object DetailedPossibleResponse
 {
-	def apply(status: PossibleResponseStatus, body: Option[DetailedResponseContentType]): DetailedPossibleResponse =
+	def apply(status: PossibleResponseStatus, body: Option[DetailedResponseBodySchema]): DetailedPossibleResponse =
 		DetailedPossibleResponse(status.id, status, body)
 }
 
@@ -17,8 +17,8 @@ object DetailedPossibleResponse
  * @since 23.10.2026, v0.1
  */
 case class DetailedPossibleResponse(id: Int, data: PossibleResponseStatusData,
-                                    body: Option[DetailedResponseContentType] = None)
-	extends PossibleResponseLike[DetailedResponseContentType, DetailedPossibleResponse]
+                                    body: Option[DetailedResponseBodySchema] = None)
+	extends PossibleResponseLike[DetailedResponseBodySchema, DetailedPossibleResponse]
 {
 	override def toModel = super.toModel + Constant("body", body)
 	

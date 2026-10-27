@@ -14,6 +14,7 @@ import vf.myapidoc.model.factory.api.ResponseContentTypeFactory
 
 import java.time.Instant
 
+@deprecated("Deprecated for removal. Replaced with ResponseBodySchemaData", "v0.1")
 object ResponseContentTypeData extends FromModelFactoryWithSchema[ResponseContentTypeData]
 {
 	// ATTRIBUTES	--------------------
@@ -51,6 +52,7 @@ object ResponseContentTypeData extends FromModelFactoryWithSchema[ResponseConten
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Deprecated for removal. Replaced with ResponseBodySchemaData", "v0.1")
 case class ResponseContentTypeData(statusId: Int, contentType: Option[PropertyType] = None,
                                    modelTypeId: Option[Int] = None, created: Instant = Now,
                                    deprecatedAfter: Option[Instant] = None, isArray: Boolean = false,

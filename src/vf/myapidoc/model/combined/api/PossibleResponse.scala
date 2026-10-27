@@ -1,7 +1,7 @@
 package vf.myapidoc.model.combined.api
 
 import vf.myapidoc.model.partial.api.PossibleResponseStatusData
-import vf.myapidoc.model.stored.api.{PossibleResponseStatus, ResponseContentType}
+import vf.myapidoc.model.stored.api.{PossibleResponseStatus, ResponseBodySchema}
 
 object PossibleResponse
 {
@@ -12,7 +12,7 @@ object PossibleResponse
 	  * @param body   body to attach
 	  * @return Combination of the specified status and body
 	  */
-	def apply(status: PossibleResponseStatus, body: Option[ResponseContentType]): PossibleResponse =
+	def apply(status: PossibleResponseStatus, body: Option[ResponseBodySchema]): PossibleResponse =
 		apply(status.id, status.data, body)
 	/**
 	  * @param id   ID of this status in the DB
@@ -20,7 +20,7 @@ object PossibleResponse
 	  * @param body body to attach
 	  * @return A new status with the specified body included
 	  */
-	def apply(id: Int, data: PossibleResponseStatusData, body: Option[ResponseContentType]): PossibleResponse =
+	def apply(id: Int, data: PossibleResponseStatusData, body: Option[ResponseBodySchema]): PossibleResponse =
 		_PossibleResponse(id, data, body)
 	
 	
@@ -31,7 +31,7 @@ object PossibleResponse
 	  * @param data The wrapped status data
 	  * @param body body to attach
 	  */
-	private case class _PossibleResponse(id: Int, data: PossibleResponseStatusData, body: Option[ResponseContentType])
+	private case class _PossibleResponse(id: Int, data: PossibleResponseStatusData, body: Option[ResponseBodySchema])
 		extends PossibleResponse
 	{
 		// IMPLEMENTED	--------------------
@@ -47,5 +47,5 @@ object PossibleResponse
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait PossibleResponse extends PossibleResponseLike[ResponseContentType, PossibleResponse]
+trait PossibleResponse extends PossibleResponseLike[ResponseBodySchema, PossibleResponse]
 

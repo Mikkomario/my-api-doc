@@ -7,7 +7,7 @@ package vf.myapidoc.model.factory.api
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait RequestBodySchemaFactory[+A] extends ApiNodeMethodImplementationModelSchemaLinkFactory[A]
+trait RequestBodySchemaFactory[+A] extends BodySchemaFactory[A]
 {
 	// ABSTRACT	--------------------
 	
@@ -16,17 +16,20 @@ trait RequestBodySchemaFactory[+A] extends ApiNodeMethodImplementationModelSchem
 	  * @return Copy of this item with the specified custom content type
 	  */
 	def withCustomContentType(customContentType: String): A
-	
 	/**
 	  * @param description New description to assign
 	  * @return Copy of this item with the specified description
 	  */
 	def withDescription(description: String): A
-	
 	/**
-	  * @param isArray New is array to assign
-	  * @return Copy of this item with the specified is array
+	  * @param implementationId New implementation id to assign
+	  * @return Copy of this item with the specified implementation id
 	  */
-	def withIsArray(isArray: Boolean): A
+	def withImplementationId(implementationId: Int): A
+	
+	
+	// IMPLEMENTED	--------------------
+	
+	override def withParentId(parentId: Int) = withImplementationId(parentId)
 }
 

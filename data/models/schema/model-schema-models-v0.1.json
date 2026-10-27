@@ -85,9 +85,9 @@
       {
         "name": "isArray",
         "name_plural": "areArrays",
-        "type": "Boolean",
+        "type": "UncertainBoolean",
         "default": false,
-        "doc": "Whether this property is an array of values. False if this property contains a single value."
+        "doc": "Whether this property is an array of values. \nFalse if this property contains a single value. Uncertain if both are possible."
       },
       {
         "name": "isOptional",

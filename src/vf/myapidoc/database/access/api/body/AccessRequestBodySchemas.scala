@@ -30,7 +30,8 @@ object AccessRequestBodySchemas
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-abstract class AccessRequestBodySchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
+abstract class AccessRequestBodySchemas[A, +Repr <: TargetingManyLike[_, Repr, 
+	_]](wrapped: AccessManyColumns) 
 	extends TargetingTimeline[A, Repr, AccessRequestBodySchema[A]] 
 		with HasValues[AccessRequestBodySchemaValues] with FilterRequestBodySchemas[Repr]
 {
@@ -39,9 +40,11 @@ abstract class AccessRequestBodySchemas[A, +Repr <: TargetingManyLike[_, Repr, _
 	override lazy val values = AccessRequestBodySchemaValues(wrapped)
 	
 	lazy val joinActiveMethodImplementations = join(ApiNodeMethodImplementationDbModel.toActiveJoin)
+	
 	lazy val joinActiveNodes = joinActiveMethodImplementations.join(ApiNodeDbModel.toActiveJoin)
 	
 	lazy val joinActiveNodeGroups = joinActiveNodes.join(ApiNodeGroupDbModel.toActiveJoin)
+	
 	lazy val whereActiveNodeGroups = FilterByApiNodeGroup(joinActiveNodeGroups)
 }
 
@@ -60,6 +63,7 @@ case class AccessRequestBodySchemaRows[A](wrapped: TargetingManyRows[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingManyRows[A]) = AccessRequestBodySchemaRows(newTarget)
+	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessRequestBodySchema(target)
 }
 
@@ -79,6 +83,7 @@ case class AccessCombinedRequestBodySchemas[A](wrapped: TargetingMany[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingMany[A]) = AccessCombinedRequestBodySchemas(newTarget)
+	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessRequestBodySchema(target)
 }
 

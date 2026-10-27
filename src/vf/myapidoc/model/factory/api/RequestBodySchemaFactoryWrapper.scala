@@ -9,16 +9,13 @@ package vf.myapidoc.model.factory.api
   * @since 22.10.2026, v0.1
   */
 trait RequestBodySchemaFactoryWrapper[A <: RequestBodySchemaFactory[A], +Repr] 
-	extends RequestBodySchemaFactory[Repr] 
-		with ApiNodeMethodImplementationModelSchemaLinkFactoryWrapper[A, Repr]
+	extends RequestBodySchemaFactory[Repr] with BodySchemaFactoryWrapper[A, Repr]
 {
 	// IMPLEMENTED	--------------------
 	
 	override def withCustomContentType(customContentType: String) = 
 		mapWrapped { _.withCustomContentType(customContentType) }
-	
 	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
-	
-	override def withIsArray(isArray: Boolean) = mapWrapped { _.withIsArray(isArray) }
+	override def withImplementationId(implementationId: Int) = withParentId(implementationId)
 }
 

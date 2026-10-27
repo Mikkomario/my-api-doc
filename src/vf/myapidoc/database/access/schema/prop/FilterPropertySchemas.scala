@@ -1,7 +1,6 @@
 package vf.myapidoc.database.access.schema.prop
 
 import utopia.flow.generic.casting.ValueConversions._
-import utopia.vault.nosql.template.Filterable
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
 import vf.myapidoc.database.storable.schema.PropertySchemaDbModel
@@ -11,8 +10,7 @@ import vf.myapidoc.database.storable.schema.PropertySchemaDbModel
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait FilterPropertySchemas[+Repr] 
-	extends NullDeprecatableView[Repr] with TimelineView[Repr]
+trait FilterPropertySchemas[+Repr] extends NullDeprecatableView[Repr] with TimelineView[Repr]
 {
 	// COMPUTED	--------------------
 	

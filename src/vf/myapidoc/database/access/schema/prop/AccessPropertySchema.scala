@@ -4,8 +4,7 @@ import utopia.vault.nosql.targeting.columns.HasValues
 import utopia.vault.nosql.targeting.one.{AccessOneDeprecatingRoot, AccessOneWrapper, TargetingOne}
 import vf.myapidoc.model.stored.schema.StoredPropertySchema
 
-object AccessPropertySchema 
-	extends AccessOneDeprecatingRoot[AccessPropertySchema[StoredPropertySchema]]
+object AccessPropertySchema extends AccessOneDeprecatingRoot[AccessPropertySchema[StoredPropertySchema]]
 {
 	// ATTRIBUTES	--------------------
 	

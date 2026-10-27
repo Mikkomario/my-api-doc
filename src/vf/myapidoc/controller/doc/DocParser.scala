@@ -10,11 +10,13 @@ import utopia.flow.collection.mutable.iterator.{OptionsIterator, PollingIterator
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.parse.string.{Lines, Regex}
+import utopia.flow.util.EitherExtensions._
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.UncertainBoolean
 import utopia.scribe.core.controller.logging.Scribe
 import vf.myapidoc.model.cached._
 import vf.myapidoc.model.enumeration.PropertyType
+import vf.myapidoc.model.enumeration.PropertyType.ModelProp
 import vf.myapidoc.util.Common._
 
 import java.nio.file.Path
@@ -24,7 +26,6 @@ import java.nio.file.Path
  * @author Mikko Hilpinen
  * @since 15.10.2026, v0.1
  */
-// FIXME: Object type body didn't get parsed
 object DocParser
 {
 	// ATTRIBUTES   --------------------
@@ -310,27 +311,11 @@ object DocParser
 					else
 						scribe.in("process.apiNode.definition.scope.duplicate")
 							.recoverable("Scope was defined multiple times", loggingContext)
-				case "authorization" | "auth" =>
-					if (tokenOptions.isEmpty) {
-						val firstLine = lines.head
-						if (MdParser.regex.newListItem(firstLine))
-							tokenOptions = MdParser.list(lines).map { entry =>
-								entry.value -> MdParser.listToString(entry.children)
-							}
-						else
-							tokenOptions = Single(lines.head ->
-								MdParser.listToString(MdParser.list(lines.view.tail)))
-					}
+				case "authorization" | "auth" | "authorizationoptions" | "authoptions" =>
+					if (tokenOptions.isEmpty)
+						tokenOptions = parseTokenTypes(lines)
 					else
 						scribe.in("process.apiNode.definition.auth.duplicate")
-							.recoverable("Authorization options were defined multiple times", loggingContext)
-				case "authorizationoptions" | "authoptions" =>
-					if (tokenOptions.isEmpty)
-						tokenOptions = MdParser.list(lines).map { entry =>
-							entry.value -> MdParser.listToString(entry.children)
-						}
-					else
-						scribe.in("process.apiNode.definition.authOptions.duplicate")
 							.recoverable("Authorization options were defined multiple times", loggingContext)
 				case "description" =>
 					description = s"${ description.appendIfNotEmpty("\n\n") }${ lines.mkString(" \n") }"
@@ -390,16 +375,22 @@ object DocParser
 				else
 					(withoutContentType, false)
 			}
-			// Processes the body content (object) type
-			val (properties, referencedType, details) = {
+			// Processes the body content type
+			val (dataType, properties, referencedType, details) = {
 				// Case: Unnamed object => Parses the listed properties
 				if (mainKeyPart.startsWithIgnoreCase("Object"))
-					(entry.children.map(processProp), "", "")
-				// Case: Named object reference => Keeps the reference and includes possible list elements as details
-				else
-					(Empty, mainKeyPart, MdParser.listToString(entry.children))
+					(ModelProp, entry.children.map(processProp), "", "")
+				// Case: Basic type or named object reference
+				//       => Keeps the reference and includes possible list elements as details
+				else {
+					val details = MdParser.listToString(entry.children)
+					PropertyType.findForName(mainKeyPart) match {
+						case Some(basicType) => (basicType, Empty, "", details)
+						case None => (ModelProp, Empty, mainKeyPart, details)
+					}
+				}
 			}
-			Some(NewBodyDefinition(properties = properties, referencedType = referencedType,
+			Some(NewBodyDefinition(dataType = dataType, properties = properties, referencedType = referencedType,
 				contentType = customContentType, details = details, isArray = isArray))
 		}
 	}
@@ -429,7 +420,7 @@ object DocParser
 		val typesBuilder = OptimizedIndexedSeq.newBuilder[PropertyType]
 		var referencedType = ""
 		var optional = false
-		var array = false
+		var array: UncertainBoolean = false
 		val descriptionBuilder = OptimizedIndexedSeq.newBuilder[ValueTree[String]]
 		var children: Seq[NewProperty] = Empty
 		var possibleValues: Seq[(String, String)] = Empty
@@ -440,20 +431,36 @@ object DocParser
 			val value = parts.second
 			parts.first.filter { _.isLetter }.toLowerCase match {
 				case "type" =>
-					if (value.startsWithIgnoreCase("Array")) {
-						array = true
-						value.afterFirst(":").trim.ifNotEmpty.foreach { contentType =>
-							PropertyType.findForName(contentType) match {
-								case Some(contentType) => typesBuilder += contentType
-								case None => referencedType = contentType
+					// Checks for multiple alternative types
+					val parts = value.split('|').iterator
+						.map { entry =>
+							val trimmed = entry.trim
+							val (content, isArray) = {
+								// Case: Array -prefix => Accepts an array of values.
+								//                        Suffix determines the accepted type.
+								if (trimmed.startsWithIgnoreCase("Array"))
+									trimmed.afterFirst(":") -> true
+								else
+									trimmed -> false
 							}
+							// Checks whether a basic type is referenced
+							PropertyType.findForName(content).toRight(content) -> isArray
 						}
+						.toOptimizedSeq
+					// Checks whether an array is expected, and whether that's true 100% of the time
+					val arrayElements = parts.count { _._2 }
+					if (arrayElements > 0) {
+						if (arrayElements == parts.size)
+							array = true
+						else
+							array = UncertainBoolean
 					}
-					else
-						PropertyType.findForName(value) match {
-							case Some(contentType) => typesBuilder += contentType
-							case None => referencedType = value
-						}
+					// If a non-basic type was referenced, we'll store it as a referenced (model) type
+					if (referencedType.isEmpty)
+						parts.findMap { _._1.leftOption }.foreach { referencedType = _ }
+					// Remembers the referenced basic types
+					typesBuilder ++= parts.iterator.flatMap { _._1.rightOption }
+					
 				case "optional" => optional = true
 				case "description" => descriptionBuilder += detail.withValue(value)
 				case "possiblevalues" =>
@@ -491,6 +498,26 @@ object DocParser
 			},
 			children = children,
 			possibleValues = possibleValues, isOptional = optional, isArray = array)
+	}
+	
+	private def parseTokenTypes(lines: Iterable[String]) = {
+		// Checks whether token type/types are introduced as a list or as direct values
+		val firstLine = lines.head
+		val tokenEntries = {
+			// Case: List of values => Extracts each list item
+			if (MdParser.regex.newListItem(firstLine))
+				MdParser.list(lines).map { entry => entry.value -> entry.children }
+			// Case: Direct value => Expects the value to represent a single token type.
+			//                       Also extracts the following list items (as details), if applicable.
+			else
+				Single(lines.head -> MdParser.list(lines.view.tail))
+		}
+		// Separates the token type names from their descriptions
+		tokenEntries.map { case (mainEntry, details) =>
+			val mainEntryParts = mainEntry.splitAtFirst(":").map { _.trim }
+			mainEntryParts.first ->
+				Pair(mainEntryParts.second, MdParser.listToString(details)).filter { _.nonEmpty }.mkString("\n")
+		}
 	}
 	
 	/**
