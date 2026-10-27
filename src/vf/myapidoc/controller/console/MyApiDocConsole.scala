@@ -4,6 +4,7 @@ import utopia.flow.async.context.CloseHook
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Value
 import utopia.flow.time.TimeExtensions._
+import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.AppConfig
 import utopia.flow.util.console.Console
 import utopia.flow.util.result.TryCatch
@@ -11,8 +12,10 @@ import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.model.enumeration.Severity.Recoverable
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import utopia.vault.database.Connection
+import utopia.vault.database.columnlength.ColumnLengthRules
 import vf.myapidoc.util.Common._
 
+import java.nio.file.{Path, Paths}
 import scala.io.StdIn
 import scala.util.{Failure, Success}
 
@@ -82,6 +85,14 @@ object MyApiDocConsole extends App
 					config("user") = user
 					config("password") = password
 				}
+				
+				// Loads column-length rules
+				val columnLengthRulesPath: Path = "data/length-rules"
+				if (columnLengthRulesPath.exists)
+					ColumnLengthRules.loadFrom(columnLengthRulesPath, dbName)
+				else
+					scribe.in("init.dbAccess.columnLengthRules").recoverable("Failed to load column-length rules")
+				
 				true
 			case Failure(error) =>
 				scribe.in("init.dbAccess")(error, "Can't access the database")

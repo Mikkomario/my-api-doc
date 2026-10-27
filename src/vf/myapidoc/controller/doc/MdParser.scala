@@ -247,6 +247,23 @@ object MdParser
 	}
 	
 	/**
+	 * Removes special formatting from a line
+	 * @param line Line to strip formatting from
+	 * @return A copy of the specified line without:
+	 *         - Any bold or italic effects
+	 *         - Links
+	 */
+	def stripFormattingFrom(line: String) = {
+		val withoutLinks = regex.link.divide(line).iterator
+			.map {
+				case Left(nonLink) => nonLink
+				case Right(link) => link.drop(1).takeWhile { _ != ']' }
+			}
+			.mkString
+		withoutLinks.filterNot { _ == '*' }.dropRightWhile { _ == ' ' }
+	}
+	
+	/**
 	 * Removes a list marker from the beginning of a line, if present
 	 * @param trimmedLine A line that's already been trimmed
 	 * @return Returns 2 values:
@@ -317,5 +334,14 @@ object MdParser
 		 * Supports indentation.
 		 */
 		val newListItem = indentation.withinParentheses.anyTimes + startsWithListElementMarker.withinParentheses
+		
+		/**
+		 * A regular expression for finding Markdown links
+		 */
+		val link = {
+			val closingR1 = Regex.escape(']')
+			val closingR2 = Regex.escape(')')
+			Regex.escape('[') + (!closingR1).anyTimes + closingR1 + Regex.escape('(') + (!closingR2).anyTimes + closingR2
+		}
 	}
 }

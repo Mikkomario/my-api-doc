@@ -24,6 +24,7 @@ import java.nio.file.Path
  * @author Mikko Hilpinen
  * @since 15.10.2026, v0.1
  */
+// FIXME: Object type body didn't get parsed
 object DocParser
 {
 	// ATTRIBUTES   --------------------
@@ -44,10 +45,12 @@ object DocParser
 	 */
 	def readApiNodesFrom(path: Path, groupHeaderLevel: Int = 2) =
 		Lines.iterate(path) { linesIter =>
+			// Removes links, italic & bold effects, as well as trailing whitespaces from all lines
+			val formattedLinesIter = linesIter.map(MdParser.stripFormattingFrom)
 			val groupsBuilder = OptimizedIndexedSeq.newBuilder[NewApiNodeGroup]
 			
 			// Finds the first header
-			linesIter.findMap { line =>
+			formattedLinesIter.findMap { line =>
 				val headerDepth = line.iterator.takeWhile { _ == '#' }.size
 				if (headerDepth >= groupHeaderLevel) Some(headerDepth -> line.drop(headerDepth).trim) else None
 			} match {
@@ -55,8 +58,8 @@ object DocParser
 					// Continually parses the content one (node group) section at a time
 					var nextHeaderDepth = firstHeaderDepth
 					var nextHeader = firstHeader
-					while (linesIter.hasNext) {
-						val (section, stopHeader) = MdParser.nextSection(nextHeader, linesIter, nextHeaderDepth)
+					while (formattedLinesIter.hasNext) {
+						val (section, stopHeader) = MdParser.nextSection(nextHeader, formattedLinesIter, nextHeaderDepth)
 						
 						// Processes subsections as API node docs and adds this section / group to the builder
 						val (sectionHeader, sectionLines) = section.value
@@ -87,7 +90,8 @@ object DocParser
 	 */
 	def readModelsFrom(path: Path) =
 		Lines.iterate(path) { linesIter =>
-			val pollingLinesIter = linesIter.pollable
+			// Removes special formatting
+			val pollingLinesIter = linesIter.map(MdParser.stripFormattingFrom).pollable
 			// NB: Current version assumes that all models are listed at header level 2
 			// Correct if necessary
 			OptionsIterator.continually { pollingLinesIter.find { _.startsWith("##") } }
@@ -99,16 +103,15 @@ object DocParser
 		val (name, lines) = section.value
 		
 		// Finds the portion of this section that concerns this API node generally
-		val linesWithoutBold = lines.map { _.filterNot { _ == '*' } }
-		val methodLineIndex = linesWithoutBold.findIndexWhere { _.startsWithIgnoreCase("Method:") }
+		val methodLineIndex = lines.findIndexWhere { _.startsWithIgnoreCase("Method:") }
 		
 		// Extracts and processes the listed definitions
 		var parentName = ""
 		var path = ""
 		var pathParams: Seq[NewProperty] = Empty
 		val (description, tokenOptions, scope) = processDefinitions(methodLineIndex match {
-			case Some(i) => linesWithoutBold.view.take(i)
-			case None => linesWithoutBold
+			case Some(i) => lines.view.take(i)
+			case None => lines
 		}) {
 			(key, lines) =>
 				key match {
@@ -116,7 +119,7 @@ object DocParser
 						parentName = lines.head
 						true
 					case "path" =>
-						path = lines.head
+						path = lines.head.notSurroundedWith("`").notStartingWith("#parent")
 						true
 					case "pathparameters" | "pathparams" =>
 						pathParams = parseProps(lines.iterator.pollable)
@@ -130,8 +133,8 @@ object DocParser
 			//       => Parses the remaining lines as part of that method's implementation
 			case Some(headerIndex) =>
 				val (methodNamePart, descriptionPart) =
-					linesWithoutBold(headerIndex).drop(7).splitAtFirst(":").map { _.trim }.toTuple
-				val results = parseMethodImplementation(name, methodNamePart, linesWithoutBold.drop(headerIndex + 1))
+					lines(headerIndex).drop(7).splitAtFirst(":").map { _.trim }.toTuple
+				val results = parseMethodImplementation(name, methodNamePart, lines.drop(headerIndex + 1))
 				
 				// Includes the description from the header / method line, if given
 				if (results.nonEmpty && descriptionPart.nonEmpty)
@@ -194,8 +197,7 @@ object DocParser
 							requestBodyOptions = bodyOptions.flatten
 						}
 						else
-							processBodyEntry(ValueTree(lines.head).withChildren(MdParser.list(lines.view.tail))) match
-							{
+							processBodyEntry(ValueTree(lines.head).withChildren(MdParser.list(lines.view.tail))) match {
 								case Some(body) => requestBodyOptions = Single(body)
 								case None => optionalRequestBody = true
 							}
@@ -207,7 +209,7 @@ object DocParser
 						requestBodyOptions = bodyOptions.flatten
 						true
 					case "response" =>
-						val responseDetails = MdParser.list(lines.view.tail)
+						val responseDetails = MdParser.list(lines)
 						// Parses the response status entries, if present
 						responseDetails.find { _.value.startsWithIgnoreCase("Status") }.foreach { statusesNode =>
 							statusCodes = statusesNode.children.flatMap { statusNode =>
@@ -333,9 +335,21 @@ object DocParser
 				case "description" =>
 					description = s"${ description.appendIfNotEmpty("\n\n") }${ lines.mkString(" \n") }"
 				case other =>
-					if (!processOther(other, lines))
-						description = s"${ description.appendIfNotEmpty("\n\n") }${ other.capitalize }: ${
-							lines.mkString(" \n") }"
+					if (!processOther(other, lines)) {
+						val header = other.capitalize
+						val addition = {
+							if (lines.headOption.exists(MdParser.regex.newListItem.apply))
+								s"$header:\n${ lines.mkString("\n") }"
+							else
+								s"$header: ${ lines.mkString("\n") }"
+						}
+						description = {
+							if (description.isEmpty)
+								addition
+							else
+								s"$description\n\n$addition"
+						}
+					}
 			}
 		}
 		(description, tokenOptions, scope)
@@ -406,7 +420,8 @@ object DocParser
 		}
 	}
 	
-	private def parseProps(linesIter: PollingIterator[String]): Seq[NewProperty] = MdParser.list(linesIter).map(processProp)
+	private def parseProps(linesIter: PollingIterator[String]): Seq[NewProperty] =
+		MdParser.list(linesIter).map(processProp)
 	private def processProp(propInput: ValueTree[String]): NewProperty = {
 		val propName = propInput.value
 		
@@ -468,7 +483,13 @@ object DocParser
 		
 		// Compiles the property
 		NewProperty(name = propName, dataTypes = typesBuilder.result(), referencedType = referencedType,
-			description = MdParser.listToString(descriptionBuilder.result()), children = children,
+			description = descriptionBuilder.result().emptyOneOrMany match {
+				case None => ""
+				case Some(Left(onlyEntry)) =>
+					Pair(onlyEntry.value, MdParser.listToString(onlyEntry.children)).filter { _.nonEmpty }.mkString("\n")
+				case Some(Right(entries)) => MdParser.listToString(entries)
+			},
+			children = children,
 			possibleValues = possibleValues, isOptional = optional, isArray = array)
 	}
 	
@@ -490,7 +511,7 @@ object DocParser
 		val parts = scopeEntry.value.split(andR)
 		// Case: Multiple scopes are required => Parses each part, expecting no description to be included
 		if (parts.size > 1)
-			parts.map { _.notSurroundedWith("(", ")") } -> nestedDescription
+			parts.map { _.notSurroundedWith("(", ")").notSurroundedWith("`") } -> nestedDescription
 		// Case: Only a single scope mentioned => Extracts the description from the scope
 		else {
 			val (scope, directDescription) = _parseScope(parts.head)

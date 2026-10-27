@@ -115,7 +115,7 @@ object MdParsingTest extends App
 		
 		// As documented, bolding / italic markers (*) should be stripped before parsing definitions
 		val defs = definitions(definitionsSection.value._2.map { _.replace("*", "") })
-		assert(defs.size == 4)
+		assert(defs.size == 5)
 		
 		assert(defs.head._1 == "description")
 		assert(defs.head._2 == Seq("Initial definitions content."))
@@ -127,7 +127,16 @@ object MdParsingTest extends App
 		assert(defs(2)._2 == Seq("A longer piece of text that spans ", "multiple lines of text (in the document)."))
 		
 		assert(defs(3)._1 == "notice")
-		assert(defs(3)._2 == Seq("This is the last definition.", "- Additional details"))
+		assert(defs(3)._2 == Seq("This is the last definition.", "- Additional details:", "  - Detail"))
+		
+		val (responseHeader, responseLines) = defs(4)
+		val responseList = list(responseLines)
+		assert(responseHeader == "response", responseHeader)
+		assert(responseList.size == 2, responseList.iterator.map { _.value }.mkString(", "))
+		assert(responseList.head.value == "Status codes:")
+		assert(responseList(1).value == "Body: Object:")
+		assert(responseList.head.children.size == 4)
+		assert(responseList(1).children.size == 2)
 	}
 	
 	// List parsing and listToString (List section)
