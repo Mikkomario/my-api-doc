@@ -108,12 +108,6 @@ object MyApiDocTables extends Tables(cPool)
 	 * Table that contains response body schemas (Defines how an API node's response body is formed.)
 	 */
 	lazy val responseBodySchema = apply("response_body_schema")
-	/**
-	  * Table that contains response content types (Defines how an API node's response body is 
-	  * formed.)
-	  */
-	@deprecated("Deprecated for removal. Please use responseBodySchema instead", "v0.1")
-	lazy val responseContentType = apply("response_content_type")
 	
 	/**
 	  * Table that contains scopes (Represents an authorization scope in the documented API.)

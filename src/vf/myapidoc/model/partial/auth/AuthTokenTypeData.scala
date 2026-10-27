@@ -10,6 +10,7 @@ import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.time.Now
 import vf.myapidoc.model.enumeration.TokenUseType
 import vf.myapidoc.model.factory.auth.AuthTokenTypeFactory
+import vf.myapidoc.model.template.ClientModelConvertible
 
 import java.time.Instant
 
@@ -52,7 +53,7 @@ object AuthTokenTypeData extends FromModelFactory[AuthTokenTypeData]
   */
 case class AuthTokenTypeData(apiId: Int, name: String, nameNoSpaces: String, useType: TokenUseType,
                              created: Instant = Now, deprecatedAfter: Option[Instant] = None)
-	extends AuthTokenTypeFactory[AuthTokenTypeData] with ModelConvertible
+	extends AuthTokenTypeFactory[AuthTokenTypeData] with ModelConvertible with ClientModelConvertible
 {
 	// COMPUTED	--------------------
 	
@@ -70,6 +71,7 @@ case class AuthTokenTypeData(apiId: Int, name: String, nameNoSpaces: String, use
 	
 	override def toModel = Model(Vector("apiId" -> apiId, "name" -> name, "nameNoSpaces" -> nameNoSpaces,
 		"useType" -> useType.id, "created" -> created, "deprecatedAfter" -> deprecatedAfter))
+	override def toClientModel: Model = Model.from("name" -> name, "type" -> useType.toString.toLowerCase)
 	
 	override def withApiId(apiId: Int) = copy(apiId = apiId)
 	override def withCreated(created: Instant) = copy(created = created)

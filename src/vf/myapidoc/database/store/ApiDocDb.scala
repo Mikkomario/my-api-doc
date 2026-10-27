@@ -674,6 +674,7 @@ object ApiDocDb
 										dataType = body.dataType,
 										modelTypeId = referencedModelTypeId.orElse {
 											ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId)
+												.map { _.id }
 										},
 										isArray = body.isArray))
 								}

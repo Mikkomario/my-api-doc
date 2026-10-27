@@ -50,8 +50,9 @@ object ResponseBodySchemaData extends FromModelFactory[ResponseBodySchemaData]
   * @author Mikko Hilpinen
   * @since 27.10.2026, v0.1
   */
-case class ResponseBodySchemaData(statusId: Int, dataType: PropertyType, modelTypeId: Option[Int] = None, 
-	created: Instant = Now, deprecatedAfter: Option[Instant] = None, isArray: Boolean = false) 
+case class ResponseBodySchemaData(statusId: Int, dataType: PropertyType, modelTypeId: Option[Int] = None,
+                                  created: Instant = Now, deprecatedAfter: Option[Instant] = None,
+                                  isArray: Boolean = false)
 	extends ResponseBodySchemaFactory[ResponseBodySchemaData] with BodySchemaData 
 		with BodySchemaDataLike[ResponseBodySchemaData]
 {

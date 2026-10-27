@@ -1,11 +1,9 @@
 package vf.myapidoc.database.access.api.response.status
 
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, HasValues}
-import utopia.vault.nosql.targeting.many.{AccessManyDeprecatingRoot, AccessRowsWrapper, AccessWrapper, DeprecatingWrapRowAccess, TargetingMany, TargetingManyLike, TargetingManyRows, TargetingTimeline, WrapOneToManyAccess}
+import utopia.vault.nosql.targeting.many._
 import utopia.vault.nosql.targeting.one.TargetingOne
-import vf.myapidoc.database.MyApiDocTables
 import vf.myapidoc.database.access.api.node.group.FilterByApiNodeGroup
-import vf.myapidoc.database.access.api.response.body.{AccessResponseContentTypeValues, FilterByResponseContentType}
 import vf.myapidoc.database.reader.api.PossibleResponseStatusDbReader
 import vf.myapidoc.database.storable.api.{ApiNodeDbModel, ApiNodeGroupDbModel, ApiNodeMethodImplementationDbModel, PossibleResponseStatusDbModel}
 import vf.myapidoc.model.stored.api.PossibleResponseStatus
@@ -45,19 +43,6 @@ abstract class AccessPossibleResponseStatuses[A, +Repr <: TargetingManyLike[_, R
 	
 	lazy val joinActiveNodeGroups = joinActiveNodes.join(ApiNodeGroupDbModel.toActiveJoin)
 	lazy val whereActiveNodeGroups = FilterByApiNodeGroup(joinActiveNodeGroups)
-	
-	/**
-	  * A copy of this access which also targets response_content_type
-	  */
-	lazy val joinBodies = join(MyApiDocTables.responseContentType)
-	/**
-	  * Access to the values of linked response content types
-	  */
-	lazy val bodies = AccessResponseContentTypeValues(joinBodies)
-	/**
-	  * Access to response content type -based filtering functions
-	  */
-	lazy val whereBodies = FilterByResponseContentType(joinBodies)
 }
 
 /**

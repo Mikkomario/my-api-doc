@@ -1,11 +1,12 @@
 package vf.myapidoc.model.combined.api
 
 import utopia.flow.collection.immutable.tree.ValueTree
-import utopia.flow.generic.model.immutable.Constant
+import utopia.flow.generic.model.immutable.{Constant, Model}
 import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.factory.api.ApiNodeGroupFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeGroupData
 import vf.myapidoc.model.stored.api.ApiNodeGroup
+import vf.myapidoc.model.template.ClientModelConvertible
 
 /**
  * Includes full API node information with an API node group
@@ -18,6 +19,7 @@ import vf.myapidoc.model.stored.api.ApiNodeGroup
  */
 case class DetailedApiNodeGroup(id: Int, data: ApiNodeGroupData, rootNodes: Seq[ValueTree[DetailedApiNode]])
 	extends ApiNodeGroup with ApiNodeGroupFactoryWrapper[ApiNodeGroupData, DetailedApiNodeGroup]
+		with ClientModelConvertible
 {
 	// COMPUTED ---------------------------
 	
@@ -29,7 +31,11 @@ case class DetailedApiNodeGroup(id: Int, data: ApiNodeGroupData, rootNodes: Seq[
 	
 	// IMPLEMENTED  -----------------------
 	
-	override def toModel = super.toModel + Constant("nodes" -> rootNodes.flatMap { _.valuesIterator })
+	override def toModel = super.toModel + Constant("nodes" -> nodesIterator.toVector)
+	override def toClientModel: Model = Model
+		.from("name" -> data.name, "description" -> data.description,
+			"nodes" -> nodesIterator.map { _.toClientModel }.toVector)
+		.withoutEmptyValues
 	
 	override protected def wrap(factory: ApiNodeGroupData): DetailedApiNodeGroup = copy(data = factory)
 	override def withId(id: Int): ApiNodeGroup = copy(id = id)

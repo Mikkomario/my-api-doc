@@ -16,6 +16,7 @@ import vf.myapidoc.model.cached.NewProperty
 import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.enumeration.PropertyType.AnyProp
 import vf.myapidoc.model.factory.schema.PropertySchemaFactory
+import vf.myapidoc.model.template.ClientModelConvertible
 
 import java.time.Instant
 
@@ -66,9 +67,10 @@ object PropertySchemaData extends FromModelFactory[PropertySchemaData]
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class PropertySchemaData(modelTypeId: Int, name: String, dataType: PropertyType, 
-	contentTypeId: Option[Int] = None, description: String = "", created: Instant = Now, 
-	deprecatedAfter: Option[Instant] = None, isArray: UncertainBoolean = false, isOptional: Boolean = false) 
+case class PropertySchemaData(modelTypeId: Int, name: String, dataType: PropertyType,
+                              contentTypeId: Option[Int] = None, description: String = "", created: Instant = Now,
+                              deprecatedAfter: Option[Instant] = None, isArray: UncertainBoolean = false,
+                              isOptional: Boolean = false)
 	extends PropertySchemaFactory[PropertySchemaData] with ModelConvertible
 {
 	// COMPUTED	--------------------
@@ -85,10 +87,9 @@ case class PropertySchemaData(modelTypeId: Int, name: String, dataType: Property
 	
 	// IMPLEMENTED	--------------------
 	
-	override def toModel = 
-		Model(Vector("modelTypeId" -> modelTypeId, "name" -> name, "dataType" -> dataType.id, 
-			"contentTypeId" -> contentTypeId, "description" -> description, "created" -> created, 
-			"deprecatedAfter" -> deprecatedAfter, "isArray" -> isArray.exact, "isOptional" -> isOptional))
+	override def toModel = Model(Vector("modelTypeId" -> modelTypeId, "name" -> name, "dataType" -> dataType.id,
+		"contentTypeId" -> contentTypeId, "description" -> description, "created" -> created,
+		"deprecatedAfter" -> deprecatedAfter, "isArray" -> isArray.exact, "isOptional" -> isOptional))
 	
 	override def withContentTypeId(contentTypeId: Int) = copy(contentTypeId = Some(contentTypeId))
 	override def withCreated(created: Instant) = copy(created = created)

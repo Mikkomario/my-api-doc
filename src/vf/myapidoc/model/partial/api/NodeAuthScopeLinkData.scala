@@ -51,8 +51,9 @@ object NodeAuthScopeLinkData extends FromModelFactoryWithSchema[NodeAuthScopeLin
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-case class NodeAuthScopeLinkData(nodeId: Int, scopeId: Int, method: Option[Method] = None, 
-	description: String = "", created: Instant = Now, deprecatedAfter: Option[Instant] = None) 
+case class NodeAuthScopeLinkData(nodeId: Int, scopeId: Int, method: Option[Method] = None,
+                                 description: String = "", created: Instant = Now,
+                                 deprecatedAfter: Option[Instant] = None)
 	extends NodeAuthScopeLinkFactory[NodeAuthScopeLinkData] with NodeAuthLinkData 
 		with NodeAuthLinkDataLike[NodeAuthScopeLinkData]
 {

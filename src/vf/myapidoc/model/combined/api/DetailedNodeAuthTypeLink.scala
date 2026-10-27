@@ -1,11 +1,12 @@
 package vf.myapidoc.model.combined.api
 
-import utopia.flow.generic.model.immutable.Constant
+import utopia.flow.generic.model.immutable.{Constant, Model}
 import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.factory.api.NodeAuthTypeLinkFactoryWrapper
 import vf.myapidoc.model.partial.api.NodeAuthTypeLinkData
 import vf.myapidoc.model.stored.api.{NodeAuthTypeLink, StoredNodeAuthLinkLike}
 import vf.myapidoc.model.stored.auth.AuthTokenType
+import vf.myapidoc.model.template.ClientModelConvertible
 
 object DetailedNodeAuthTypeLink
 {
@@ -18,7 +19,6 @@ object DetailedNodeAuthTypeLink
 	  */
 	def apply(link: NodeAuthTypeLink, token: AuthTokenType): DetailedNodeAuthTypeLink = 
 		apply(link.id, link.data, token)
-	
 	/**
 	  * @param id    ID of this link in the DB
 	  * @param data  The wrapped link data
@@ -55,7 +55,7 @@ object DetailedNodeAuthTypeLink
 trait DetailedNodeAuthTypeLink 
 	extends NodeAuthTypeLink 
 		with NodeAuthTypeLinkFactoryWrapper[NodeAuthTypeLinkData, DetailedNodeAuthTypeLink] 
-		with StoredNodeAuthLinkLike[NodeAuthTypeLinkData, DetailedNodeAuthTypeLink]
+		with StoredNodeAuthLinkLike[NodeAuthTypeLinkData, DetailedNodeAuthTypeLink] with ClientModelConvertible
 {
 	// ABSTRACT	--------------------
 	
@@ -68,5 +68,12 @@ trait DetailedNodeAuthTypeLink
 	// IMPLEMENTED	--------------------
 
 	override def toModel = super.toModel + Constant("token", token)
+	override def toClientModel: Model = {
+		val base = token.toClientModel
+		if (data.description.isEmpty)
+			base
+		else
+			base + Constant("description", data.description)
+	}
 }
 

@@ -16,7 +16,6 @@ object NodeAuthScopeLinkWithAdditionalRequirements
 	def apply(link: NodeAuthScopeLink,
 		additionalRequirements: Seq[AdditionalNodeAuthScopeRequirement]): NodeAuthScopeLinkWithAdditionalRequirements =
 		apply(link.id, link.data, additionalRequirements)
-	
 	/**
 	  * @param id                     ID of this link in the DB
 	  * @param data                   The wrapped link data

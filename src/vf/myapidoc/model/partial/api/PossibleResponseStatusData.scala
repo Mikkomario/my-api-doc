@@ -49,8 +49,9 @@ object PossibleResponseStatusData extends FromModelFactoryWithSchema[PossibleRes
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-case class PossibleResponseStatusData(implementationId: Int, statusCode: Int, description: String = "", 
-	created: Instant = Now, deprecatedAfter: Option[Instant] = None, hasBody: UncertainBoolean = UncertainBoolean)
+case class PossibleResponseStatusData(implementationId: Int, statusCode: Int, description: String = "",
+                                      created: Instant = Now, deprecatedAfter: Option[Instant] = None,
+                                      hasBody: UncertainBoolean = UncertainBoolean)
 	extends PossibleResponseStatusFactory[PossibleResponseStatusData] with ModelConvertible
 {
 	// COMPUTED	--------------------

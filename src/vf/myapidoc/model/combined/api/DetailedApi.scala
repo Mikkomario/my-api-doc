@@ -6,6 +6,7 @@ import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.ApiFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiData
 import vf.myapidoc.model.stored.api.Api
+import vf.myapidoc.model.template.ClientModelConvertible
 
 /**
  * Includes full API documentation
@@ -17,7 +18,7 @@ import vf.myapidoc.model.stored.api.Api
  * @since 23.10.2026, v0.1
  */
 case class DetailedApi(id: Int, data: ApiData, nodeGroups: Seq[DetailedApiNodeGroup], models: Seq[DetailedModelSchema])
-	extends Api with ApiFactoryWrapper[ApiData, DetailedApi]
+	extends Api with ApiFactoryWrapper[ApiData, DetailedApi] with ClientModelConvertible
 {
 	// ATTRIBUTES -------------------------
 	
@@ -38,6 +39,8 @@ case class DetailedApi(id: Int, data: ApiData, nodeGroups: Seq[DetailedApiNodeGr
 	// IMPLEMENTED  -----------------------
 	
 	override def toModel = super.toModel ++ Model.from("models" -> models, "nodeGroups" -> nodeGroups)
+	override def toClientModel: Model = Model.from("name" -> data.name, "models" -> models.map { _.toClientModel },
+		"nodeGroups" -> nodeGroups.map { _.toClientModel })
 	
 	override protected def wrap(factory: ApiData): DetailedApi = copy(data = factory)
 	override def withId(id: Int): Api = copy(id = id)

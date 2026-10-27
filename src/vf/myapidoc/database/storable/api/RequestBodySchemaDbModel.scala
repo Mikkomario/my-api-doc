@@ -30,7 +30,7 @@ object RequestBodySchemaDbModel
 	/**
 	  * Database property used for interacting with implementation ids
 	  */
-	override lazy val implementationId = property("implementationId")
+	lazy val implementationId = property("implementationId")
 	/**
 	  * Database property used for interacting with data types
 	  */
