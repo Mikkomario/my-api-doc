@@ -1,6 +1,6 @@
 # My Api Doc
 Version: **v0.1**  
-Updated: 2026-10-26
+Updated: 2026-10-27
 
 ## Table of Contents
 - [Enumerations](#enumerations)
@@ -14,6 +14,7 @@ Updated: 2026-10-26
     - [Api Node Group](#api-node-group)
     - [Api Node Method Implementation](#api-node-method-implementation)
     - [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link)
+    - [Body Schema](#body-schema)
     - [Node Auth Link](#node-auth-link)
     - [Node Auth Scope Link](#node-auth-scope-link)
     - [Node Auth Type Link](#node-auth-type-link)
@@ -21,7 +22,7 @@ Updated: 2026-10-26
     - [Possible Response Status](#possible-response-status)
     - [Query Parameters Schema Link](#query-parameters-schema-link)
     - [Request Body Schema](#request-body-schema)
-    - [Response Content Type](#response-content-type)
+    - [Response Body Schema](#response-body-schema)
   - [Auth](#auth)
     - [Auth Token Type](#auth-token-type)
     - [Scope](#scope)
@@ -50,9 +51,12 @@ Key: `id: Int`
 - **Duration Prop** (8) - A property for representing durations. Transmitted in JSON by coupling amount and unit, e.g. "48 seconds" or "2min"
 - **Model Prop** (9) - A JSON object type. Usually coupled with a model type reference.
 
-Utilized by the following 2 classes:
+Utilized by the following 5 classes:
 - [Alternative Property Type](#alternative-property-type)
+- [Body Schema](#body-schema)
 - [Property Schema](#property-schema)
+- [Request Body Schema](#request-body-schema)
+- [Response Body Schema](#response-body-schema)
 
 ### Token Use Type
 An enumeration for different token use types
@@ -68,10 +72,10 @@ Utilized by the following 1 classes:
 
 ## Packages and Classes
 Below are listed all classes introduced in My Api Doc, grouped by package and in alphabetical order.  
-There are a total number of 3 packages and 20 classes
+There are a total number of 3 packages and 21 classes
 
 ### Api
-This package contains the following 14 classes: [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement), [Api](#api), [Api Node](#api-node), [Api Node Group](#api-node-group), [Api Node Method Implementation](#api-node-method-implementation), [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link), [Node Auth Link](#node-auth-link), [Node Auth Scope Link](#node-auth-scope-link), [Node Auth Type Link](#node-auth-type-link), [Path Parameters Schema Link](#path-parameters-schema-link), [Possible Response Status](#possible-response-status), [Query Parameters Schema Link](#query-parameters-schema-link), [Request Body Schema](#request-body-schema), [Response Content Type](#response-content-type)
+This package contains the following 15 classes: [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement), [Api](#api), [Api Node](#api-node), [Api Node Group](#api-node-group), [Api Node Method Implementation](#api-node-method-implementation), [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link), [Body Schema](#body-schema), [Node Auth Link](#node-auth-link), [Node Auth Scope Link](#node-auth-scope-link), [Node Auth Type Link](#node-auth-type-link), [Path Parameters Schema Link](#path-parameters-schema-link), [Possible Response Status](#possible-response-status), [Query Parameters Schema Link](#query-parameters-schema-link), [Request Body Schema](#request-body-schema), [Response Body Schema](#response-body-schema)
 
 #### Additional Node Auth Scope Requirement
 Links an additional required scope to an auth-scope link
@@ -192,6 +196,23 @@ Api Node Method Implementation Model Schema Link contains the following 4 proper
 - **Created** - `created: Instant` - Time when this api node method implementation model schema link was added to the database
 - **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node method implementation model schema link became deprecated. None while this api node method implementation model schema link is still valid.
 
+#### Body Schema
+Common trait for request & response body schemas.
+
+##### Details
+- Fully **versioned**
+- Uses 3 database **indices**: `parent_id`, `created`, `deprecated_after`
+
+##### Properties
+Body Schema contains the following 6 properties:
+- **Parent Id** - `parentId: Int` - ID of the element that contains this body.
+- **Data Type** - `dataType: PropertyType` - Type of this body's contents.
+- **Model Type Id** - `modelTypeId: Option[Int]` - If this body contains an object or objects, contains the ID of the model schema that describes the applicable object structure.
+  - Refers to [Model Schema](#model-schema)
+- **Created** - `created: Instant` - Time when this body schema was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this body schema became deprecated. None while this body schema is still valid.
+- **Is Array** - `isArray: Boolean` - Whether this body contains an array of values. False if no more than one value may be included.
+
 #### Node Auth Link
 Common trait for links between API nodes and possible authorization requirements
 
@@ -272,7 +293,6 @@ Path Parameters Schema Link contains the following 4 properties:
 Defines a possible response status for an API node method call.
 
 ##### Details
-- May combine with [Response Content Type](#response-content-type), creating a **Possible Response**
 - Fully **versioned**
 - Uses 3 database **indices**: `status_code`, `created`, `deprecated_after`
 
@@ -287,7 +307,7 @@ Possible Response Status contains the following 6 properties:
 - **Has Body** - `hasBody: UncertainBoolean` - Whether a response body is returned with this status. Uncertain if not specified in the documentation.
 
 ##### Referenced from
-- [Response Content Type](#response-content-type).`statusId`
+- [Response Body Schema](#response-body-schema).`statusId`
 
 #### Query Parameters Schema Link
 Applies a specific schema to the query parameters accepted by an API node.
@@ -311,38 +331,38 @@ Multiple alternative schemas may be defined separately.
 
 ##### Details
 - Fully **versioned**
-- Uses 2 database **indices**: `created`, `deprecated_after`
+- Uses 3 database **indices**: `implementation_id`, `created`, `deprecated_after`
 
 ##### Properties
-Request Body Schema contains the following 7 properties:
-- **Implementation Id** - `implementationId: Int` - ID of the method implementation that uses the linked schema.
+Request Body Schema contains the following 8 properties:
+- **Implementation Id** - `implementationId: Int` - ID of the method implementation that receives this request body.
   - Refers to [Api Node Method Implementation](#api-node-method-implementation)
-- **Model Type Id** - `modelTypeId: Int` - ID of the schema that defines the type of model accepted by the linked implementation.
+- **Data Type** - `dataType: PropertyType` - Type of this body's contents.
+- **Model Type Id** - `modelTypeId: Option[Int]` - If this body contains an object or objects, contains the ID of the model schema that describes the applicable object structure.
   - Refers to [Model Schema](#model-schema)
-- **Created** - `created: Instant` - Time when this api node method implementation model schema link was added to the database
-- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this api node method implementation model schema link became deprecated. None while this api node method implementation model schema link is still valid.
+- **Created** - `created: Instant` - Time when this body schema was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this body schema became deprecated. None while this body schema is still valid.
+- **Is Array** - `isArray: Boolean` - Whether this body contains an array of values. False if no more than one value may be included.
 - **Custom Content Type** - `customContentType: String` - Non-standard content type expected from the request body, if applicable.
 - **Description** - `description: String` - Description of the expected request body.
-- **Is Array** - `isArray: Boolean` - Whether a JSON array is expected.
 
-#### Response Content Type
+#### Response Body Schema
 Defines how an API node's response body is formed.
 
 ##### Details
 - Fully **versioned**
-- Uses 2 database **indices**: `created`, `deprecated_after`
+- Uses 3 database **indices**: `status_id`, `created`, `deprecated_after`
 
 ##### Properties
-Response Content Type contains the following 7 properties:
+Response Body Schema contains the following 6 properties:
 - **Status Id** - `statusId: Int` - ID of the status this type of response body is returned with.
   - Refers to [Possible Response Status](#possible-response-status)
-- **Content Type** - `contentType: Option[PropertyType]` - If this body is non-empty, specifies the type of content it contains.
-- **Model Type Id** - `modelTypeId: Option[Int]` - If this body contains a JSON object or objects, contains the ID of the model schema that describes the applicable object structure.
+- **Data Type** - `dataType: PropertyType` - Type of this body's contents.
+- **Model Type Id** - `modelTypeId: Option[Int]` - If this body contains an object or objects, contains the ID of the model schema that describes the applicable object structure.
   - Refers to [Model Schema](#model-schema)
-- **Created** - `created: Instant` - Time when this response content type was added to the database
-- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this response content type became deprecated. None while this response content type is still valid.
-- **Is Array** - `isArray: Boolean` - Whether this response body contains an array of values. False if no more than one value may be returned.
-- **Is Empty** - `isEmpty: Boolean` - Whether this response body is empty / no response body is returned.
+- **Created** - `created: Instant` - Time when this body schema was added to the database
+- **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this body schema became deprecated. None while this body schema is still valid.
+- **Is Array** - `isArray: Boolean` - Whether this body contains an array of values. False if no more than one value may be included.
 
 ### Auth
 This package contains the following 2 classes: [Auth Token Type](#auth-token-type), [Scope](#scope)
@@ -424,12 +444,13 @@ Named model types are often referenced from multiple sources, while unnamed type
 
 ##### Referenced from
 - [Api Node Method Implementation Model Schema Link](#api-node-method-implementation-model-schema-link).`modelTypeId`
+- [Body Schema](#body-schema).`modelTypeId`
 - [Path Parameters Schema Link](#path-parameters-schema-link).`modelTypeId`
 - [Property Schema](#property-schema).`modelTypeId`
 - [Property Schema](#property-schema).`contentTypeId`
 - [Query Parameters Schema Link](#query-parameters-schema-link).`modelTypeId`
 - [Request Body Schema](#request-body-schema).`modelTypeId`
-- [Response Content Type](#response-content-type).`modelTypeId`
+- [Response Body Schema](#response-body-schema).`modelTypeId`
 
 #### Possible Property Value
 Defines a possible value for an enum property
@@ -466,7 +487,8 @@ None if this property uses some other data type.
 - **Description** - `description: String` - A description of this property's role/function.
 - **Created** - `created: Instant` - Time when this property schema was added to the database
 - **Deprecated After** - `deprecatedAfter: Option[Instant]` - Time when this property schema became deprecated. None while this property schema is still valid.
-- **Is Array** - `isArray: Boolean`, `false` by default - Whether this property is an array of values. False if this property contains a single value.
+- **Is Array** - `isArray: UncertainBoolean`, `false` by default - Whether this property is an array of values. 
+False if this property contains a single value. Uncertain if both are possible.
 - **Is Optional** - `isOptional: Boolean`, `false` by default - Whether this property may be omitted from the input and/or output.
 
 ##### Referenced from

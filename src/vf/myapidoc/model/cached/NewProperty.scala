@@ -5,6 +5,7 @@ import utopia.flow.collection.template.tree.{Tree, TreeLike}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.generic.model.template.ModelConvertible
+import utopia.flow.util.StringExtensions._
 import utopia.flow.util.UncertainBoolean
 import vf.myapidoc.model.enumeration.PropertyType
 
@@ -28,6 +29,17 @@ case class NewProperty(name: String, dataTypes: Seq[PropertyType] = Empty, refer
                        isOptional: Boolean = false, isArray: UncertainBoolean = false)
 	extends Tree with TreeLike[NewProperty] with ModelConvertible
 {
+	// COMPUTED -----------------------------
+	
+	/**
+	 * @return All named model type references from this property (including nested properties, if applicable)
+	 */
+	def referencesIterator: Iterator[String] =
+		referencedType.ifNotEmpty.iterator ++ children.iterator.flatMap { _.referencesIterator }
+	
+	
+	// IMPLEMENTED  -------------------------
+	
 	override def self: NewProperty = this
 	
 	override def toModel: Model = Model.from("name" -> name, "types" -> dataTypes.map { _.name },

@@ -2,8 +2,8 @@ package vf.myapidoc.database.store
 
 import utopia.access.model.enumeration.Method
 import utopia.flow.collection.CollectionExtensions._
+import utopia.flow.collection.immutable.Empty
 import utopia.flow.collection.immutable.tree.ValueTree
-import utopia.flow.collection.immutable.{Empty, Pair}
 import utopia.flow.collection.mutable.iterator.{LazyInitIterator, OptionsIterator}
 import utopia.flow.collection.template.MapAccess
 import utopia.flow.generic.casting.ValueConversions._
@@ -181,7 +181,7 @@ object ApiDocDb
 		// If no existing documentation was found, inserts a new API entry
 		val api = StoreResult.existingOrInsert[Api](existingVersion) { ApiDbModel.insert(ApiData(name)) }
 		// Stores the named model types
-		val (storedNamedModels, unmatchedModelReferences) = storeApiModels(api.id, namedModels)
+		val storedNamedModels = storeApiModels(api.id, namedModels)
 		
 		existingVersion match {
 			// Case: Updating an existing version
@@ -207,7 +207,7 @@ object ApiDocDb
 				}
 		}
 		
-		api -> unmatchedModelReferences
+		api
 	}
 	
 	/**
@@ -233,29 +233,18 @@ object ApiDocDb
 		val modelNameToId = mutable.Map[String, Int]()
 		
 		// Handles model updates
-		val (updatedModels, delayedUpdatedModelPropInserts) = modelMatches.splitMap { case (model, existing) =>
-			StoreResult.existed(existing) -> ModelSchemaDb.updateNamed(existing, model, modelNameToId)
-		}
+		val (updatedModels, delayedUpdatedModelPropInserts) = ModelSchemaDb.updateNamed(modelMatches, modelNameToId)
 		// Inserts the new models
-		val (insertedNewModels, delayedNewModelPropInserts) = newModels.splitMap {
-			ModelSchemaDb.insert(apiId, _, modelNameToId)
-		}
-		
+		val insertedNewModels = ModelSchemaDb.insertNamed(apiId, newModels, modelNameToId)
 		// Resolves the delayed property inserts, if at all possible
-		val missingReferences = Pair(delayedUpdatedModelPropInserts, delayedNewModelPropInserts)
-			.iterator.flatten.flatten
-			.flatMap { case (ref, modelName, completeInsert) =>
-				val referencedModelId = modelNameToId.get(ref)
-				completeInsert(referencedModelId)
-				
-				if (referencedModelId.isEmpty)
-					Some(modelName)
-				else
-					None
-			}
-			.toSet
+		val unresolvedModelRefs = delayedUpdatedModelPropInserts(modelNameToId)
+		if (unresolvedModelRefs.nonEmpty)
+			scribe.in("store.models.update.unresolvedReferences").warning(
+				"Some model type references couldn't be resolved",
+				Model.from("unresolved" -> unresolvedModelRefs.toVector.sorted))
 		
-		(updatedModels ++ insertedNewModels, missingReferences)
+		//noinspection ConvertibleToMethodValue
+		updatedModels ++ insertedNewModels.map { StoreResult.inserted(_) }
 	}
 	
 	/**
@@ -266,6 +255,7 @@ object ApiDocDb
 	 * @param namedModels Named models from the current documentation version
 	 * @param connection Implicit DB connection
 	 */
+	// TODO: Accept modelNameToId instead of the models
 	def storeApiNodes(existing: DetailedApi, nodeGroups: Iterable[NewApiNodeGroup], namedModels: Iterable[ModelSchema])
 	                 (implicit connection: Connection): Unit =
 	{
@@ -284,7 +274,7 @@ object ApiDocDb
 			(existing, group) =>
 				if (existing.name != group.name)
 					existing.access.name.set(group.name)
-				if (existing.description != group.description)
+				if (existing.data.description != group.description)
 					existing.access.description.set(group.description)
 				
 				existing.id -> group.nodes
@@ -350,7 +340,7 @@ object ApiDocDb
 			existing.access.relativePath.set(node.path)
 		if (existing.name != node.name)
 			existing.access.name.set(node.name)
-		if (existing.description != node.description)
+		if (existing.data.description != node.description)
 			existing.access.description.set(node.description)
 		
 		updatePathParams(apiId, existing.id, existing.directPathParams, node.pathParams, modelNameToId)
@@ -362,7 +352,7 @@ object ApiDocDb
 			// Case: Matching implementation => Updates the existing implementation
 			(existing, implementation) =>
 				// Updates the direct properties, if needed
-				if (existing.description != implementation.description)
+				if (existing.data.description != implementation.description)
 					existing.access.description.set(implementation.description)
 				if (existing.requiresRequestBody == implementation.requestBodyIsOptional)
 					existing.access.requiresRequestBody.set(!implementation.requestBodyIsOptional)
@@ -452,7 +442,7 @@ object ApiDocDb
 			}) { l => l.method -> l.authTypeId } { case (method, typeId, _) => method -> typeId } {
 			case (existing, (_, _, description)) =>
 				// Case: Match => Updates the link description if necessary
-				if (existing.description != description)
+				if (existing.data.description != description)
 					existing.access.description.set(description)
 				StoreResult.existed(existing)
 				
@@ -494,7 +484,7 @@ object ApiDocDb
 			case (method, primaryScopeId, otherScopeIds, _) => (method, primaryScopeId, otherScopeIds) } {
 			case (existing, (_, _, _, description)) =>
 				// Case: Match => Updates description, if necessary, but makes no other changes
-				if (existing.description != description)
+				if (existing.data.description != description)
 					existing.access.description.set(description)
 				()
 		} { AccessNodeAuthScopeLinks(_).deprecate() } {
@@ -597,7 +587,7 @@ object ApiDocDb
 			// Case: Match => Updates the description and nameless model properties, if needed
 			case (existing, (body, _)) =>
 				// Updates the details, if necessary
-				if (existing.description != body.details)
+				if (existing.data.description != body.details)
 					existing.access.description.set(body.details)
 					
 				// Updates the referenced model type
@@ -625,7 +615,7 @@ object ApiDocDb
 			// Case: Named type reference => Attempts to resolve it
 			case Some(typeReference) => modelNameToId.get(standardizeRef(typeReference))
 			// Case: Unnamed model => Inserts a new nameless model schema, if needed
-			case None => ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id }
+			case None => ModelSchemaDb.insertNamelessCompletelyIfNecessary(apiId, body.properties, modelNameToId).map { _.id }
 		}
 		// Inserts the request body schema
 		RequestBodySchemaDbModel.insert(RequestBodySchemaData(implementationId, body.dataType, schemaId,
@@ -642,7 +632,7 @@ object ApiDocDb
 			// Case: Updating an existing status entry
 			case (existing, (_, body, description, hasBody)) =>
 				// Updates the description & hasBody -properties
-				if (existing.description != description)
+				if (existing.data.description != description)
 					existing.access.description.set(description)
 				if (existing.hasBody != hasBody)
 					existing.access.hasBody.set(hasBody)
@@ -673,7 +663,7 @@ object ApiDocDb
 									ResponseBodySchemaDbModel.insert(ResponseBodySchemaData(existing.id,
 										dataType = body.dataType,
 										modelTypeId = referencedModelTypeId.orElse {
-											ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId)
+											ModelSchemaDb.insertNamelessCompletelyIfNecessary(apiId, body.properties, modelNameToId)
 												.map { _.id }
 										},
 										isArray = body.isArray))
@@ -729,7 +719,7 @@ object ApiDocDb
 			// Resolves the referenced type
 			modelTypeId = body.referencedType.ifNotEmpty.flatMap { ref => modelNameToId.get(standardizeRef(ref)) }
 				// Handles the nameless model type insert, if applicable
-				.orElse { ModelSchemaDb.insertNameless(apiId, body.properties, modelNameToId).map { _.id } },
+				.orElse { ModelSchemaDb.insertNamelessCompletelyIfNecessary(apiId, body.properties, modelNameToId).map { _.id } },
 			isArray = body.isArray))
 	
 	private def standardizePath(path: String) = path.replaceEachMatchOf(pathParamR, "*").toLowerCase

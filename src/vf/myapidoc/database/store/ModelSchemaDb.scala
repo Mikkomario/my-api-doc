@@ -1,10 +1,10 @@
 package vf.myapidoc.database.store
 
 import utopia.flow.collection.CollectionExtensions._
-import utopia.flow.collection.immutable.EmptyView
+import utopia.flow.collection.immutable.{Empty, EmptyView, OptimizedIndexedSeq}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
-import utopia.flow.util.EitherExtensions._
+import utopia.flow.operator.MaybeEmpty
 import utopia.flow.util.StringExtensions._
 import utopia.flow.view.immutable.caching.Lazy
 import utopia.scribe.core.controller.logging.Scribe
@@ -53,25 +53,22 @@ object ModelSchemaDb
 	
 	/**
 	 * Updates a named model's entry. Assumes that no breaking changes are needed!
-	 * @param existing Existing version
-	 * @param model Updated / latest version
+	 * @param matches Non-conflicting matches between existing and new model versions
 	 * @param modelNameToId A **mutable** map where keys are standardized model type names and values are model type IDs.
 	 *                      This map is extended to include this model.
 	 * @param connection Implicit DB connection
-	 * @return Returns the delayed property inserts (due to missing 'modelNameToId' entries).
-	 *         Each of these contains:
-	 *         1. Missing model type key (standardized)
-	 *         1. Missing model type name (as it appears in the input)
-	 *         1. A function that receives the ID of the referenced model type (or None)
-	 *            and inserts the missing property.
-	 *              - If the reference can't be resolved,
-	 *                pass None to ignore the missing reference and to insert the property without it.
+	 * @return Returns two values:
+	 *         1. Existing model schemas
+	 *         1. A function that resolves all delayed property inserts using a completed modelNameToId -map.
 	 */
-	def updateNamed(existing: CompleteModelSchema, model: NewNamedModel, modelNameToId: mutable.Map[String, Int])
-	               (implicit connection: Connection) =
+	def updateNamed(matches: Iterable[(NewNamedModel, CompleteModelSchema)], modelNameToId: mutable.Map[String, Int])
+	               (implicit connection: Connection): (Seq[StoreResult[CompleteModelSchema]], collection.Map[String, Int] => Set[String]) =
 	{
-		modelNameToId(standardizeRef(model.name)) = existing.id
-		_update(existing, model.properties, modelNameToId)
+		matches.foreach { case (model, existing) => modelNameToId(standardizeRef(model.name)) = existing.id }
+		val (updated, delayedInserts) = matches.splitMap { case (model, existing) =>
+			StoreResult.existed(existing) -> _update(existing, model.properties, modelNameToId)
+		}
+		updated -> delayedInserts.reduceLeftOption { _ ++ _ }.getOrElse(DelayedPropInserts.empty).resolveUsing
 	}
 	/**
 	 * Updates a nameless model's entry by updating the wrapped properties.
@@ -86,27 +83,28 @@ object ModelSchemaDb
 	                  (implicit connection: Connection): Unit =
 	{
 		val delayedInserts = _update(existing, properties, modelNameToId)
+		val unresolvedReferences = delayedInserts.resolveUsing(modelNameToId)
+		
 		// Case: Some model type references couldn't be resolved => Logs and inserts without a model reference
-		if (delayedInserts.nonEmpty) {
-			scribe.in("update.model.nameless.unresolvedReferences").recoverable(
+		if (unresolvedReferences.nonEmpty)
+			scribe.in("update.model.nameless.unresolvedReferences").warning(
 				"Some model references couldn't be resolved", Model.from(
-					"missingModelTypes" -> delayedInserts.map { _._2 }))
-			delayedInserts.foreach { _._3(None) }
-		}
+					"unresolved" -> unresolvedReferences.toVector.sorted))
 	}
 	
 	def insertNamelessUseCase(apiId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
 	                         (linkUsage: Int => Unit)
 	                         (implicit connection: Connection) =
 	{
-		val result = insertNameless(apiId, params, modelNameToId)
+		val result = insertNamelessCompletelyIfNecessary(apiId, params, modelNameToId)
 		// Links the model to the node/implementation
 		result.foreach { schema => linkUsage(schema.id) }
 		
 		result
 	}
-	def insertNameless(apiId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
-	                  (implicit connection: Connection) =
+	def insertNamelessCompletelyIfNecessary(apiId: Int, params: Iterable[NewProperty],
+	                                        modelNameToId: collection.Map[String, Int])
+	                                       (implicit connection: Connection): Option[ModelSchema] =
 	{
 		// Case: No path parameters to attach
 		if (params.isEmpty)
@@ -115,37 +113,66 @@ object ModelSchemaDb
 			// Inserts a nameless model for these parameters
 			val model = ModelSchemaDbModel.insert(ModelSchemaData(apiId))
 			// Attaches the parameters
-			params.foreach { p =>
-				// TODO: Log if referenced model type can't be resolved
-				insertProperty(model.id, _, referencedModelTypeId = p.referencedType.ifNotEmpty.flatMap { n =>
-					modelNameToId.get(standardizeRef(n))
-				})
-			}
+			params.iterator.map { tryInsertProperty(apiId, model.id, _, modelNameToId) }
+				.reduceOption { _ ++ _ }
+				.foreach { delayedInserts =>
+					val unresolvedReferences = delayedInserts.resolveUsing(modelNameToId)
+					if (unresolvedReferences.nonEmpty)
+						scribe.in("insert.nameless.completely.unresolvedReferences").warning(
+							"Some model type references couldn't be resolved",
+							Model.from("unresolved" -> unresolvedReferences.toVector.sorted))
+				}
+			
 			Some(model)
 		}
 	}
-	def insert(apiId: Int, model: NewNamedModel, modelNameToId: mutable.Map[String, Int])
-	          (implicit connection: Connection) =
+	/**
+	 * Inserts 0-n named model schemas
+	 * @param apiId ID of the targeted API
+	 * @param models Models to insert
+	 * @param modelNameToId A mutable map where keys are standardized model names and values are matching model IDs.
+	 * @param connection Implicit DB connection
+	 * @return Inserted models
+	 */
+	def insertNamed(apiId: Int, models: IterableOnce[NewNamedModel], modelNameToId: mutable.Map[String, Int])
+	               (implicit connection: Connection) =
+	{
+		val (inserted, delayed) = models.iterator.splitMap { model =>
+			val result = _insert(apiId, model.properties, model.name, model.description, modelNameToId)
+			modelNameToId += (standardizeRef(model.name) -> result._1.id)
+			result
+		}
+		// Handles unresolved model references
+		delayed.reduceOption { _ ++ _ }.foreach { delayed =>
+			val unresolved = delayed.resolveUsing(modelNameToId)
+			if (unresolved.nonEmpty)
+				scribe.in("insert.named.unresolvedReferences").warning(
+					"Some model type references couldn't be resolved",
+					Model.from("unresolved" -> unresolved.toVector.sorted))
+		}
+		inserted
+	}
+	private def _insert(apiId: Int, properties: Seq[NewProperty], name: String, description: String,
+	                    modelNameToId: collection.Map[String, Int])
+	                   (implicit connection: Connection): (ModelSchema, DelayedPropInserts) =
 	{
 		// Inserts the model schema to the DB
-		val stored = ModelSchemaDbModel.insert(ModelSchemaData(apiId, model.name, model.description))
-		val referenceKey = standardizeRef(model.name)
-		modelNameToId += (referenceKey -> stored.id)
+		val stored = ModelSchemaDbModel.insert(ModelSchemaData(apiId, name, description))
 		
 		// Inserts the properties, where possible
-		val delayedPropInserts = model.properties.flatMap { tryInsertProperty(stored.id, _, modelNameToId).leftOption }
+		val delayedPropInserts = properties.map { tryInsertProperty(apiId, stored.id, _, modelNameToId) }
+			.reduceOption { _ ++ _ }.getOrElse(DelayedPropInserts.empty)
 		
-		StoreResult.inserted(stored) -> delayedPropInserts
+		stored -> delayedPropInserts
 	}
 	
 	private def _update(existing: CompleteModelSchema, properties: IterableOnce[NewProperty],
 	                    modelNameToId: collection.Map[String, Int])
-	                   (implicit connection: Connection) =
+	                   (implicit connection: Connection): DelayedPropInserts =
 	{
 		// Handles the property updates
-		val lazyAlreadyReferencedModelNames = Lazy {
-			AccessModelSchemas(existing.properties.iterator.flatMap { _.contentTypeId }).idToName
-				.view.mapValues(standardizeRef).toMap
+		val lazyExistingContentTypes = Lazy {
+			AccessModelSchemas(existing.properties.iterator.flatMap { _.contentTypeId }).toMapBy { _.id }
 		}
 		lazy val existingPropIds = existing.properties.view.map { _.id }.toIntSet
 		val lazyExistingAltTypes = Lazy {
@@ -155,79 +182,97 @@ object ModelSchemaDb
 			AccessPossiblePropertyValues.active.ofProperties(existingPropIds).pullAndGroupBy { _.propId }
 		}
 		
-		val delayedInserts = updateExclusiveMatches(existing.properties, properties) { _.name } { _.name } {
-			(existing, prop) =>
-				tryUpdateProperty(existing, existingAltTypes = lazyExistingAltTypes.value(existing.id),
-					existingModelTypeReference = existing.contentTypeId match {
-						case Some(referencedTypeId) =>
-							lazyAlreadyReferencedModelNames.value.getOrElse(referencedTypeId, "???")
-						case None => ""
-					},
-					existingPossibleValues =  lazyPossibleValues.value(existing.id), property = prop,
+		updateExclusiveMatches(existing.properties, properties) { _.name } { _.name } {
+			(existingProp, prop) =>
+				tryUpdateProperty(existing.apiId, existingProp,
+					existingAltTypes = lazyExistingAltTypes.value(existingProp.id),
+					existingContent = existingProp.contentTypeId.flatMap { lazyExistingContentTypes.value.get(_) },
+					existingPossibleValues =  lazyPossibleValues.value(existingProp.id), property = prop,
 					modelNameToId = modelNameToId)
-					.leftOption
-		} { AccessPropertySchemas(_).deprecate() } { newProps =>
-			newProps.map { tryInsertProperty(existing.id, _, modelNameToId).leftOption }
-		}.flatten
-		
-		delayedInserts
+		} {
+			propIds =>
+				AccessPropertySchemas(propIds).deprecate()
+				AccessModelSchemas.active.nameless.whereReferencingProperties.in(propIds).deprecate()
+		} {
+			newProps => newProps.map { tryInsertProperty(existing.apiId, existing.id, _, modelNameToId) }
+		}.reduceOption { _ ++ _ }.getOrElse(DelayedPropInserts.empty)
 	}
 	
-	private def tryUpdateProperty(existing: StoredPropertySchema,
+	private def tryUpdateProperty(apiId: Int, existing: StoredPropertySchema,
 	                              existingAltTypes: => Iterable[AlternativePropertyType],
-	                              existingModelTypeReference: => String,
+	                              existingContent: => Option[ModelSchema],
 	                              existingPossibleValues: => IterableOnce[PossiblePropertyValue], property: NewProperty,
 	                              modelNameToId: collection.Map[String, Int])
-	                             (implicit connection: Connection) =
+	                             (implicit connection: Connection): DelayedPropInserts =
 	{
 		val modelRef = standardizeRef(property.referencedType)
+		lazy val _existingContent = existingContent
+		lazy val _existingNamelessContent = _existingContent.filter { _.isNameless }.map { schema =>
+			CompleteModelSchema(schema, AccessPropertySchemas.active.ofModelType(schema.id).pull)
+		}
 		
 		// Checks whether a completely new property version should be introduced
 		val shouldReplace = {
-			if (existing.data ~== property) {
-				// Case: No direct conflicts => Checks whether the referenced model ID was changed (if known)
-				if (existingModelTypeReference == modelRef)
-					existing.contentTypeId.exists { existingReferencedModelId =>
-						modelNameToId.get(modelRef).exists { _ != existingReferencedModelId }
-					}
-				// Case: Changed reference name => Replaces
-				else
-					true
-			}
+			// Case: Basic information matches => Checks whether the referenced model type is compatible
+			if (existing.data ~== property)
+				_existingContent match {
+					case Some(existingContent) =>
+						// Case: Was named model
+						//       => Checks whether the reference changed or whether the model ID changed (if known)
+						if (existingContent.hasName)
+							modelRef.isEmpty || modelNameToId.get(modelRef).exists { _ != existingContent.id }
+						// Case: Was nameless model
+						//       => Checks whether a named reference was introduced or nameless content removed
+						else
+							modelRef.nonEmpty || property.children.isEmpty
+					
+					// Case: Had no nested content => Checks whether nested content was introduced
+					case None => modelRef.nonEmpty || property.children.nonEmpty
+				}
 			// Case: Direct conflict => Replaces
 			else
 				true
 		}
+		def deprecateExisting() = {
+			existing.access.deprecate()
+			AccessModelSchemas.active.nameless.whereReferencingProperties.withId(existing.id).deprecate()
+		}
+		
 		// Case: Replacing the existing property version => Deprecates it and inserts a new version
 		if (shouldReplace) {
-			existing.access.deprecate()
-			tryInsertProperty(existing.modelTypeId, property, modelNameToId)
+			deprecateExisting()
+			tryInsertProperty(apiId, existing.modelTypeId, property, modelNameToId)
 		}
 		// Case: Referenced model type can't be resolved yet
 		//       => Delays this update, since an ID change may introduce a conflict
 		else if (modelRef.nonEmpty && !modelNameToId.contains(modelRef))
-			Left(modelRef, property.referencedType, { referencedModelTypeId: Option[Int] =>
+			DelayedPropInserts(modelRef, property.referencedType) { referencedModelTypeId: Option[Int] =>
 				// Case: No conflict => Updates the property
 				if (existing.contentTypeId == referencedModelTypeId)
-					updateProperty(existing, existingAltTypes, existingPossibleValues, property)
+					updateProperty(apiId, existing, existingAltTypes, existingPossibleValues, _existingNamelessContent,
+						property, modelNameToId)
 				// Case: Model type ID was updated => Deprecates the old version and inserts a new property
 				else {
-					existing.access.deprecate()
+					deprecateExisting()
 					insertProperty(existing.modelTypeId, property, referencedModelTypeId)
+					DelayedPropInserts.empty
 				}
-			})
+			}
 		// Case: Referenced model type can be resolved => Proceeds to update the property
 		else
-			Right(updateProperty(existing, existingAltTypes, existingPossibleValues, property))
+			updateProperty(apiId, existing, existingAltTypes, existingPossibleValues, _existingNamelessContent,
+				property, modelNameToId)
 	}
 	// Assumes that the properties match and don't conflict
-	private def updateProperty(existing: StoredPropertySchema, existingAltTypes: Iterable[AlternativePropertyType],
+	private def updateProperty(apiId: Int, existing: StoredPropertySchema,
+	                           existingAltTypes: Iterable[AlternativePropertyType],
 	                           existingPossibleValues: IterableOnce[PossiblePropertyValue],
-	                           property: NewProperty)
-	                          (implicit connection: Connection) =
+	                           existingNamelessContent: Option[CompleteModelSchema], property: NewProperty,
+	                           modelNameToId: collection.Map[String, Int])
+	                          (implicit connection: Connection): DelayedPropInserts =
 	{
 		// Updates the property description
-		if (existing.description != property.description)
+		if (existing.data.description != property.description)
 			existing.access.description.set(property.description)
 		
 		// Checks for alt type updates
@@ -244,7 +289,7 @@ object ModelSchemaDb
 		// Updates possible enum values
 		updateExclusiveMatches(existingPossibleValues, property.possibleValues) { _.value } { _._1 } {
 			case (existing, (_, description)) =>
-				if (existing.description != description)
+				if (existing.data.description != description)
 					existing.access.description.set(description)
 				StoreResult.existed(existing)
 				
@@ -260,7 +305,17 @@ object ModelSchemaDb
 					}
 		}
 		
-		StoreResult.existed(existing)
+		// Updates the nested properties
+		if (property.children.nonEmpty)
+			existingNamelessContent match {
+				case Some(existingContent) => _update(existingContent, property.children, modelNameToId)
+				case None =>
+					val (modelType, delayedInserts) = _insert(apiId, property.children, "", "", modelNameToId)
+					existing.access.modelTypeId.set(modelType.id)
+					delayedInserts
+			}
+		else
+			DelayedPropInserts.empty
 	}
 	
 	/**
@@ -270,35 +325,42 @@ object ModelSchemaDb
 	 * @param property Property to insert
 	 * @param modelNameToId A map that maps model type IDs to standardized model type names
 	 * @param connection Implicit DB connection
-	 * @return Yields either:
-	 *         - Right: Stored property
-	 *         - Left: Delayed insert, containing 3 values:
-	 *              1. Missing model type reference (standardized)
-	 *              1. Name of the missing model type, as written in this property
-	 *              1. A function that receives the model type ID and yields the stored property.
-	 *                 Accepts None as a backup, in case the reference can never be resolved.
+	 * @return Yields property inserts that were delayed
 	 */
-	private def tryInsertProperty(modelId: Int, property: NewProperty, modelNameToId: collection.Map[String, Int])
-	                             (implicit connection: Connection) =
+	private def tryInsertProperty(apiId: Int, modelId: Int, property: NewProperty, modelNameToId: collection.Map[String, Int])
+	                             (implicit connection: Connection): DelayedPropInserts =
 	{
-		// Standardizes the referenced type name
-		val ref = standardizeRef(property.referencedType)
-		
-		// Case: Property insert is not yet possible because the reference hasn't been resolved
-		//       => Creates a function for inserting this property once the reference resolves
-		if (ref.nonEmpty && !modelNameToId.contains(ref))
-			Left((ref, property.referencedType,
-				{ referencedTypeId: Option[Int] => insertProperty(modelId, property, referencedTypeId) }))
-		// Case: Property insert is possible => Performs it immediately
-		else
-			Right(insertProperty(modelId, property, ref.ifNotEmpty.map(modelNameToId.apply)))
+		// Inserts the nested nameless model type, if applicable
+		if (property.children.isEmpty) {
+			// Standardizes the referenced type name
+			val ref = standardizeRef(property.referencedType)
+			
+			// Case: Property insert is not yet possible because the reference hasn't been resolved
+			//       => Creates a function for inserting this property once the reference resolves
+			if (ref.nonEmpty && !modelNameToId.contains(ref))
+				DelayedPropInserts(ref, property.referencedType) { referencedTypeId =>
+					insertProperty(modelId, property, referencedTypeId)
+					DelayedPropInserts.empty
+				}
+			// Case: Property insert is possible => Performs it immediately
+			else {
+				insertProperty(modelId, property, ref.ifNotEmpty.map(modelNameToId.apply))
+				DelayedPropInserts.empty
+			}
+		}
+		else {
+			val (nestedModelType, delayedNestedInserts) = _insert(apiId, property.children, "", "", modelNameToId)
+			insertProperty(modelId, property, Some(nestedModelType.id))
+			delayedNestedInserts
+		}
 	}
-	private def insertProperty(modelId: Int, property: NewProperty, referencedModelTypeId: Option[Int])
+	// FIXME: When calling this, also insert child properties
+	private def insertProperty(modelId: Int, property: NewProperty, contentTypeId: Option[Int])
 	                          (implicit connection: Connection) =
 	{
 		// Inserts the property to the DB
 		val stored = PropertySchemaDbModel.insert(PropertySchemaData(modelTypeId = modelId, name = property.name,
-			dataType = property.dataTypes.headOption.getOrElse(AnyProp), contentTypeId = referencedModelTypeId,
+			dataType = property.dataTypes.headOption.getOrElse(AnyProp), contentTypeId = contentTypeId,
 			description = property.description, isArray = property.isArray, isOptional = property.isOptional))
 		
 		// Registers the alternative property types, if applicable
@@ -311,7 +373,7 @@ object ModelSchemaDb
 			PossiblePropertyValueData(stored.id, value, description)
 		})
 		
-		StoreResult.inserted(stored)
+		stored
 	}
 	
 	private def combine(remainingModels: IterableOnce[ModelSchema], completedModelsById: Map[Int, DetailedModelSchema],
@@ -324,7 +386,10 @@ object ModelSchemaDb
 			// All model references must be resolved.
 			// If not, the combining gets delayed.
 			props.findForAll { prop =>
-				if (prop.contentTypeId.forall(completedModelsById.contains))
+				// Case: Self-referential property => Omits the content type
+				if (prop.contentTypeId.contains(model.id))
+					Some(DetailedPropertySchema(prop.id, prop.data, altTypes = propAltTypes(prop.id)))
+				else if (prop.contentTypeId.forall(completedModelsById.contains))
 					Some(DetailedPropertySchema(prop.id, prop.data, prop.contentTypeId.map(completedModelsById),
 						propAltTypes(prop.id)))
 				else
@@ -367,6 +432,45 @@ object ModelSchemaDb
 		else {
 			val nowCompletedModelsById = completedModelsById ++ completedModels.iterator.map { m => m.id -> m }
 			completedModels.view ++ combine(delayedModels, nowCompletedModelsById, rawProps, propAltTypes)
+		}
+	}
+	
+	
+	// NESTED   ----------------------------
+	
+	private object DelayedPropInserts {
+		lazy val empty = new DelayedPropInserts(Empty)
+		
+		def apply(ref: String, name: String)(insert: Option[Int] => DelayedPropInserts) =
+			new DelayedPropInserts(Seq((ref, name, insert)))
+	}
+	private class DelayedPropInserts(val delayed: Seq[(String, String, Option[Int] => DelayedPropInserts)])
+		extends MaybeEmpty[DelayedPropInserts]
+	{
+		override def self: DelayedPropInserts = this
+		override def isEmpty: Boolean = delayed.isEmpty
+		
+		def ++(other: DelayedPropInserts) = {
+			if (other.isEmpty)
+				this
+			else if (isEmpty)
+				other
+			else
+				new DelayedPropInserts(delayed ++ other.delayed)
+		}
+		
+		def resolveUsing(modelNameToId: collection.Map[String, Int]) = {
+			var nextIteration = delayed
+			val unresolvedBuilder = OptimizedIndexedSeq.newBuilder[String]
+			while (nextIteration.nonEmpty) {
+				nextIteration = nextIteration.flatMap { case (ref, name, insert) =>
+					val result = insert(modelNameToId.get(ref))
+					if (!modelNameToId.contains(ref))
+						unresolvedBuilder += name
+					result.delayed
+				}
+			}
+			unresolvedBuilder.result().toSet
 		}
 	}
 }

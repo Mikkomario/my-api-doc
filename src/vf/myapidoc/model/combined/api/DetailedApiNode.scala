@@ -128,21 +128,21 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 							case Left(scope) => "scope" -> (scope.name: Value)
 							case Right(scopes) => "scopes" -> (scopes.map { _.name }: Value)
 						}
-						if (scope.description.isEmpty)
+						if (scope.data.description.isEmpty)
 							Single(scopeKey -> scopeValue)
 						else
 							Pair(scopeKey -> scopeValue,
-								(if (tokensPart.isEmpty) "description" else "scopeDescription") -> scope.description)
+								(if (tokensPart.isEmpty) "description" else "scopeDescription") -> scope.data.description)
 					
 					case Some(Right(scopeOptions)) =>
-						if (scopeOptions.forall { s => s.description.isEmpty && s.scopes.hasSize(1) })
+						if (scopeOptions.forall { s => s.data.description.isEmpty && s.scopes.hasSize(1) })
 							Single("scopeOptions" -> scopeOptions.map { _.scopes.head.name })
 						else
 							Single("scopeOptions" -> scopeOptions.map { _.toClientModel })
 				}
 				Model
 					.apply(Vector.concat(
-						Vector("method" -> impl.method.name, "description" -> impl.description),
+						Vector("method" -> impl.method.name, "description" -> impl.data.description),
 						// Tokens and scopes are included under "auth"
 						if (tokenTypes.nonEmpty || scopes.nonEmpty)
 							Single("auth" -> Model.apply(tokensPart ++ scopesPart))

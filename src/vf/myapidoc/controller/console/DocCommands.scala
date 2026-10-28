@@ -1,10 +1,11 @@
 package vf.myapidoc.controller.console
 
 import utopia.flow.collection.CollectionExtensions._
-import utopia.flow.collection.immutable.{Empty, Single}
+import utopia.flow.collection.immutable.{Empty, Pair}
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.NotEmpty
+import utopia.flow.util.StringExtensions._
 import utopia.flow.util.console.ConsoleExtensions._
 import utopia.flow.util.console.{ArgumentSchema, Command}
 import utopia.flow.util.result.TryCatch
@@ -13,8 +14,10 @@ import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.model.enumeration.Severity.Recoverable
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import vf.myapidoc.controller.doc.DocParser
+import vf.myapidoc.database.access.api.AccessApis
 import vf.myapidoc.database.store.ApiDocDb
 import vf.myapidoc.model.cached.{NewApiNodeGroup, NewNamedModel}
+import vf.myapidoc.model.combined.api.DetailedApi
 import vf.myapidoc.util.Common._
 
 import java.nio.file.Path
@@ -31,6 +34,21 @@ object DocCommands extends Extender[(String, Seq[Command])]
 	
 	private implicit val scribe: Scribe = newScribe("console.Commands.Doc")
 	
+	private val printC = Command("print", help = "Prints API documentation as JSON")(
+		ArgumentSchema("api-name", "name", help = "Name of the targeted API", defaultDescription = "Select")) { args =>
+		cPool.logging { implicit c =>
+			val options = args("api-name").string match {
+				case Some(name) => AccessApis.withNameContaining(name).pull.bestMatch { _.name ~== name }
+				case None => AccessApis.pull
+			}
+			options.only
+				.orElse {
+					println("Which API did you mean?")
+					StdIn.selectFrom(options.map { api => api -> api.name })
+				}
+				.foreach { api => printApiDoc(ApiDocDb.pullDetailsFor(api)) }
+		}
+	}
 	/**
 	 * A console command for updating API documentation from md files.
 	 */
@@ -87,21 +105,16 @@ object DocCommands extends Extender[(String, Seq[Command])]
 										.foreach { apiName =>
 											cPool.logging { implicit c =>
 												// Stores the API documentation in the database
-												val (api, missingModelRefs) = ApiDocDb.storeApi(apiName, models, nodes)
+												val api = ApiDocDb.storeApi(apiName, models, nodes)
 												if (api.isNew)
 													println("Stored a new API")
 												else
 													println("Updated the API")
 												
-												if (missingModelRefs.nonEmpty) {
-													println("Warning: The following model type references couldn't be resolved:")
-													missingModelRefs.foreach { ref => println(s"- $ref") }
-												}
-												
 												// Optionally prints the current API doc JSON
 												if (StdIn.ask("Do you want to print the current API doc JSON?",
 													default = true))
-													println(ApiDocDb.pullDetailsFor(api).toJson)
+													printApiDoc(ApiDocDb.pullDetailsFor(api))
 											}
 										}
 							}
@@ -113,10 +126,18 @@ object DocCommands extends Extender[(String, Seq[Command])]
 	
 	// IMPLEMENTED  ---------------------
 	
-	override def wrapped: (String, Seq[Command]) = "doc" -> Single(update)
+	override def wrapped: (String, Seq[Command]) = "doc" -> Pair(printC, update)
 	
 	
 	// OTHER    -------------------------
+	
+	private def printApiDoc(api: DetailedApi) = {
+		println(s"${ api.name } documentation:")
+		api.nodeGroups.foreach { group =>
+			println(s"\n${ group.name }${ group.data.description.prependIfNotEmpty(": ") }")
+			group.nodesIterator.foreach { n => println(n.toClientModel.toJson) }
+		}
+	}
 	
 	// Attempts to parse the node files first
 	private def parseApiDoc(nodeFiles: Iterable[Path], modelFiles: Iterable[Path]) =

@@ -106,7 +106,6 @@ case class PropertySchemaData(modelTypeId: Int, name: String, dataType: Property
 	
 	def ~==(update: NewProperty) =
 		isArray == update.isArray && isOptional == update.isOptional &&
-			contentTypeId.isDefined && update.referencedType.isEmpty &&
 			dataType == update.dataTypes.headOption.getOrElse(AnyProp)
 	/**
 	 * Checks whether this schema conflicts with the specified property update.

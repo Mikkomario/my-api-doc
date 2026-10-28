@@ -1,6 +1,8 @@
 package vf.myapidoc.database.access.schema.prop
 
 import utopia.flow.generic.casting.ValueConversions._
+import utopia.vault.model.immutable.Column
+import utopia.vault.nosql.template.IntIndexFilterable
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
 import vf.myapidoc.database.storable.schema.PropertySchemaDbModel
@@ -10,7 +12,8 @@ import vf.myapidoc.database.storable.schema.PropertySchemaDbModel
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait FilterPropertySchemas[+Repr] extends NullDeprecatableView[Repr] with TimelineView[Repr]
+trait FilterPropertySchemas[+Repr]
+	extends NullDeprecatableView[Repr] with TimelineView[Repr] with IntIndexFilterable[Repr]
 {
 	// COMPUTED	--------------------
 	
@@ -22,6 +25,7 @@ trait FilterPropertySchemas[+Repr] extends NullDeprecatableView[Repr] with Timel
 	
 	// IMPLEMENTED	--------------------
 	
+	override protected def idColumn: Column = model.id
 	override def timestampColumn = model.created
 	
 	
@@ -29,11 +33,9 @@ trait FilterPropertySchemas[+Repr] extends NullDeprecatableView[Repr] with Timel
 	
 	/**
 	  * @param contentTypeId content type id to target
-	  * @return Copy of this access point that only includes property schemas with the specified content type 
-	  * id
+	  * @return Copy of this access point that only includes property schemas with the specified content type id
 	  */
 	def containingModelOfType(contentTypeId: Int) = filter(model.contentTypeId.column <=> contentTypeId)
-	
 	/**
 	  * @param contentTypeIds Targeted content type ids
 	  * @return Copy of this access point that only includes property schemas where content type id is within 
@@ -47,21 +49,18 @@ trait FilterPropertySchemas[+Repr] extends NullDeprecatableView[Repr] with Timel
 	  * @return Copy of this access point that only includes property schemas with the specified model type id
 	  */
 	def ofModelType(modelTypeId: Int) = filter(model.modelTypeId.column <=> modelTypeId)
-	
 	/**
 	  * @param modelTypeIds Targeted model type ids
 	  * @return Copy of this access point that only includes property schemas where model type id is within 
 	  * the specified value set
 	  */
-	def ofModelTypes(modelTypeIds: IterableOnce[Int]) = filter(Condition.indexIn(model.modelTypeId,
-		modelTypeIds))
+	def ofModelTypes(modelTypeIds: IterableOnce[Int]) = filter(Condition.indexIn(model.modelTypeId, modelTypeIds))
 	
 	/**
 	  * @param name name to target
 	  * @return Copy of this access point that only includes property schemas with the specified name
 	  */
 	def withName(name: String) = filter(model.name.column <=> name)
-	
 	/**
 	  * @param names Targeted names
 	  * @return Copy of this access point that only includes property schemas where name is within the 

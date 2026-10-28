@@ -1,7 +1,7 @@
 -- 
 -- Database structure for my api doc models
 -- Version: v0.1
--- Last generated: 2026-10-26
+-- Last generated: 2026-10-27
 --
 
 CREATE DATABASE IF NOT EXISTS `my_api_doc_db` 
@@ -145,7 +145,8 @@ CREATE TABLE `model_schema`(
 -- description:      A description of this property's role/function.
 -- created:          Time when this property schema was added to the database
 -- deprecated_after: Time when this property schema became deprecated. None while this property schema is still valid.
--- is_array:         Whether this property is an array of values. False if this property contains a single value.
+-- is_array:         Whether this property is an array of values. 
+-- 		False if this property contains a single value. Uncertain if both are possible.
 -- is_optional:      Whether this property may be omitted from the input and/or output.
 CREATE TABLE `property_schema`(
 	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
@@ -156,7 +157,7 @@ CREATE TABLE `property_schema`(
 	`description` VARCHAR(255), 
 	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
 	`deprecated_after` DATETIME, 
-	`is_array` BOOLEAN NOT NULL DEFAULT FALSE, 
+	`is_array` BOOLEAN DEFAULT FALSE, 
 	`is_optional` BOOLEAN NOT NULL DEFAULT FALSE, 
 	INDEX ps_name_idx (`name`), 
 	INDEX ps_created_idx (`created`), 
@@ -332,49 +333,55 @@ CREATE TABLE `query_parameters_schema_link`(
 
 -- Applies a specific schema to the request body accepted by an API node. 
 -- 		Multiple alternative schemas may be defined separately.
--- implementation_id:   ID of the method implementation that uses the linked schema.
--- model_type_id:       ID of the schema that defines the type of model accepted by the linked implementation.
--- created:             Time when this api node method implementation model schema link was added to the database
--- deprecated_after:    Time when this api node method implementation model schema link became deprecated. None while this api node method implementation model schema link is still valid.
+-- implementation_id:   ID of the method implementation that receives this request body.
+-- data_type_id:        Type of this body's contents.
+-- 		References enumeration PropertyType
+-- 		Possible values are: 1 = any prop, 2 = string prop, 3 = int prop, 4 = decimal prop, 5 = long prop, 6 = boolean prop, 7 = instant prop, 8 = duration prop, 9 = model prop
+-- model_type_id:       If this body contains an object or objects, contains the ID of the model schema that describes the applicable object structure.
+-- created:             Time when this body schema was added to the database
+-- deprecated_after:    Time when this body schema became deprecated. None while this body schema is still valid.
+-- is_array:            Whether this body contains an array of values. False if no more than one value may be included.
 -- custom_content_type: Non-standard content type expected from the request body, if applicable.
 -- description:         Description of the expected request body.
--- is_array:            Whether a JSON array is expected.
 CREATE TABLE `request_body_schema`(
 	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
 	`implementation_id` INT NOT NULL, 
-	`model_type_id` INT NOT NULL, 
-	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-	`deprecated_after` DATETIME, 
-	`custom_content_type` VARCHAR(32), 
-	`description` VARCHAR(255), 
-	`is_array` BOOLEAN NOT NULL DEFAULT FALSE, 
-	INDEX rbs_created_idx (`created`), 
-	INDEX rbs_deprecated_after_idx (`deprecated_after`), 
-	CONSTRAINT rbs_anmi_implementation_ref_fk FOREIGN KEY rbs_anmi_implementation_ref_idx (implementation_id) REFERENCES `api_node_method_implementation`(`id`) ON DELETE CASCADE, 
-	CONSTRAINT rbs_ms_model_type_ref_fk FOREIGN KEY rbs_ms_model_type_ref_idx (model_type_id) REFERENCES `model_schema`(`id`) ON DELETE CASCADE
-)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
-
--- Defines how an API node's response body is formed.
--- status_id:        ID of the status this type of response body is returned with.
--- content_type_id:  If this body is non-empty, specifies the type of content it contains.
--- model_type_id:    If this body contains a JSON object or objects, contains the ID of the model schema that describes the applicable object structure.
--- created:          Time when this response content type was added to the database
--- deprecated_after: Time when this response content type became deprecated. None while this response content type is still valid.
--- is_array:         Whether this response body contains an array of values. False if no more than one value may be returned.
--- is_empty:         Whether this response body is empty / no response body is returned.
-CREATE TABLE `response_content_type`(
-	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
-	`status_id` INT NOT NULL, 
-	`content_type_id` TINYINT, 
+	`data_type_id` TINYINT NOT NULL, 
 	`model_type_id` INT, 
 	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
 	`deprecated_after` DATETIME, 
 	`is_array` BOOLEAN NOT NULL DEFAULT FALSE, 
-	`is_empty` BOOLEAN NOT NULL DEFAULT FALSE, 
-	INDEX rct_created_idx (`created`), 
-	INDEX rct_deprecated_after_idx (`deprecated_after`), 
-	CONSTRAINT rct_prs_status_ref_fk FOREIGN KEY rct_prs_status_ref_idx (status_id) REFERENCES `possible_response_status`(`id`) ON DELETE CASCADE, 
-	CONSTRAINT rct_ms_model_type_ref_fk FOREIGN KEY rct_ms_model_type_ref_idx (model_type_id) REFERENCES `model_schema`(`id`) ON DELETE SET NULL
+	`custom_content_type` VARCHAR(32), 
+	`description` VARCHAR(255), 
+	INDEX rqbs_implementation_id_idx (`implementation_id`), 
+	INDEX rqbs_created_idx (`created`), 
+	INDEX rqbs_deprecated_after_idx (`deprecated_after`), 
+	CONSTRAINT rqbs_anmi_implementation_ref_fk FOREIGN KEY rqbs_anmi_implementation_ref_idx (implementation_id) REFERENCES `api_node_method_implementation`(`id`) ON DELETE CASCADE, 
+	CONSTRAINT rqbs_ms_model_type_ref_fk FOREIGN KEY rqbs_ms_model_type_ref_idx (model_type_id) REFERENCES `model_schema`(`id`) ON DELETE SET NULL
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+-- Defines how an API node's response body is formed.
+-- status_id:        ID of the status this type of response body is returned with.
+-- data_type_id:     Type of this body's contents.
+-- 		References enumeration PropertyType
+-- 		Possible values are: 1 = any prop, 2 = string prop, 3 = int prop, 4 = decimal prop, 5 = long prop, 6 = boolean prop, 7 = instant prop, 8 = duration prop, 9 = model prop
+-- model_type_id:    If this body contains an object or objects, contains the ID of the model schema that describes the applicable object structure.
+-- created:          Time when this body schema was added to the database
+-- deprecated_after: Time when this body schema became deprecated. None while this body schema is still valid.
+-- is_array:         Whether this body contains an array of values. False if no more than one value may be included.
+CREATE TABLE `response_body_schema`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`status_id` INT NOT NULL, 
+	`data_type_id` TINYINT NOT NULL, 
+	`model_type_id` INT, 
+	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	`deprecated_after` DATETIME, 
+	`is_array` BOOLEAN NOT NULL DEFAULT FALSE, 
+	INDEX rsbs_status_id_idx (`status_id`), 
+	INDEX rsbs_created_idx (`created`), 
+	INDEX rsbs_deprecated_after_idx (`deprecated_after`), 
+	CONSTRAINT rsbs_prs_status_ref_fk FOREIGN KEY rsbs_prs_status_ref_idx (status_id) REFERENCES `possible_response_status`(`id`) ON DELETE CASCADE, 
+	CONSTRAINT rsbs_ms_model_type_ref_fk FOREIGN KEY rsbs_ms_model_type_ref_idx (model_type_id) REFERENCES `model_schema`(`id`) ON DELETE SET NULL
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
 -- Links an additional required scope to an auth-scope link

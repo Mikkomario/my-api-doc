@@ -439,7 +439,7 @@ object DocParser
 								// Case: Array -prefix => Accepts an array of values.
 								//                        Suffix determines the accepted type.
 								if (trimmed.startsWithIgnoreCase("Array"))
-									trimmed.afterFirst(":") -> true
+									trimmed.afterFirst(":").dropWhile { _ == ' ' } -> true
 								else
 									trimmed -> false
 							}

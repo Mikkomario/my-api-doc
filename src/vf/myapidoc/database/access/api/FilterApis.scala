@@ -1,7 +1,6 @@
 package vf.myapidoc.database.access.api
 
 import utopia.flow.generic.casting.ValueConversions._
-import utopia.vault.nosql.template.Filterable
 import utopia.vault.nosql.view.TimelineView
 import vf.myapidoc.database.storable.api.ApiDbModel
 
@@ -37,5 +36,10 @@ trait FilterApis[+Repr] extends TimelineView[Repr]
 	  * @return Copy of this access point that only includes apis where name is within the specified value set
 	  */
 	def withNames(names: Iterable[String]) = filter(model.name.column.in(names))
+	/**
+	 * @param string A string
+	 * @return Access to APIs that have the specified string within their name
+	 */
+	def withNameContaining(string: String) = filter(model.name.column.contains(string))
 }
 
