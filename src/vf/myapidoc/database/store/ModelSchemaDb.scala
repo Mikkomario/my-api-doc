@@ -45,6 +45,7 @@ object ModelSchemaDb
 	 * @param connection Implicit DB connection
 	 * @return All models in the specified API
 	 */
+	// FIXME: Doesn't include nested models
 	def pullApiModels(apiId: Int)(implicit connection: Connection) =
 		combine(remainingModels = AccessModelSchemas.active.inApi(apiId).pull, completedModelsById = Map(),
 			rawProps = AccessPropertySchemas.active.whereActiveModels.inApi(apiId).pullAndGroupBy { _.modelTypeId },

@@ -2,6 +2,9 @@ package vf.myapidoc.controller.console
 
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair}
+import utopia.flow.collection.template.tree.ValueTree
+import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.NotEmpty
@@ -17,7 +20,7 @@ import vf.myapidoc.controller.doc.DocParser
 import vf.myapidoc.database.access.api.AccessApis
 import vf.myapidoc.database.store.ApiDocDb
 import vf.myapidoc.model.cached.{NewApiNodeGroup, NewNamedModel}
-import vf.myapidoc.model.combined.api.DetailedApi
+import vf.myapidoc.model.combined.api.{DetailedApi, DetailedApiNode}
 import vf.myapidoc.util.Common._
 
 import java.nio.file.Path
@@ -133,11 +136,23 @@ object DocCommands extends Extender[(String, Seq[Command])]
 	
 	private def printApiDoc(api: DetailedApi) = {
 		println(s"${ api.name } documentation:")
+		
+		// Prints the API structure
+		api.nodeGroups.foreach { group =>
+			group.rootNodes.foreach { node => println(nodeTreeToModel(node).toJson) }
+		}
+		
+		// Prints full information about each node
 		api.nodeGroups.foreach { group =>
 			println(s"\n${ group.name }${ group.data.description.prependIfNotEmpty(": ") }")
 			group.nodesIterator.foreach { n => println(n.toClientModel.toJson) }
 		}
 	}
+	
+	private def nodeTreeToModel(node: ValueTree[DetailedApiNode]): Model =
+		Model.from("id" -> node.id, "name" -> node.value.name, "description" -> node.data.description,
+			"actions" -> Model(node.implementations.map { impl => impl.method.name -> impl.data.description }),
+			"children" -> node.children.map(nodeTreeToModel))
 	
 	// Attempts to parse the node files first
 	private def parseApiDoc(nodeFiles: Iterable[Path], modelFiles: Iterable[Path]) =

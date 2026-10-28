@@ -1,7 +1,6 @@
 package vf.myapidoc.model.combined.api
 
 import utopia.flow.collection.immutable.{Empty, Single}
-import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Constant, Model, Value}
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
@@ -28,11 +27,16 @@ case class DetailedResponseBodySchema(id: Int, data: ResponseBodySchemaData,
 		with ClientModelConvertible
 {
 	override def toModel = super.toModel + Constant("content", modelType)
-	override def toClientModel: Model = Model(Vector.concat[(String, Value)](
-		Single("type" -> data.dataType.name),
-		if (data.isArray) Single("array" -> true) else Empty,
-		modelType.map { m => "content" -> (m.toClientModel: Value) }.emptyOrSingle
-	))
+	override def toClientModel: Model = {
+		val base = Model(Vector.concat[(String, Value)](
+			Single("type" -> data.dataType.name),
+			if (data.isArray) Single("array" -> true) else Empty
+		))
+		modelType match {
+			case Some(content) => base ++ content.toClientModel
+			case None => base
+		}
+	}
 	
 	override def withId(id: Int): DetailedResponseBodySchema = copy(id = id)
 	override protected def wrap(factory: ResponseBodySchemaData): DetailedResponseBodySchema = copy(data = factory)

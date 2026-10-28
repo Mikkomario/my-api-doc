@@ -83,7 +83,7 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 		"implementations" -> implementations)
 	override def toClientModel: Model = Model
 		.apply(Vector.concat[(String, Value)](
-			Vector("name" -> data.name, "description" -> data.description, "path" -> absolutePath),
+			Vector("id" -> id, "name" -> data.name, "description" -> data.description, "path" -> absolutePath),
 			if (pathParams.isEmpty) Empty else Single("pathParams" -> pathParams.map { _.toClientModel }),
 			Single("actions" -> implementations.map { impl =>
 				// Request body optionality is only included if it couldn't be inferred from the body entry
