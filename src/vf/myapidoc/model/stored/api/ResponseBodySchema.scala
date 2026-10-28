@@ -36,6 +36,8 @@ object ResponseBodySchema extends StandardStoredFactory[ResponseBodySchemaData, 
 	{
 		// IMPLEMENTED	--------------------
 		
+		override protected def wrappedFactory = data
+		
 		override def withId(id: Int) = copy(id = id)
 		
 		override protected def wrap(data: ResponseBodySchemaData) = copy(data = data)
@@ -58,5 +60,10 @@ trait ResponseBodySchema
 	  * An access point to this response body schema in the database
 	  */
 	def access = AccessResponseBodySchema(id)
+	
+	
+	// IMPLEMENTED	--------------------
+	
+	override protected def wrappedFactory = data
 }
 

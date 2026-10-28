@@ -3,15 +3,16 @@ package vf.myapidoc.database.access.api.response.status
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
+import vf.myapidoc.database.access.api.update.FilterVersionedDocElements
 import vf.myapidoc.database.storable.api.PossibleResponseStatusDbModel
 
 /**
-  * Common trait for access points which may be filtered based on possible response status 
+  * Common trait for access points that may be filtered based on possible response status 
   * properties
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait FilterPossibleResponseStatuses[+Repr] extends NullDeprecatableView[Repr] with TimelineView[Repr]
+trait FilterPossibleResponseStatuses[+Repr] extends FilterVersionedDocElements[Repr]
 {
 	// COMPUTED	--------------------
 	
@@ -19,11 +20,6 @@ trait FilterPossibleResponseStatuses[+Repr] extends NullDeprecatableView[Repr] w
 	  * Model that defines possible response status database properties
 	  */
 	def model = PossibleResponseStatusDbModel
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override def timestampColumn = model.created
 	
 	
 	// OTHER	--------------------
@@ -34,7 +30,6 @@ trait FilterPossibleResponseStatuses[+Repr] extends NullDeprecatableView[Repr] w
 	  * implementation id
 	  */
 	def fromImplementation(implementationId: Int) = filter(model.implementationId.column <=> implementationId)
-	
 	/**
 	  * @param implementationIds Targeted implementation ids
 	  * @return Copy of this access point that only includes possible response statuses where implementation 
@@ -49,7 +44,6 @@ trait FilterPossibleResponseStatuses[+Repr] extends NullDeprecatableView[Repr] w
 	  * status code
 	  */
 	def withCode(statusCode: Int) = filter(model.statusCode.column <=> statusCode)
-	
 	/**
 	  * @param statusCodes Targeted status codes
 	  * @return Copy of this access point that only includes possible response statuses where status code is 

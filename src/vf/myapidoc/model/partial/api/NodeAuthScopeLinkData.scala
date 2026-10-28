@@ -4,11 +4,7 @@ import utopia.access.model.enumeration.Method
 import utopia.flow.collection.immutable.Single
 import utopia.flow.generic.factory.FromModelFactoryWithSchema
 import utopia.flow.generic.model.immutable.{Model, ModelDeclaration, PropertyDeclaration}
-import utopia.flow.generic.model.mutable.DataType.AnyType
-import utopia.flow.generic.model.mutable.DataType.InstantType
-import utopia.flow.generic.model.mutable.DataType.IntType
-import utopia.flow.generic.model.mutable.DataType.StringType
-import utopia.flow.time.Now
+import utopia.flow.generic.model.mutable.DataType.{AnyType, InstantType, IntType, StringType}
 import vf.myapidoc.model.factory.api.NodeAuthScopeLinkFactory
 
 import java.time.Instant
@@ -17,43 +13,42 @@ object NodeAuthScopeLinkData extends FromModelFactoryWithSchema[NodeAuthScopeLin
 {
 	// ATTRIBUTES	--------------------
 	
-	override lazy val schema = 
-		ModelDeclaration(Vector(PropertyDeclaration("nodeId", IntType, Single("node_id")), 
-			PropertyDeclaration("scopeId", IntType, Vector("authId", "auth_id", "scope_id")), 
-			PropertyDeclaration("method", AnyType, isOptional = true), PropertyDeclaration("description", 
-			StringType, isOptional = true), PropertyDeclaration("created", InstantType, isOptional = true), 
-			PropertyDeclaration("deprecatedAfter", InstantType, Single("deprecated_after"), 
-			isOptional = true)))
+	override lazy val schema = ModelDeclaration(Vector(
+		PropertyDeclaration("originalUpdateId", IntType, Single("original_update_id")),
+		PropertyDeclaration("nodeId", IntType, Single("node_id")),
+		PropertyDeclaration("scopeId", IntType, Vector("authId", "auth_id", "scope_id")),
+		PropertyDeclaration("removingUpdateId", IntType, Single("removing_update_id"), isOptional = true),
+		PropertyDeclaration("method", AnyType, isOptional = true),
+		PropertyDeclaration("description", StringType, isOptional = true)))
 	
 	
 	// IMPLEMENTED	--------------------
 	
 	override protected def fromValidatedModel(valid: Model) = 
-		NodeAuthScopeLinkData(valid("nodeId").getInt, valid("scopeId").getInt, 
-			valid("method").string.map(Method.apply), valid("description").getString, 
-			valid("created").getInstant, valid("deprecatedAfter").instant)
+		NodeAuthScopeLinkData(valid("originalUpdateId").getInt, valid("nodeId").getInt, 
+			valid("scopeId").getInt, valid("removingUpdateId").int, valid("method").string.map(Method.apply), 
+			valid("description").getString)
 }
 
 /**
   * Describes an authorization scope required by an API node. 
   * If multiple scopes are linked, they typically represent alternative auth scopes, usually for 
   * different purposes.
-  * @param nodeId          ID of the node that accepts the linked authorization method.
-  * @param scopeId         ID of the authorization scope required by the linked node.
-  * @param method          The HTTP method that the linked authorization method is used for. 
-  *                        None if the authorization method is used as a default for all methods 
-  *                        (where not overridden).
-  * @param description     A description concerning this authorization method's function in the 
-  *                        linked node.
-  * @param created         Time when this node auth link was added to the database
-  * @param deprecatedAfter Time when this node auth link became deprecated. None while this node 
-  *                        auth link is still valid.
+  * @param originalUpdateId ID of the update that introduced this element (version)
+  * @param nodeId           ID of the node that accepts the linked authorization method.
+  * @param scopeId          ID of the authorization scope required by the linked node.
+  * @param removingUpdateId ID of the update that removed or replaced this element (version)
+  * @param method           The HTTP method that the linked authorization method is used for. 
+  *                         None if the authorization method is used as a default for all methods 
+  *                         (where not overridden).
+  * @param description      A description concerning this authorization method's function in the 
+  *                         linked node.
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-case class NodeAuthScopeLinkData(nodeId: Int, scopeId: Int, method: Option[Method] = None,
-                                 description: String = "", created: Instant = Now,
-                                 deprecatedAfter: Option[Instant] = None)
+case class NodeAuthScopeLinkData(originalUpdateId: Int, nodeId: Int, scopeId: Int,
+                                 removingUpdateId: Option[Int] = None, method: Option[Method] = None,
+                                 description: String = "")
 	extends NodeAuthScopeLinkFactory[NodeAuthScopeLinkData] with NodeAuthLinkData 
 		with NodeAuthLinkDataLike[NodeAuthScopeLinkData]
 {
@@ -61,10 +56,10 @@ case class NodeAuthScopeLinkData(nodeId: Int, scopeId: Int, method: Option[Metho
 	
 	override def authId = scopeId
 	
-	override def copyNodeAuthLink(nodeId: Int, authId: Int, method: Option[Method], description: String, 
-		created: Instant, deprecatedAfter: Option[Instant]) = 
-		copy(nodeId = nodeId, scopeId = authId, method = method, description = description, 
-			created = created, deprecatedAfter = deprecatedAfter)
+	override def copyNodeAuthLink(originalUpdateId: Int, nodeId: Int, authId: Int, 
+		removingUpdateId: Option[Int], method: Option[Method], description: String) = 
+		copy(originalUpdateId = originalUpdateId, nodeId = nodeId, scopeId = authId, 
+			removingUpdateId = removingUpdateId, method = method, description = description)
 	
 	override def withScopeId(scopeId: Int) = copy(scopeId = scopeId)
 }

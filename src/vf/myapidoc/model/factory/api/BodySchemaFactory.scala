@@ -5,31 +5,21 @@ import vf.myapidoc.model.enumeration.PropertyType
 import java.time.Instant
 
 /**
-  * Common trait for body schema-related factories which allow construction with individual 
+  * Common trait for body schema-related factories that allow construction with individual 
   * properties
   * @tparam A Type of constructed instances
   * @author Mikko Hilpinen
   * @since 27.10.2026, v0.1
   */
-trait BodySchemaFactory[+A]
+trait BodySchemaFactory[+A] extends VersionedDocElementFactory[A]
 {
 	// ABSTRACT	--------------------
 	
-	/**
-	  * @param created New created to assign
-	  * @return Copy of this item with the specified created
-	  */
-	def withCreated(created: Instant): A
 	/**
 	  * @param dataType New data type to assign
 	  * @return Copy of this item with the specified data type
 	  */
 	def withDataType(dataType: PropertyType): A
-	/**
-	  * @param deprecatedAfter New deprecated after to assign
-	  * @return Copy of this item with the specified deprecated after
-	  */
-	def withDeprecatedAfter(deprecatedAfter: Instant): A
 	/**
 	  * @param isArray New is array to assign
 	  * @return Copy of this item with the specified is array

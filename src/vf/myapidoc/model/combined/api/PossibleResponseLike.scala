@@ -2,7 +2,7 @@ package vf.myapidoc.model.combined.api
 
 import vf.myapidoc.model.factory.api.PossibleResponseStatusFactoryWrapper
 import vf.myapidoc.model.partial.api.PossibleResponseStatusData
-import vf.myapidoc.model.stored.api.PossibleResponseStatus
+import vf.myapidoc.model.stored.api.{PossibleResponseStatus, StoredVersionedDocElementLike}
 
 /**
   * Combines status with body data
@@ -13,6 +13,7 @@ import vf.myapidoc.model.stored.api.PossibleResponseStatus
   */
 trait PossibleResponseLike[+Body, +Repr <: PossibleResponseStatus]
 	extends PossibleResponseStatus with PossibleResponseStatusFactoryWrapper[PossibleResponseStatusData, Repr]
+		with StoredVersionedDocElementLike[PossibleResponseStatusData, Repr]
 {
 	// ABSTRACT	--------------------
 	

@@ -35,8 +35,8 @@ object AccessApiNodeGroups
   * @since 15.10.2026, v0.1
   */
 abstract class AccessApiNodeGroups[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessApiNodeGroup[A]] with HasValues[AccessApiNodeGroupValues] 
-		with FilterApiNodeGroups[Repr] with TargetingManyLike[A, Repr, AccessApiNodeGroup[A]]
+	extends TargetingManyLike[A, Repr, AccessApiNodeGroup[A]] with HasValues[AccessApiNodeGroupValues]
+		with FilterApiNodeGroups[Repr]
 {
 	// ATTRIBUTES	--------------------
 	

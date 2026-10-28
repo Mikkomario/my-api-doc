@@ -5,7 +5,7 @@ import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Constant, Model, Value}
 import vf.myapidoc.model.partial.api.PossibleResponseStatusData
-import vf.myapidoc.model.stored.api.PossibleResponseStatus
+import vf.myapidoc.model.stored.api.{PossibleResponseStatus, StoredVersionedDocElementLike}
 import vf.myapidoc.model.template.ClientModelConvertible
 
 object DetailedPossibleResponse
@@ -22,6 +22,7 @@ object DetailedPossibleResponse
 case class DetailedPossibleResponse(id: Int, data: PossibleResponseStatusData,
                                     body: Option[DetailedResponseBodySchema] = None)
 	extends PossibleResponseLike[DetailedResponseBodySchema, DetailedPossibleResponse] with ClientModelConvertible
+		with StoredVersionedDocElementLike[PossibleResponseStatusData, DetailedPossibleResponse]
 {
 	override def toModel = super.toModel + Constant("body", body)
 	override def toClientModel: Model = Model
@@ -34,6 +35,6 @@ case class DetailedPossibleResponse(id: Int, data: PossibleResponseStatusData,
 		))
 		.withoutEmptyValues
 	
-	override def withId(id: Int): PossibleResponseStatus = copy(id = id)
+	override def withId(id: Int) = copy(id = id)
 	override protected def wrap(factory: PossibleResponseStatusData): DetailedPossibleResponse = copy(data = factory)
 }

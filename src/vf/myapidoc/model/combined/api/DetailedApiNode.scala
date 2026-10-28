@@ -1,14 +1,14 @@
 package vf.myapidoc.model.combined.api
 
-import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.collection.CollectionExtensions._
-import utopia.flow.generic.model.immutable.{Model, Value}
+import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.util.NotEmpty
 import vf.myapidoc.model.combined.schema.{DetailedModelSchema, DetailedPropertySchema}
 import vf.myapidoc.model.factory.api.ApiNodeFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeData
-import vf.myapidoc.model.stored.api.ApiNode
+import vf.myapidoc.model.stored.api.{ApiNode, StoredVersionedDocElementLike}
 import vf.myapidoc.model.template.ClientModelConvertible
 
 /**
@@ -28,6 +28,7 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
                            definedScopes: Seq[DetailedNodeAuthScopeLink], directPathParams: Option[DetailedModelSchema],
                            parents: Seq[DetailedApiNode])
 	extends ApiNode with ApiNodeFactoryWrapper[ApiNodeData, DetailedApiNode] with ClientModelConvertible
+		with StoredVersionedDocElementLike[ApiNodeData, DetailedApiNode]
 {
 	// ATTRIBUTES   -----------------------
 	
@@ -164,5 +165,5 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 		.withoutEmptyValues
 	
 	override protected def wrap(factory: ApiNodeData): DetailedApiNode = copy(data = factory)
-	override def withId(id: Int): ApiNode = copy(id = id)
+	override def withId(id: Int) = copy(id = id)
 }

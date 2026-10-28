@@ -38,6 +38,8 @@ object NodeAuthScopeLink extends StandardStoredFactory[NodeAuthScopeLinkData, No
 	{
 		// IMPLEMENTED	--------------------
 		
+		override protected def wrappedFactory = data
+		
 		override def withId(id: Int) = copy(id = id)
 		
 		override protected def wrap(data: NodeAuthScopeLinkData) = copy(data = data)
@@ -64,9 +66,9 @@ trait NodeAuthScopeLink
 	def access = AccessNodeAuthScopeLink(id)
 	
 	
-	// OTHER    --------------------
+	// OTHER	--------------------
 	
-	def withAdditionalRequirements(requirements: IterableOnce[AdditionalNodeAuthScopeRequirement]) =
+	def withAdditionalRequirements(requirements: IterableOnce[AdditionalNodeAuthScopeRequirement]) = 
 		NodeAuthScopeLinkWithAdditionalRequirements(this, OptimizedIndexedSeq.from(requirements))
 }
 

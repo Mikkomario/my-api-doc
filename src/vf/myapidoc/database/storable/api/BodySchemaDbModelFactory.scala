@@ -8,8 +8,6 @@ import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.partial.api.BodySchemaData
 import vf.myapidoc.model.stored.api.BodySchema
 
-import java.time.Instant
-
 object BodySchemaDbModelFactory
 {
 	// OTHER	--------------------
@@ -26,7 +24,7 @@ object BodySchemaDbModelFactory
 	  * Used for constructing BodySchemaDbModel instances and for inserting body schemas to the 
 	  * database
 	  * @param table             Table targeted by these models
-	  * @param bodySchemaDbProps Properties which specify how the database interactions are performed
+	  * @param bodySchemaDbProps Properties that specify how the database interactions are performed
 	  * @author Mikko Hilpinen
 	  * @since 27.10.2026, v0.1
 	  */
@@ -41,23 +39,18 @@ object BodySchemaDbModelFactory
 		// IMPLEMENTED	--------------------
 		
 		override def apply(data: BodySchemaData): BodySchemaDbModel = 
-			apply(None, Some(data.parentId), Some(data.dataType), data.modelTypeId, Some(data.created), 
-				data.deprecatedAfter, Some(data.isArray))
-		
-		override def withCreated(created: Instant) = apply(created = Some(created))
+			apply(None, Some(data.originalUpdateId), Some(data.parentId), data.removingUpdateId, 
+				Some(data.dataType), data.modelTypeId, Some(data.isArray))
 		
 		override def withDataType(dataType: PropertyType) = apply(dataType = Some(dataType))
-		
-		override def withDeprecatedAfter(deprecatedAfter: Instant) = apply(deprecatedAfter = 
-			Some(deprecatedAfter))
-		
 		override def withId(id: Int) = apply(id = Some(id))
-		
 		override def withIsArray(isArray: Boolean) = apply(isArray = Some(isArray))
-		
 		override def withModelTypeId(modelTypeId: Int) = apply(modelTypeId = Some(modelTypeId))
-		
+		override def withOriginalUpdateId(originalUpdateId: Int) = apply(originalUpdateId = 
+			Some(originalUpdateId))
 		override def withParentId(parentId: Int) = apply(parentId = Some(parentId))
+		override def withRemovingUpdateId(removingUpdateId: Int) = apply(removingUpdateId =
+			Some(removingUpdateId))
 		
 		override protected def complete(id: Value, data: BodySchemaData) = BodySchema(id.getInt, data)
 		
@@ -68,12 +61,11 @@ object BodySchemaDbModelFactory
 		  * @param id body schema database id
 		  * @return Constructs a new body schema database model with the specified properties
 		  */
-		def apply(id: Option[Int] = None, parentId: Option[Int] = None, 
-			dataType: Option[PropertyType] = None, modelTypeId: Option[Int] = None, 
-			created: Option[Instant] = None, deprecatedAfter: Option[Instant] = None, 
-			isArray: Option[Boolean] = None): BodySchemaDbModel = 
-			_BodySchemaDbModel(table, bodySchemaDbProps, id, parentId, dataType, modelTypeId, created, 
-				deprecatedAfter, isArray)
+		def apply(id: Option[Int] = None, originalUpdateId: Option[Int] = None, parentId: Option[Int] = None,
+		          removingUpdateId: Option[Int] = None, dataType: Option[PropertyType] = None,
+		          modelTypeId: Option[Int] = None, isArray: Option[Boolean] = None): BodySchemaDbModel =
+			_BodySchemaDbModel(table, bodySchemaDbProps, id, originalUpdateId, parentId, removingUpdateId, 
+				dataType, modelTypeId, isArray)
 	}
 	
 	/**
@@ -84,35 +76,50 @@ object BodySchemaDbModelFactory
 	  * @author Mikko Hilpinen
 	  * @since 27.10.2026, v0.1
 	  */
-	private case class _BodySchemaDbModel(table: Table, dbProps: BodySchemaDbProps, id: Option[Int] = None, 
-		parentId: Option[Int] = None, dataType: Option[PropertyType] = None, modelTypeId: Option[Int] = None, 
-		created: Option[Instant] = None, deprecatedAfter: Option[Instant] = None, 
-		isArray: Option[Boolean] = None) 
+	private case class _BodySchemaDbModel(table: Table, dbProps: BodySchemaDbProps, id: Option[Int] = None,
+	                                      originalUpdateId: Option[Int] = None, parentId: Option[Int] = None,
+	                                      removingUpdateId: Option[Int] = None, dataType: Option[PropertyType] = None,
+	                                      modelTypeId: Option[Int] = None, isArray: Option[Boolean] = None)
 		extends BodySchemaDbModel
 	{
 		// IMPLEMENTED	--------------------
 		
 		/**
-		  * @param id              Id to assign to the new model (default = currently assigned id)
-		  * @param parentId        parent id to assign to the new model (default = currently assigned 
-		  *                        value)
-		  * @param dataType        data type to assign to the new model (default = currently assigned 
-		  *                        value)
-		  * @param modelTypeId     model type id to assign to the new model (default = currently assigned 
-		  *                        value)
-		  * @param created         created to assign to the new model (default = currently assigned value)
-		  * @param deprecatedAfter deprecated after to assign to the new model (default = currently 
-		  *                        assigned value)
-		  * @param isArray         is array to assign to the new model (default = currently assigned 
-		  *                        value)
+		  * @param id               ID to assign to the new model (default = currently assigned id)
+		  * @param originalUpdateId original update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  * @param removingUpdateId removing update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  */
+		override def copyVersionedDocElement(id: Option[Int] = id, originalUpdateId: Option[Int] = originalUpdateId,
+		                                     removingUpdateId: Option[Int] = removingUpdateId) =
+			copy(id = id, originalUpdateId = originalUpdateId, removingUpdateId = removingUpdateId)
+		
+		/**
+		  * @param id               ID to assign to the new model (default = currently assigned id)
+		  * @param originalUpdateId original update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  * @param parentId         parent id to assign to the new model (default = currently assigned 
+		  *                         value)
+		  * @param removingUpdateId removing update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  * @param dataType         data type to assign to the new model (default = currently assigned 
+		  *                         value)
+		  * @param modelTypeId      model type id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  * @param isArray          is array to assign to the new model (default = currently assigned 
+		  *                         value)
 		  * @return Copy of this model with the specified body schema properties
 		  */
-		override protected def copyBodySchema(id: Option[Int] = id, parentId: Option[Int] = parentId, 
-			dataType: Option[PropertyType] = dataType, modelTypeId: Option[Int] = modelTypeId, 
-			created: Option[Instant] = created, deprecatedAfter: Option[Instant] = deprecatedAfter, 
-			isArray: Option[Boolean] = isArray) = 
-			copy(id = id, parentId = parentId, dataType = dataType, modelTypeId = modelTypeId, 
-				created = created, deprecatedAfter = deprecatedAfter, isArray = isArray)
+		override protected def copyBodySchema(id: Option[Int] = id, originalUpdateId: Option[Int] = originalUpdateId,
+		                                      parentId: Option[Int] = parentId,
+		                                      removingUpdateId: Option[Int] = removingUpdateId,
+		                                      dataType: Option[PropertyType] = dataType,
+		                                      modelTypeId: Option[Int] = modelTypeId,
+		                                      isArray: Option[Boolean] = isArray) =
+			copy(id = id, originalUpdateId = originalUpdateId, parentId = parentId, 
+				removingUpdateId = removingUpdateId, dataType = dataType, modelTypeId = modelTypeId, 
+				isArray = isArray)
 	}
 }
 
@@ -121,6 +128,5 @@ object BodySchemaDbModelFactory
   * @author Mikko Hilpinen
   * @since 27.10.2026, v0.1
   */
-trait BodySchemaDbModelFactory 
-	extends BodySchemaDbModelFactoryLike[BodySchemaDbModel, BodySchema, BodySchemaData]
+trait BodySchemaDbModelFactory extends BodySchemaDbModelFactoryLike[BodySchemaDbModel, BodySchema, BodySchemaData]
 

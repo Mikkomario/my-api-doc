@@ -18,7 +18,6 @@ object AccessApis
 	// IMPLEMENTED	--------------------
 	
 	override def apply[A](access: TargetingManyRows[A]) = AccessApiRows(access)
-	
 	override def apply[A](access: TargetingMany[A]) = AccessCombinedApis(access)
 }
 
@@ -28,8 +27,7 @@ object AccessApis
   * @since 16.10.2026, v0.1
   */
 abstract class AccessApis[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessApi[A]] with HasValues[AccessApiValues] with FilterApis[Repr] 
-		with TargetingManyLike[A, Repr, AccessApi[A]]
+	extends TargetingTimeline[A, Repr, AccessApi[A]] with HasValues[AccessApiValues] with FilterApis[Repr]
 {
 	// ATTRIBUTES	--------------------
 	
@@ -50,7 +48,6 @@ case class AccessApiRows[A](wrapped: TargetingManyRows[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingManyRows[A]) = AccessApiRows(newTarget)
-	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessApi(target)
 }
 
@@ -69,7 +66,6 @@ case class AccessCombinedApis[A](wrapped: TargetingMany[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingMany[A]) = AccessCombinedApis(newTarget)
-	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessApi(target)
 }
 

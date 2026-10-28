@@ -5,15 +5,15 @@ import utopia.vault.model.immutable.Column
 import utopia.vault.nosql.template.IntIndexFilterable
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
+import vf.myapidoc.database.access.api.update.FilterVersionedDocElements
 import vf.myapidoc.database.storable.schema.PropertySchemaDbModel
 
 /**
-  * Common trait for access points which may be filtered based on property schema properties
+  * Common trait for access points that may be filtered based on property schema properties
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait FilterPropertySchemas[+Repr]
-	extends NullDeprecatableView[Repr] with TimelineView[Repr] with IntIndexFilterable[Repr]
+trait FilterPropertySchemas[+Repr] extends FilterVersionedDocElements[Repr] with IntIndexFilterable[Repr]
 {
 	// COMPUTED	--------------------
 	
@@ -26,14 +26,14 @@ trait FilterPropertySchemas[+Repr]
 	// IMPLEMENTED	--------------------
 	
 	override protected def idColumn: Column = model.id
-	override def timestampColumn = model.created
 	
 	
 	// OTHER	--------------------
 	
 	/**
 	  * @param contentTypeId content type id to target
-	  * @return Copy of this access point that only includes property schemas with the specified content type id
+	  * @return Copy of this access point that only includes property schemas with the specified content type 
+	  * id
 	  */
 	def containingModelOfType(contentTypeId: Int) = filter(model.contentTypeId.column <=> contentTypeId)
 	/**
@@ -54,7 +54,8 @@ trait FilterPropertySchemas[+Repr]
 	  * @return Copy of this access point that only includes property schemas where model type id is within 
 	  * the specified value set
 	  */
-	def ofModelTypes(modelTypeIds: IterableOnce[Int]) = filter(Condition.indexIn(model.modelTypeId, modelTypeIds))
+	def ofModelTypes(modelTypeIds: IterableOnce[Int]) = filter(Condition.indexIn(model.modelTypeId, 
+		modelTypeIds))
 	
 	/**
 	  * @param name name to target

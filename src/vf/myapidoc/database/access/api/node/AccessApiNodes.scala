@@ -3,7 +3,6 @@ package vf.myapidoc.database.access.api.node
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, HasValues}
 import utopia.vault.nosql.targeting.many._
 import utopia.vault.nosql.targeting.one.TargetingOne
-import vf.myapidoc.database.MyApiDocTables
 import vf.myapidoc.database.access.api.node.group.FilterByApiNodeGroup
 import vf.myapidoc.database.reader.api.ApiNodeDbReader
 import vf.myapidoc.database.storable.api.{ApiNodeDbModel, ApiNodeGroupDbModel}
@@ -32,8 +31,8 @@ object AccessApiNodes
   * @since 15.10.2026, v0.1
   */
 abstract class AccessApiNodes[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessApiNode[A]] with HasValues[AccessApiNodeValues] 
-		with FilterApiNodes[Repr] with TargetingManyLike[A, Repr, AccessApiNode[A]]
+	extends TargetingManyLike[A, Repr, AccessApiNode[A]] with HasValues[AccessApiNodeValues]
+		with FilterApiNodes[Repr]
 {
 	// ATTRIBUTES	--------------------
 	

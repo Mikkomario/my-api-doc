@@ -1,7 +1,7 @@
 package vf.myapidoc.model.factory.api
 
 /**
-  * Common trait for node auth type link-related factories which allow construction with 
+  * Common trait for node auth type link-related factories that allow construction with 
   * individual properties
   * @tparam A Type of constructed instances
   * @author Mikko Hilpinen

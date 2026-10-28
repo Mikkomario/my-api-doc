@@ -3,7 +3,9 @@ package vf.myapidoc.model.stored.auth
 import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
 import vf.myapidoc.database.access.auth.token.AccessAuthTokenType
 import vf.myapidoc.model.factory.auth.AuthTokenTypeFactoryWrapper
+import vf.myapidoc.model.partial.api.VersionedDocElementData
 import vf.myapidoc.model.partial.auth.AuthTokenTypeData
+import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 
 object AuthTokenType extends StandardStoredFactory[AuthTokenTypeData, AuthTokenType]
 {
@@ -21,8 +23,8 @@ object AuthTokenType extends StandardStoredFactory[AuthTokenTypeData, AuthTokenT
   * @since 15.10.2026, v0.1
   */
 case class AuthTokenType(id: Int, data: AuthTokenTypeData) 
-	extends StoredModelConvertible[AuthTokenTypeData] with FromIdFactory[Int, AuthTokenType] 
-		with AuthTokenTypeFactoryWrapper[AuthTokenTypeData, AuthTokenType]
+	extends AuthTokenTypeFactoryWrapper[AuthTokenTypeData, AuthTokenType] with VersionedDocElementData 
+		with StoredVersionedDocElementLike[AuthTokenTypeData, AuthTokenType]
 {
 	// COMPUTED	--------------------
 	
@@ -34,10 +36,7 @@ case class AuthTokenType(id: Int, data: AuthTokenTypeData)
 	
 	// IMPLEMENTED	--------------------
 	
-	override protected def wrappedFactory = data
-	
 	override def withId(id: Int) = copy(id = id)
-	
 	override protected def wrap(data: AuthTokenTypeData) = copy(data = data)
 }
 

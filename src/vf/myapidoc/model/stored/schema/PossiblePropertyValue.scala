@@ -3,7 +3,9 @@ package vf.myapidoc.model.stored.schema
 import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
 import vf.myapidoc.database.access.schema.prop.value.AccessPossiblePropertyValue
 import vf.myapidoc.model.factory.schema.PossiblePropertyValueFactoryWrapper
+import vf.myapidoc.model.partial.api.VersionedDocElementData
 import vf.myapidoc.model.partial.schema.PossiblePropertyValueData
+import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 
 object PossiblePropertyValue extends StandardStoredFactory[PossiblePropertyValueData, PossiblePropertyValue]
 {
@@ -21,8 +23,9 @@ object PossiblePropertyValue extends StandardStoredFactory[PossiblePropertyValue
   * @since 26.10.2026, v0.1
   */
 case class PossiblePropertyValue(id: Int, data: PossiblePropertyValueData) 
-	extends StoredModelConvertible[PossiblePropertyValueData] with FromIdFactory[Int, PossiblePropertyValue] 
-		with PossiblePropertyValueFactoryWrapper[PossiblePropertyValueData, PossiblePropertyValue]
+	extends PossiblePropertyValueFactoryWrapper[PossiblePropertyValueData, PossiblePropertyValue] 
+		with VersionedDocElementData 
+		with StoredVersionedDocElementLike[PossiblePropertyValueData, PossiblePropertyValue]
 {
 	// COMPUTED	--------------------
 	
@@ -33,8 +36,6 @@ case class PossiblePropertyValue(id: Int, data: PossiblePropertyValueData)
 	
 	
 	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
 	
 	override def withId(id: Int) = copy(id = id)
 	

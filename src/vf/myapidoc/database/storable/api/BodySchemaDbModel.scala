@@ -20,5 +20,5 @@ object BodySchemaDbModel
   * @author Mikko Hilpinen
   * @since 27.10.2026, v0.1
   */
-trait BodySchemaDbModel extends BodySchemaDbModelLike[BodySchemaDbModel]
+trait BodySchemaDbModel extends VersionedDocElementDbModel with BodySchemaDbModelLike[BodySchemaDbModel]
 

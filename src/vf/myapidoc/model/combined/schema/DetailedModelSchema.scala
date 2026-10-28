@@ -26,6 +26,6 @@ case class DetailedModelSchema(id: Int, data: ModelSchemaData, properties: Seq[D
 		"properties" -> properties.map { _.toClientModel })
 		.withoutEmptyValues
 	
-	override def withId(id: Int): ModelSchema = copy(id = id)
+	override def withId(id: Int) = copy(id = id)
 	override protected def wrap(factory: ModelSchemaData): DetailedModelSchema = copy(data = factory)
 }

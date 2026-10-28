@@ -31,8 +31,8 @@ object AccessAuthTokenTypes
   * @since 15.10.2026, v0.1
   */
 abstract class AccessAuthTokenTypes[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessAuthTokenType[A]] with HasValues[AccessAuthTokenTypeValues] 
-		with FilterAuthTokenTypes[Repr] with TargetingManyLike[A, Repr, AccessAuthTokenType[A]]
+	extends TargetingManyLike[A, Repr, AccessAuthTokenType[A]] with HasValues[AccessAuthTokenTypeValues]
+		with FilterAuthTokenTypes[Repr]
 {
 	// ATTRIBUTES	--------------------
 	

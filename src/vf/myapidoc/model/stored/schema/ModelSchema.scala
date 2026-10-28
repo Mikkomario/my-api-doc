@@ -1,9 +1,11 @@
 package vf.myapidoc.model.stored.schema
 
-import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
+import utopia.vault.store.StandardStoredFactory
 import vf.myapidoc.database.access.schema.model.AccessModelSchema
 import vf.myapidoc.model.factory.schema.ModelSchemaFactoryWrapper
+import vf.myapidoc.model.partial.api.VersionedDocElementData
 import vf.myapidoc.model.partial.schema.ModelSchemaData
+import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 
 object ModelSchema extends StandardStoredFactory[ModelSchemaData, ModelSchema]
 {
@@ -49,8 +51,8 @@ object ModelSchema extends StandardStoredFactory[ModelSchemaData, ModelSchema]
   * @since 15.10.2026, v0.1
   */
 trait ModelSchema 
-	extends StoredModelConvertible[ModelSchemaData] with FromIdFactory[Int, ModelSchema] 
-		with ModelSchemaFactoryWrapper[ModelSchemaData, ModelSchema]
+	extends ModelSchemaFactoryWrapper[ModelSchemaData, ModelSchema] with VersionedDocElementData
+		with StoredVersionedDocElementLike[ModelSchemaData, ModelSchema]
 {
 	// COMPUTED	--------------------
 	
@@ -58,10 +60,5 @@ trait ModelSchema
 	  * An access point to this model schema in the database
 	  */
 	def access = AccessModelSchema(id)
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
 }
 

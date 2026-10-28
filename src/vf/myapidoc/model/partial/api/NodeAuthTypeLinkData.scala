@@ -4,11 +4,7 @@ import utopia.access.model.enumeration.Method
 import utopia.flow.collection.immutable.Single
 import utopia.flow.generic.factory.FromModelFactoryWithSchema
 import utopia.flow.generic.model.immutable.{Model, ModelDeclaration, PropertyDeclaration}
-import utopia.flow.generic.model.mutable.DataType.AnyType
-import utopia.flow.generic.model.mutable.DataType.InstantType
-import utopia.flow.generic.model.mutable.DataType.IntType
-import utopia.flow.generic.model.mutable.DataType.StringType
-import utopia.flow.time.Now
+import utopia.flow.generic.model.mutable.DataType.{AnyType, InstantType, IntType, StringType}
 import vf.myapidoc.model.factory.api.NodeAuthTypeLinkFactory
 
 import java.time.Instant
@@ -18,39 +14,38 @@ object NodeAuthTypeLinkData extends FromModelFactoryWithSchema[NodeAuthTypeLinkD
 	// ATTRIBUTES	--------------------
 	
 	override lazy val schema = ModelDeclaration(Vector(
+		PropertyDeclaration("originalUpdateId", IntType, Single("original_update_id")),
 		PropertyDeclaration("nodeId", IntType, Single("node_id")),
 		PropertyDeclaration("authTypeId", IntType, Vector("authId", "auth_id", "auth_type_id")),
+		PropertyDeclaration("removingUpdateId", IntType, Single("removing_update_id"), isOptional = true),
 		PropertyDeclaration("method", AnyType, isOptional = true),
-		PropertyDeclaration("description", StringType, isOptional = true),
-		PropertyDeclaration("created", InstantType, isOptional = true),
-		PropertyDeclaration("deprecatedAfter", InstantType, Single("deprecated_after"), isOptional = true)))
+		PropertyDeclaration("description", StringType, isOptional = true)))
 	
 	
 	// IMPLEMENTED	--------------------
 	
 	override protected def fromValidatedModel(valid: Model) = 
-		NodeAuthTypeLinkData(valid("nodeId").getInt, valid("authTypeId").getInt, 
-			valid("method").string.map(Method.apply), valid("description").getString, 
-			valid("created").getInstant, valid("deprecatedAfter").instant)
+		NodeAuthTypeLinkData(valid("originalUpdateId").getInt, valid("nodeId").getInt, 
+			valid("authTypeId").getInt, valid("removingUpdateId").int, 
+			valid("method").string.map(Method.apply), valid("description").getString)
 }
 
 /**
-  * Common trait for links between API nodes and possible authorization requirements
-  * @param nodeId          ID of the node that accepts the linked authorization method.
-  * @param authTypeId      ID of the authorization type accepted by the linked node.
-  * @param method          The HTTP method that the linked authorization method is used for. 
-  *                        None if the authorization method is used as a default for all methods 
-  *                        (where not overridden).
-  * @param description     A description concerning this authorization method's function in the 
-  *                        linked node.
-  * @param created         Time when this node auth link was added to the database
-  * @param deprecatedAfter Time when this node auth link became deprecated. None while this node 
-  *                        auth link is still valid.
+  * Describes an authorization type accepted by an API node.
+  * @param originalUpdateId ID of the update that introduced this element (version)
+  * @param nodeId           ID of the node that accepts the linked authorization method.
+  * @param authTypeId       ID of the authorization type accepted by the linked node.
+  * @param removingUpdateId ID of the update that removed or replaced this element (version)
+  * @param method           The HTTP method that the linked authorization method is used for. 
+  *                         None if the authorization method is used as a default for all methods 
+  *                         (where not overridden).
+  * @param description      A description concerning this authorization method's function in the 
+  *                         linked node.
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-case class NodeAuthTypeLinkData(nodeId: Int, authTypeId: Int, method: Option[Method] = None, description: String = "",
-                                created: Instant = Now, deprecatedAfter: Option[Instant] = None)
+case class NodeAuthTypeLinkData(originalUpdateId: Int, nodeId: Int, authTypeId: Int, 
+	removingUpdateId: Option[Int] = None, method: Option[Method] = None, description: String = "") 
 	extends NodeAuthTypeLinkFactory[NodeAuthTypeLinkData] with NodeAuthLinkData 
 		with NodeAuthLinkDataLike[NodeAuthTypeLinkData]
 {
@@ -58,10 +53,10 @@ case class NodeAuthTypeLinkData(nodeId: Int, authTypeId: Int, method: Option[Met
 	
 	override def authId = authTypeId
 	
-	override def copyNodeAuthLink(nodeId: Int, authId: Int, method: Option[Method], description: String, 
-		created: Instant, deprecatedAfter: Option[Instant]) = 
-		copy(nodeId = nodeId, authTypeId = authId, method = method, description = description, 
-			created = created, deprecatedAfter = deprecatedAfter)
+	override def copyNodeAuthLink(originalUpdateId: Int, nodeId: Int, authId: Int, 
+		removingUpdateId: Option[Int], method: Option[Method], description: String) = 
+		copy(originalUpdateId = originalUpdateId, nodeId = nodeId, authTypeId = authId, 
+			removingUpdateId = removingUpdateId, method = method, description = description)
 	
 	override def withAuthTypeId(authTypeId: Int) = copy(authTypeId = authTypeId)
 }

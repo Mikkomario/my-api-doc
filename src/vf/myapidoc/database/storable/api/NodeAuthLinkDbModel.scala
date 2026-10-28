@@ -20,5 +20,5 @@ object NodeAuthLinkDbModel
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait NodeAuthLinkDbModel extends NodeAuthLinkDbModelLike[NodeAuthLinkDbModel]
+trait NodeAuthLinkDbModel extends VersionedDocElementDbModel with NodeAuthLinkDbModelLike[NodeAuthLinkDbModel]
 

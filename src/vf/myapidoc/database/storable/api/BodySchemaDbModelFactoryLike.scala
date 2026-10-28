@@ -15,6 +15,5 @@ import vf.myapidoc.model.factory.api.BodySchemaFactory
   * @since 27.10.2026, v0.1
   */
 trait BodySchemaDbModelFactoryLike[+DbModel <: Storable, +A, -Data] 
-	extends StorableFactory[DbModel, A, Data] with FromIdFactory[Int, DbModel] with HasIdProperty 
-		with BodySchemaFactory[DbModel]
+	extends VersionedDocElementDbModelFactoryLike[DbModel, A, Data] with BodySchemaFactory[DbModel]
 

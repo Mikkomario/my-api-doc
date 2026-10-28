@@ -7,6 +7,7 @@ import utopia.flow.util.UncertainBoolean
 import utopia.flow.util.UncertainBoolean.CertainlyTrue
 import vf.myapidoc.model.factory.schema.PropertySchemaFactoryWrapper
 import vf.myapidoc.model.partial.schema.PropertySchemaData
+import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 import vf.myapidoc.model.stored.schema.{AlternativePropertyType, StoredPropertySchema}
 import vf.myapidoc.model.template.ClientModelConvertible
 
@@ -22,7 +23,7 @@ import vf.myapidoc.model.template.ClientModelConvertible
 case class DetailedPropertySchema(id: Int, data: PropertySchemaData, contentType: Option[DetailedModelSchema] = None,
                                   altTypes: Seq[AlternativePropertyType] = Empty)
 	extends StoredPropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, DetailedPropertySchema]
-		with ClientModelConvertible
+		with ClientModelConvertible with StoredVersionedDocElementLike[PropertySchemaData, DetailedPropertySchema]
 {
 	override def toModel = super.toModel ++ Model.from("altTypes" -> altTypes, "content" -> contentType)
 	override def toClientModel: Model = Model
@@ -44,5 +45,5 @@ case class DetailedPropertySchema(id: Int, data: PropertySchemaData, contentType
 		.withoutEmptyValues
 	
 	override protected def wrap(factory: PropertySchemaData): DetailedPropertySchema = copy(data = factory)
-	override def withId(id: Int): StoredPropertySchema = copy(id = id)
+	override def withId(id: Int) = copy(id = id)
 }

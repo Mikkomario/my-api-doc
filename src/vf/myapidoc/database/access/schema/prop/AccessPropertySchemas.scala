@@ -32,7 +32,7 @@ object AccessPropertySchemas
   * @since 15.10.2026, v0.1
   */
 abstract class AccessPropertySchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessPropertySchema[A]] with HasValues[AccessPropertySchemaValues] 
+	extends TargetingManyLike[A, Repr, AccessPropertySchema[A]] with HasValues[AccessPropertySchemaValues]
 		with FilterPropertySchemas[Repr]
 {
 	// ATTRIBUTES	--------------------

@@ -33,9 +33,8 @@ object AccessAlternativePropertyTypes
   * @since 15.10.2026, v0.1
   */
 abstract class AccessAlternativePropertyTypes[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
-	extends TargetingTimeline[A, Repr, AccessAlternativePropertyType[A]] 
-		with HasValues[AccessAlternativePropertyTypeValues] with FilterAlternativePropertyTypes[Repr] 
-		with TargetingManyLike[A, Repr, AccessAlternativePropertyType[A]]
+	extends TargetingManyLike[A, Repr, AccessAlternativePropertyType[A]]
+		with HasValues[AccessAlternativePropertyTypeValues] with FilterAlternativePropertyTypes[Repr]
 {
 	// ATTRIBUTES	--------------------
 	

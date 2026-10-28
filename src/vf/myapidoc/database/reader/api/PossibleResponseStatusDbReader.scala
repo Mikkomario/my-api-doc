@@ -1,6 +1,7 @@
 package vf.myapidoc.database.reader.api
 
 import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import utopia.flow.util.UncertainBoolean
 import utopia.vault.model.template.HasTableAsTarget
 import utopia.vault.nosql.read.DbRowReader
@@ -16,29 +17,31 @@ import scala.util.Success
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-object PossibleResponseStatusDbReader 
-	extends DbRowReader[PossibleResponseStatus] with ParseTableModel[PossibleResponseStatus] 
-		with HasTableAsTarget
+object PossibleResponseStatusDbReader extends VersionedDocElementDbReaderLike[PossibleResponseStatus]
 {
 	// ATTRIBUTES	--------------------
 	
 	/**
 	  * Model that specifies how the data is read
 	  */
-	val model = PossibleResponseStatusDbModel
+	override val dbProps = PossibleResponseStatusDbModel
 	
 	
 	// IMPLEMENTED	--------------------
 	
-	override def table = model.table
+	override def table = dbProps.table
 	
-	override def fromValid(valid: Model) = 
-		Success(PossibleResponseStatus(valid(this.model.id.name).getInt, 
-			PossibleResponseStatusData(implementationId = valid(this.model.implementationId.name).getInt, 
-			statusCode = valid(this.model.statusCode.name).getInt, 
-			description = valid(this.model.description.name).getString, 
-			created = valid(this.model.created.name).getInstant, 
-			deprecatedAfter = valid(this.model.deprecatedAfter.name).instant, 
-			hasBody = UncertainBoolean(valid(this.model.hasBody.name).boolean))))
+	/**
+	  * @param model            Model from which additional data may be read
+	  * @param id               ID to assign to the read/parsed versioned doc element
+	  * @param originalUpdateId original update id to assign to the new versioned doc element
+	  * @param removingUpdateId removing update id to assign to the new versioned doc element
+	  */
+	override protected def apply(model: HasProperties, id: Int, originalUpdateId: Int, removingUpdateId: Option[Int]) =
+		PossibleResponseStatus(id, PossibleResponseStatusData(originalUpdateId = originalUpdateId, 
+			implementationId = model(dbProps.implementationId.name).getInt, 
+			statusCode = model(dbProps.statusCode.name).getInt, removingUpdateId = removingUpdateId, 
+			description = model(dbProps.description.name).getString, 
+			hasBody = UncertainBoolean(model(dbProps.hasBody.name).boolean)))
 }
 

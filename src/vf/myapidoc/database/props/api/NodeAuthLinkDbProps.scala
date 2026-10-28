@@ -1,99 +1,104 @@
 package vf.myapidoc.database.props.api
 
-import utopia.vault.model.immutable.{DbPropertyDeclaration, Table, TableColumn}
-import utopia.vault.model.template.{DeprecatesAfterDefined, HasIdProperty}
+import utopia.vault.model.immutable.{DbPropertyDeclaration, Table}
+import utopia.vault.model.template.HasIdProperty
 
 object NodeAuthLinkDbProps
 {
 	// OTHER	--------------------
 	
 	/**
-	  * @param table                   Table operated using this configuration
-	  * @param nodeIdPropName          Name of the database property matching node id (default = "nodeId")
-	  * @param authIdPropName          Name of the database property matching auth id (default = "authId")
-	  * @param methodPropName          Name of the database property matching method (default = "method")
-	  * @param descriptionPropName     Name of the database property matching description (default = "description")
-	  * @param createdPropName         Name of the database property matching created (default = "created")
-	  * @param deprecatedAfterPropName Name of the database property matching deprecated after 
-	  *                                (default = "deprecatedAfter")
-	  * @return A model which defines all node auth link database properties
+	  * @param table                    Table operated using this configuration
+	  * @param originalUpdateIdPropName Name of the database property matching original update id 
+	  *                                 (default = "originalUpdateId")
+	  * @param nodeIdPropName           Name of the database property matching node id (default = 
+	  *                                 "nodeId")
+	  * @param authIdPropName           Name of the database property matching auth id (default = 
+	  *                                 "authId")
+	  * @param removingUpdateIdPropName Name of the database property matching removing update id 
+	  *                                 (default = "removingUpdateId")
+	  * @param methodPropName           Name of the database property matching method (default = 
+	  *                                 "method")
+	  * @param descriptionPropName      Name of the database property matching description (default = 
+	  *                                 "description")
+	  * @return A model that defines all node auth link database properties
 	  */
-	def apply(table: Table, nodeIdPropName: String = "nodeId", authIdPropName: String = "authId", 
-		methodPropName: String = "method", descriptionPropName: String = "description", 
-		createdPropName: String = "created", 
-		deprecatedAfterPropName: String = "deprecatedAfter"): NodeAuthLinkDbProps = 
-		_NodeAuthLinkDbProps(table, nodeIdPropName, authIdPropName, methodPropName, descriptionPropName, 
-			createdPropName, deprecatedAfterPropName)
+	def apply(table: Table, originalUpdateIdPropName: String = "originalUpdateId", 
+		nodeIdPropName: String = "nodeId", authIdPropName: String = "authId", 
+		removingUpdateIdPropName: String = "removingUpdateId", methodPropName: String = "method", 
+		descriptionPropName: String = "description"): NodeAuthLinkDbProps = 
+		_NodeAuthLinkDbProps(table, originalUpdateIdPropName, nodeIdPropName, authIdPropName, 
+			removingUpdateIdPropName, methodPropName, descriptionPropName)
 	
 	
 	// NESTED	--------------------
 	
 	/**
-	  * @param table                   Table operated using this configuration
-	  * @param nodeIdPropName          Name of the database property matching node id (default = "nodeId")
-	  * @param authIdPropName          Name of the database property matching auth id (default = "authId")
-	  * @param methodPropName          Name of the database property matching method (default = "method")
-	  * @param descriptionPropName     Name of the database property matching description (default = "description")
-	  * @param createdPropName         Name of the database property matching created (default = "created")
-	  * @param deprecatedAfterPropName Name of the database property matching deprecated after 
-	  *                                (default = "deprecatedAfter")
+	  * @param table                    Table operated using this configuration
+	  * @param originalUpdateIdPropName Name of the database property matching original update id 
+	  *                                 (default = "originalUpdateId")
+	  * @param nodeIdPropName           Name of the database property matching node id (default = 
+	  *                                 "nodeId")
+	  * @param authIdPropName           Name of the database property matching auth id (default = 
+	  *                                 "authId")
+	  * @param removingUpdateIdPropName Name of the database property matching removing update id 
+	  *                                 (default = "removingUpdateId")
+	  * @param methodPropName           Name of the database property matching method (default = 
+	  *                                 "method")
+	  * @param descriptionPropName      Name of the database property matching description (default = 
+	  *                                 "description")
 	  */
-	private case class _NodeAuthLinkDbProps(table: Table, nodeIdPropName: String = "nodeId", 
-		authIdPropName: String = "authId", methodPropName: String = "method", 
-		descriptionPropName: String = "description", createdPropName: String = "created", 
-		deprecatedAfterPropName: String = "deprecatedAfter") 
+	private case class _NodeAuthLinkDbProps(table: Table, 
+		originalUpdateIdPropName: String = "originalUpdateId", nodeIdPropName: String = "nodeId", 
+		authIdPropName: String = "authId", removingUpdateIdPropName: String = "removingUpdateId", 
+		methodPropName: String = "method", descriptionPropName: String = "description") 
 		extends NodeAuthLinkDbProps
 	{
 		// ATTRIBUTES	--------------------
 		
 		override val id = DbPropertyDeclaration("id", index)
 		
+		override lazy val originalUpdateId = DbPropertyDeclaration.from(table, originalUpdateIdPropName)
+		
 		override lazy val nodeId = DbPropertyDeclaration.from(table, nodeIdPropName)
+		
 		override lazy val authId = DbPropertyDeclaration.from(table, authIdPropName)
+		
+		override lazy val removingUpdateId = DbPropertyDeclaration.from(table, removingUpdateIdPropName)
+		
 		override lazy val method = DbPropertyDeclaration.from(table, methodPropName)
+		
 		override lazy val description = DbPropertyDeclaration.from(table, descriptionPropName)
-		override lazy val created = DbPropertyDeclaration.from(table, createdPropName)
-		override lazy val deprecatedAfter = DbPropertyDeclaration.from(table, deprecatedAfterPropName)
 	}
 }
 
 /**
-  * Common trait for classes which provide access to node auth link database properties
+  * Common trait for classes that provide access to node auth link database properties
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait NodeAuthLinkDbProps extends HasIdProperty with DeprecatesAfterDefined
+trait NodeAuthLinkDbProps extends VersionedDocElementDbProps with HasIdProperty
 {
 	// ABSTRACT	--------------------
 	
 	/**
-	  * Declaration which defines how node id shall be interacted with in the database
+	  * Declaration that defines how node id shall be interacted with in the database
 	  */
 	def nodeId: DbPropertyDeclaration
+	
 	/**
-	  * Declaration which defines how auth id shall be interacted with in the database
+	  * Declaration that defines how auth id shall be interacted with in the database
 	  */
 	def authId: DbPropertyDeclaration
+	
 	/**
-	  * Declaration which defines how method shall be interacted with in the database
+	  * Declaration that defines how method shall be interacted with in the database
 	  */
 	def method: DbPropertyDeclaration
+	
 	/**
-	  * Declaration which defines how description shall be interacted with in the database
+	  * Declaration that defines how description shall be interacted with in the database
 	  */
 	def description: DbPropertyDeclaration
-	/**
-	  * Declaration which defines how created shall be interacted with in the database
-	  */
-	def created: DbPropertyDeclaration
-	/**
-	  * Declaration which defines how deprecated after shall be interacted with in the database
-	  */
-	def deprecatedAfter: DbPropertyDeclaration
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override def deprecationColumn: TableColumn = deprecatedAfter
 }
 

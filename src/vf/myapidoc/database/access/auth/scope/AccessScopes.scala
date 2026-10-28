@@ -30,8 +30,7 @@ object AccessScopes
   * @since 15.10.2026, v0.1
   */
 abstract class AccessScopes[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessScope[A]] with HasValues[AccessScopeValues] 
-		with FilterScopes[Repr] with TargetingManyLike[A, Repr, AccessScope[A]]
+	extends TargetingManyLike[A, Repr, AccessScope[A]] with HasValues[AccessScopeValues] with FilterScopes[Repr]
 {
 	// ATTRIBUTES	--------------------
 	

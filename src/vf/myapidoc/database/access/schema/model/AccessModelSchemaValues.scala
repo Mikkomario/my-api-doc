@@ -3,6 +3,7 @@ package vf.myapidoc.database.access.schema.model
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.database.Connection
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, AccessValues}
+import vf.myapidoc.database.access.api.update.AccessVersionedDocElementValues
 import vf.myapidoc.database.storable.schema.ModelSchemaDbModel
 
 /**
@@ -10,19 +11,15 @@ import vf.myapidoc.database.storable.schema.ModelSchemaDbModel
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class AccessModelSchemaValues(access: AccessManyColumns) extends AccessValues
+case class AccessModelSchemaValues(access: AccessManyColumns) extends AccessVersionedDocElementValues
 {
 	// ATTRIBUTES	--------------------
 	
 	/**
 	  * Interface for accessing model schema database properties
 	  */
-	val model = ModelSchemaDbModel
+	override val model = ModelSchemaDbModel
 	
-	/**
-	  * Access to model schema ids
-	  */
-	lazy val ids = apply(model.index) { _.getInt }
 	/**
 	  * ID of the API this model type belongs to.
 	  */
@@ -37,23 +34,16 @@ case class AccessModelSchemaValues(access: AccessManyColumns) extends AccessValu
 	  * Description of this model type's role / function.
 	  */
 	lazy val descriptions = apply(model.description) { v => v.getString }
+	
+	
+	// COMPUTED	--------------------
+	
 	/**
-	  * Time when this model schema was added to the database
+	  * A map of accessible model types, where keys are model schema IDs and values are model type 
+	  * names
+	  * @param connection Implicit DB connection
 	  */
-	lazy val creationTimes = apply(model.created) { v => v.getInstant }
-	/**
-	  * Time when this model schema became deprecated. None while this model schema is still valid.
-	  */
-	lazy val deprecationTimes = apply(model.deprecatedAfter).flatten { v => v.instant }
-	
-	
-	// COMPUTED -------------------------
-	
-	/**
-	 * @param connection Implicit DB connection
-	 * @return A map of accessible model types, where keys are model schema IDs and values are model type names
-	 */
-	def idToName(implicit connection: Connection) =
+	def idToName(implicit connection: Connection) = 
 		access.toMap(model.id, model.name) { _.getInt } { _.getString }
 }
 

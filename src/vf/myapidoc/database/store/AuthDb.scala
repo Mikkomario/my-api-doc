@@ -8,6 +8,7 @@ import utopia.vault.database.{Connection, Store}
 import vf.myapidoc.database.access.auth.scope.AccessScopes
 import vf.myapidoc.database.access.auth.token.AccessAuthTokenTypes
 import vf.myapidoc.database.storable.auth.{AuthTokenTypeDbModel, ScopeDbModel}
+import vf.myapidoc.database.value.DocUpdateId
 import vf.myapidoc.model.enumeration.TokenUseType
 import vf.myapidoc.model.enumeration.TokenUseType.{Basic, Bearer}
 import vf.myapidoc.model.partial.auth.{AuthTokenTypeData, ScopeData}
@@ -30,17 +31,22 @@ object AuthDb
 	 *      1. Entry 2: Standardized token type name
 	 *      1. Entry 3: Token use-type
 	 */
-	private val _storeTokenTypes: Store.GenericStoreFactory[(Pair[String], TokenUseType), AuthTokenTypeData, AuthTokenType, Int] =
+	private val _storeTokenTypes: Store.GenericStoreFactory[(Pair[String], TokenUseType), AuthTokenTypeData, AuthTokenType, DocUpdateId] =
 		Store(AuthTokenTypeDbModel)
-			.generic { (data: (Pair[String], TokenUseType), apiId: Int) =>
-				AuthTokenTypeData(apiId, name = data._1.first, nameNoSpaces = data._1.second, useType = data._2)
+			.generic { (data: (Pair[String], TokenUseType), update: DocUpdateId) =>
+				AuthTokenTypeData(originalUpdateId = update.value, apiId = update.apiId, name = data._1.first,
+					nameNoSpaces = data._1.second, useType = data._2)
 			}
 			// May deprecate previous values on use-case and name changes
 			.replacing { case ((nameVersions, useCase), existing) =>
 				existing.name != nameVersions.first || existing.useType != useCase
 			} {
 				(replacements, connection) =>
-					AccessAuthTokenTypes(replacements.view.map { _._2.id }).deprecate()(connection)
+					implicit val c: Connection = connection
+					val firstReplacing = replacements.head._1
+					implicit val updateId: DocUpdateId =
+						DocUpdateId(firstReplacing.apiId, firstReplacing.originalUpdateId)
+					AccessAuthTokenTypes(replacements.view.map { _._2.id }).deprecate()
 			}
 	/**
 	 * Used for storing auth scopes to the DB.
@@ -48,24 +54,26 @@ object AuthDb
 	 *      1. Generic: API ID
 	 *      1. Item: Scope name
 	 */
-	private val _storeScopes = Store(ScopeDbModel).generic { (name: String, apiId: Int) => ScopeData(apiId, name) }
+	private val _storeScopes = Store(ScopeDbModel).generic { (name: String, update: DocUpdateId) =>
+		ScopeData(update.value, update.apiId, name)
+	}
 	
 	
 	// OTHER    ----------------------------
 	
 	/**
 	 * Stores token types to the DB
-	 * @param apiId ID of the targeted API
 	 * @param tokenTypes Token type names to store
 	 * @param exclusive Whether this list contains **all** token types supported by the current API version.
 	 *                  If true, all token types not present on this set will be deprecated.
 	 *                  Default = false.
 	 * @param connection Implicit DB connection
+	 * @param update Update that introduces these changes
 	 * @return A map (view) where keys are token type names (auto-standardized)
 	 *         and values are matching token type entries.
 	 */
-	def storeApiTokenTypes(apiId: Int, tokenTypes: IterableOnce[String], exclusive: Boolean = false)
-	                      (implicit connection: Connection) =
+	def storeApiTokenTypes(tokenTypes: IterableOnce[String], exclusive: Boolean = false)
+	                      (implicit connection: Connection, update: DocUpdateId) =
 	{
 		// Parses the use-cases from the input
 		val items = tokenTypes.iterator
@@ -76,11 +84,12 @@ object AuthDb
 			.toSet
 		
 		// Looks up existing token entries
-		val existingTypes = AccessAuthTokenTypes.active.forApi(apiId).withNameMatchingAnyOf(items.map { _._1.second })
+		val existingTypes = AccessAuthTokenTypes.active
+			.forApi(update.apiId).withNameMatchingAnyOf(items.map { _._1.second })
 			.pull
 		
 		// Stores the token types to the DB
-		val storedTypes = _storeTokenTypes(apiId).keyMap(items, existingTypes) { _._1.second } { _.nameNoSpaces }
+		val storedTypes = _storeTokenTypes(update).keyMap(items, existingTypes) { _._1.second } { _.nameNoSpaces }
 		
 		// Optionally deprecates all existing token types that were not included
 		if (exclusive) {
@@ -94,23 +103,23 @@ object AuthDb
 	
 	/**
 	 * Stores API scopes to the DB
-	 * @param apiId ID of the targeted API
 	 * @param scopes Referenced scope names
 	 * @param exclusive Whether this list contains **all** scopes supported by the current API version.
 	 *                  If true, all scopes not present on this set will be deprecated.
 	 *                  Default = false.
 	 * @param connection Implicit DB connection
+	 * @param update Update that introduces these changes
 	 * @return A map (view) where keys are scope names (auto-standardized) and values are the matching scope entries.
 	 */
-	def storeApiScopes(apiId: Int, scopes: IterableOnce[String], exclusive: Boolean = false)
-	                  (implicit connection: Connection) =
+	def storeApiScopes(scopes: IterableOnce[String], exclusive: Boolean = false)
+	                  (implicit connection: Connection, update: DocUpdateId) =
 	{
 		// Standardizes the input
 		val standardized = scopes.iterator.map(standardizeScope).toSet
 		
 		// Stores the scope entries
-		val existingScopes = AccessScopes.active.forApi(apiId).withNames(standardized).pull
-		val stored = _storeScopes(apiId).keyMap(standardized, existingScopes)(Identity) { _.name }
+		val existingScopes = AccessScopes.active.forApi(update.apiId).withNames(standardized).pull
+		val stored = _storeScopes(update).keyMap(standardized, existingScopes)(Identity) { _.name }
 		
 		// Optionally deprecates all existing scopes that were not included
 		if (exclusive) {

@@ -39,6 +39,14 @@ object TokenUseType
 	val values: Pair[TokenUseType] = Pair(Bearer, Basic)
 	
 	
+	// COMPUTED	--------------------
+	
+	/**
+	 * The default token use type (i.e. bearer)
+	 */
+	def default = Bearer
+	
+	
 	// OTHER	--------------------
 	
 	/**
@@ -50,22 +58,20 @@ object TokenUseType
 	  * @param value A value representing an token use type id
 	  * @return token use type matching the specified value. None if the value didn't match any token use type
 	  */
-	def findForValue(value: Value) = 
-		value.intOrString.flatMap {
-			 case Left(id) => findForId(id); case Right(name) => values.find { _.toString ~== name } }
+	def findForValue(value: Value) = value.intOrString.flatMap {
+		case Left(id) => findForId(id); case Right(name) => values.find { _.toString ~== name }
+	}
 	/**
-	  * @param id id matching a token use type
-	  * @return token use type matching that id. Failure if no matching value was found.
-	  */
-	def forId(id: Int) = 
-		findForId(id).toTry { new NoSuchElementException(s"No value of TokenUseType matches id '$id'") }
+	 * @param id id matching a token use type
+	 * @return token use type matching that id, or the default token use type (bearer)
+	 */
+	def forId(id: Int) = findForId(id).getOrElse(default)
 	/**
-	  * @param value A value representing an token use type id
-	  * @return token use type matching the specified value, when the value is interpreted as an token use 
-	  * type id. Failure if no matching value was found.
-	  */
-	def fromValue(value: Value) = 
-		findForValue(value).toTry { new NoSuchElementException(s"No value of TokenUseType matches id '$value'") }
+	 * @param value A value representing a token use type id
+	 * @return token use type matching the specified value, when the value is interpreted as an token use
+	 * type id, or the default token use type (bearer)
+	 */
+	def fromValue(value: Value) = findForValue(value).getOrElse(default)
 	
 	
 	// NESTED	--------------------

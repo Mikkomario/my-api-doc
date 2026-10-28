@@ -38,6 +38,8 @@ object NodeAuthTypeLink extends StandardStoredFactory[NodeAuthTypeLinkData, Node
 	{
 		// IMPLEMENTED	--------------------
 		
+		override protected def wrappedFactory = data
+		
 		override def withId(id: Int) = copy(id = id)
 		
 		override protected def wrap(data: NodeAuthTypeLinkData) = copy(data = data)
@@ -62,7 +64,7 @@ trait NodeAuthTypeLink
 	def access = AccessNodeAuthTypeLink(id)
 	
 	
-	// OTHER    --------------------
+	// OTHER	--------------------
 	
 	def +(tokenType: AuthTokenType) = DetailedNodeAuthTypeLink(this, tokenType)
 }

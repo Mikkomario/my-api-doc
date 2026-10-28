@@ -3,14 +3,15 @@ package vf.myapidoc.database.access.auth.token
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
+import vf.myapidoc.database.access.api.update.FilterVersionedDocElements
 import vf.myapidoc.database.storable.auth.AuthTokenTypeDbModel
 
 /**
-  * Common trait for access points which may be filtered based on auth token type properties
+  * Common trait for access points that may be filtered based on auth token type properties
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait FilterAuthTokenTypes[+Repr] extends NullDeprecatableView[Repr] with TimelineView[Repr]
+trait FilterAuthTokenTypes[+Repr] extends FilterVersionedDocElements[Repr]
 {
 	// COMPUTED	--------------------
 	
@@ -18,11 +19,6 @@ trait FilterAuthTokenTypes[+Repr] extends NullDeprecatableView[Repr] with Timeli
 	  * Model that defines auth token type database properties
 	  */
 	def model = AuthTokenTypeDbModel
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override def timestampColumn = model.created
 	
 	
 	// OTHER	--------------------

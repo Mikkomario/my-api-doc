@@ -2,7 +2,6 @@ package vf.myapidoc.database.storable.api
 
 import utopia.flow.generic.model.immutable.Value
 import utopia.vault.model.immutable.DbPropertyDeclaration
-import utopia.vault.model.template.DeprecatesAfterDefined
 import vf.myapidoc.database.MyApiDocTables
 import vf.myapidoc.database.props.api.BodySchemaDbProps
 import vf.myapidoc.model.enumeration.PropertyType
@@ -26,9 +25,17 @@ object ResponseBodySchemaDbModel
 	
 	override val id = DbPropertyDeclaration("id", index)
 	/**
+	  * Database property used for interacting with original update ids
+	  */
+	override lazy val originalUpdateId = property("originalUpdateId")
+	/**
 	  * Database property used for interacting with status ids
 	  */
 	lazy val statusId = property("statusId")
+	/**
+	  * Database property used for interacting with removing update ids
+	  */
+	override lazy val removingUpdateId = property("removingUpdateId")
 	/**
 	  * Database property used for interacting with data types
 	  */
@@ -37,14 +44,6 @@ object ResponseBodySchemaDbModel
 	  * Database property used for interacting with model type ids
 	  */
 	override lazy val modelTypeId = property("modelTypeId")
-	/**
-	  * Database property used for interacting with creation times
-	  */
-	override lazy val created = property("created")
-	/**
-	  * Database property used for interacting with deprecation times
-	  */
-	override val deprecatedAfter = property("deprecatedAfter")
 	/**
 	  * Database property used for interacting with are arrays
 	  */
@@ -58,26 +57,18 @@ object ResponseBodySchemaDbModel
 	override def table = MyApiDocTables.responseBodySchema
 	
 	override def apply(data: ResponseBodySchemaData): ResponseBodySchemaDbModel = 
-		apply(None, Some(data.statusId), Some(data.dataType), data.modelTypeId, Some(data.created), 
-			data.deprecatedAfter, Some(data.isArray))
-	
-	override def withCreated(created: Instant) = apply(created = Some(created))
+		apply(None, Some(data.originalUpdateId), Some(data.statusId), data.removingUpdateId, 
+			Some(data.dataType), data.modelTypeId, Some(data.isArray))
 	
 	override def withDataType(dataType: PropertyType) = apply(dataType = Some(dataType))
-	
-	override def withDeprecatedAfter(deprecatedAfter: Instant) = apply(deprecatedAfter = 
-		Some(deprecatedAfter))
-	
 	override def withId(id: Int) = apply(id = Some(id))
-	
 	override def withIsArray(isArray: Boolean) = apply(isArray = Some(isArray))
-	
 	override def withModelTypeId(modelTypeId: Int) = apply(modelTypeId = Some(modelTypeId))
-	
+	override def withOriginalUpdateId(originalUpdateId: Int) = apply(originalUpdateId = Some(originalUpdateId))
+	override def withRemovingUpdateId(removingUpdateId: Int) = apply(removingUpdateId = Some(removingUpdateId))
 	override def withStatusId(statusId: Int) = apply(statusId = Some(statusId))
 	
-	override protected def complete(id: Value, data: ResponseBodySchemaData) = ResponseBodySchema(id.getInt, 
-		data)
+	override protected def complete(id: Value, data: ResponseBodySchemaData) = ResponseBodySchema(id.getInt, data)
 }
 
 /**
@@ -86,9 +77,10 @@ object ResponseBodySchemaDbModel
   * @author Mikko Hilpinen
   * @since 27.10.2026, v0.1
   */
-case class ResponseBodySchemaDbModel(id: Option[Int] = None, statusId: Option[Int] = None, 
-	dataType: Option[PropertyType] = None, modelTypeId: Option[Int] = None, created: Option[Instant] = None, 
-	deprecatedAfter: Option[Instant] = None, isArray: Option[Boolean] = None) 
+case class ResponseBodySchemaDbModel(id: Option[Int] = None, originalUpdateId: Option[Int] = None,
+                                     statusId: Option[Int] = None, removingUpdateId: Option[Int] = None,
+                                     dataType: Option[PropertyType] = None, modelTypeId: Option[Int] = None,
+                                     isArray: Option[Boolean] = None)
 	extends BodySchemaDbModel with BodySchemaDbModelLike[ResponseBodySchemaDbModel] 
 		with ResponseBodySchemaFactory[ResponseBodySchemaDbModel]
 {
@@ -101,25 +93,27 @@ case class ResponseBodySchemaDbModel(id: Option[Int] = None, statusId: Option[In
 	override def table = ResponseBodySchemaDbModel.table
 	
 	/**
-	  * @param id              Id to assign to the new model (default = currently assigned id)
-	  * @param parentId        parent id to assign to the new model (default = currently assigned 
-	  *                        value)
-	  * @param dataType        data type to assign to the new model (default = currently assigned 
-	  *                        value)
-	  * @param modelTypeId     model type id to assign to the new model (default = currently assigned 
-	  *                        value)
-	  * @param created         created to assign to the new model (default = currently assigned value)
-	  * @param deprecatedAfter deprecated after to assign to the new model (default = currently 
-	  *                        assigned value)
-	  * @param isArray         is array to assign to the new model (default = currently assigned 
-	  *                        value)
+	  * @param id               ID to assign to the new model (default = currently assigned id)
+	  * @param originalUpdateId original update id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  * @param parentId         parent id to assign to the new model (default = currently assigned 
+	  *                         value)
+	  * @param removingUpdateId removing update id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  * @param dataType         data type to assign to the new model (default = currently assigned 
+	  *                         value)
+	  * @param modelTypeId      model type id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  * @param isArray          is array to assign to the new model (default = currently assigned 
+	  *                         value)
 	  */
-	override def copyBodySchema(id: Option[Int] = id, parentId: Option[Int] = parentId, 
+	override def copyBodySchema(id: Option[Int] = id, originalUpdateId: Option[Int] = originalUpdateId, 
+		parentId: Option[Int] = parentId, removingUpdateId: Option[Int] = removingUpdateId, 
 		dataType: Option[PropertyType] = dataType, modelTypeId: Option[Int] = modelTypeId, 
-		created: Option[Instant] = created, deprecatedAfter: Option[Instant] = deprecatedAfter, 
 		isArray: Option[Boolean] = isArray) = 
-		copy(id = id, statusId = parentId, dataType = dataType, modelTypeId = modelTypeId, created = created, 
-			deprecatedAfter = deprecatedAfter, isArray = isArray)
+		copy(id = id, originalUpdateId = originalUpdateId, statusId = parentId, 
+			removingUpdateId = removingUpdateId, dataType = dataType, modelTypeId = modelTypeId, 
+			isArray = isArray)
 	
 	override def withStatusId(statusId: Int) = copy(statusId = Some(statusId))
 }

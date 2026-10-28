@@ -15,6 +15,5 @@ import vf.myapidoc.model.factory.api.NodeAuthLinkFactory
   * @since 22.10.2026, v0.1
   */
 trait NodeAuthLinkDbModelFactoryLike[+DbModel <: Storable, +A, -Data] 
-	extends StorableFactory[DbModel, A, Data] with FromIdFactory[Int, DbModel] with HasIdProperty 
-		with NodeAuthLinkFactory[DbModel]
+	extends VersionedDocElementDbModelFactoryLike[DbModel, A, Data] with NodeAuthLinkFactory[DbModel]
 

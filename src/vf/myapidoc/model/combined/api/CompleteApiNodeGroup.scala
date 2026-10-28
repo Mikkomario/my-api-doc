@@ -2,7 +2,7 @@ package vf.myapidoc.model.combined.api
 
 import vf.myapidoc.model.factory.api.ApiNodeGroupFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeGroupData
-import vf.myapidoc.model.stored.api.{ApiNode, ApiNodeGroup}
+import vf.myapidoc.model.stored.api.{ApiNode, ApiNodeGroup, StoredVersionedDocElementLike}
 
 object CompleteApiNodeGroup
 {
@@ -49,6 +49,7 @@ object CompleteApiNodeGroup
   */
 trait CompleteApiNodeGroup 
 	extends ApiNodeGroup with ApiNodeGroupFactoryWrapper[ApiNodeGroupData, CompleteApiNodeGroup]
+		with StoredVersionedDocElementLike[ApiNodeGroupData, CompleteApiNodeGroup]
 {
 	// ABSTRACT	--------------------
 	

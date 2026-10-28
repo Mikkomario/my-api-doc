@@ -26,8 +26,7 @@ object NodeAuthLinkDbModelFactory
 	  * Used for constructing NodeAuthLinkDbModel instances and for inserting node auth links to the 
 	  * database
 	  * @param table               Table targeted by these models
-	  * @param nodeAuthLinkDbProps Properties which specify how the database interactions are 
-	  *                            performed
+	  * @param nodeAuthLinkDbProps Properties that specify how the database interactions are performed
 	  * @author Mikko Hilpinen
 	  * @since 22.10.2026, v0.1
 	  */
@@ -42,23 +41,16 @@ object NodeAuthLinkDbModelFactory
 		// IMPLEMENTED	--------------------
 		
 		override def apply(data: NodeAuthLinkData): NodeAuthLinkDbModel = 
-			apply(None, Some(data.nodeId), Some(data.authId), data.method, data.description, 
-				Some(data.created), data.deprecatedAfter)
+			apply(None, Some(data.originalUpdateId), Some(data.nodeId), Some(data.authId), 
+				data.removingUpdateId, data.method, data.description)
 		
 		override def withAuthId(authId: Int) = apply(authId = Some(authId))
-		
-		override def withCreated(created: Instant) = apply(created = Some(created))
-		
-		override def withDeprecatedAfter(deprecatedAfter: Instant) = apply(deprecatedAfter = 
-			Some(deprecatedAfter))
-		
 		override def withDescription(description: String) = apply(description = description)
-		
 		override def withId(id: Int) = apply(id = Some(id))
-		
 		override def withMethod(method: Method) = apply(method = Some(method))
-		
 		override def withNodeId(nodeId: Int) = apply(nodeId = Some(nodeId))
+		override def withOriginalUpdateId(originalUpdateId: Int) = apply(originalUpdateId = Some(originalUpdateId))
+		override def withRemovingUpdateId(removingUpdateId: Int) = apply(removingUpdateId = Some(removingUpdateId))
 		
 		override protected def complete(id: Value, data: NodeAuthLinkData) = NodeAuthLink(id.getInt, data)
 		
@@ -69,11 +61,11 @@ object NodeAuthLinkDbModelFactory
 		  * @param id node auth link database id
 		  * @return Constructs a new node auth link database model with the specified properties
 		  */
-		def apply(id: Option[Int] = None, nodeId: Option[Int] = None, authId: Option[Int] = None, 
-			method: Option[Method] = None, description: String = "", created: Option[Instant] = None, 
-			deprecatedAfter: Option[Instant] = None): NodeAuthLinkDbModel = 
-			_NodeAuthLinkDbModel(table, nodeAuthLinkDbProps, id, nodeId, authId, method, description, 
-				created, deprecatedAfter)
+		def apply(id: Option[Int] = None, originalUpdateId: Option[Int] = None, nodeId: Option[Int] = None,
+		          authId: Option[Int] = None, removingUpdateId: Option[Int] = None, method: Option[Method] = None,
+		          description: String = ""): NodeAuthLinkDbModel =
+			_NodeAuthLinkDbModel(table, nodeAuthLinkDbProps, id, originalUpdateId, nodeId, authId, 
+				removingUpdateId, method, description)
 	}
 	
 	/**
@@ -84,31 +76,46 @@ object NodeAuthLinkDbModelFactory
 	  * @author Mikko Hilpinen
 	  * @since 22.10.2026, v0.1
 	  */
-	private case class _NodeAuthLinkDbModel(table: Table, dbProps: NodeAuthLinkDbProps, 
-		id: Option[Int] = None, nodeId: Option[Int] = None, authId: Option[Int] = None, 
-		method: Option[Method] = None, description: String = "", created: Option[Instant] = None, 
-		deprecatedAfter: Option[Instant] = None) 
+	private case class _NodeAuthLinkDbModel(table: Table, dbProps: NodeAuthLinkDbProps, id: Option[Int] = None,
+	                                        originalUpdateId: Option[Int] = None, nodeId: Option[Int] = None,
+	                                        authId: Option[Int] = None, removingUpdateId: Option[Int] = None,
+	                                        method: Option[Method] = None, description: String = "")
 		extends NodeAuthLinkDbModel
 	{
 		// IMPLEMENTED	--------------------
 		
 		/**
-		  * @param id              Id to assign to the new model (default = currently assigned id)
-		  * @param nodeId          node id to assign to the new model (default = currently assigned value)
-		  * @param authId          auth id to assign to the new model (default = currently assigned value)
-		  * @param method          method to assign to the new model (default = currently assigned value)
-		  * @param description     description to assign to the new model (default = currently assigned 
-		  *                        value)
-		  * @param created         created to assign to the new model (default = currently assigned value)
-		  * @param deprecatedAfter deprecated after to assign to the new model (default = currently 
-		  *                        assigned value)
+		  * @param id               ID to assign to the new model (default = currently assigned id)
+		  * @param originalUpdateId original update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  * @param removingUpdateId removing update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  */
+		override def copyVersionedDocElement(id: Option[Int] = id, originalUpdateId: Option[Int] = originalUpdateId,
+		                                     removingUpdateId: Option[Int] = removingUpdateId) =
+			copy(id = id, originalUpdateId = originalUpdateId, removingUpdateId = removingUpdateId)
+		
+		/**
+		  * @param id               ID to assign to the new model (default = currently assigned id)
+		  * @param originalUpdateId original update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  * @param nodeId           node id to assign to the new model (default = currently assigned 
+		  *                         value)
+		  * @param authId           auth id to assign to the new model (default = currently assigned 
+		  *                         value)
+		  * @param removingUpdateId removing update id to assign to the new model (default = currently 
+		  *                         assigned value)
+		  * @param method           method to assign to the new model (default = currently assigned value)
+		  * @param description      description to assign to the new model (default = currently assigned 
+		  *                         value)
 		  * @return Copy of this model with the specified node auth link properties
 		  */
-		override protected def copyNodeAuthLink(id: Option[Int] = id, nodeId: Option[Int] = nodeId, 
-			authId: Option[Int] = authId, method: Option[Method] = method, description: String = description, 
-			created: Option[Instant] = created, deprecatedAfter: Option[Instant] = deprecatedAfter) = 
-			copy(id = id, nodeId = nodeId, authId = authId, method = method, description = description, 
-				created = created, deprecatedAfter = deprecatedAfter)
+		override protected def copyNodeAuthLink(id: Option[Int] = id, originalUpdateId: Option[Int] = originalUpdateId,
+		                                        nodeId: Option[Int] = nodeId, authId: Option[Int] = authId,
+		                                        removingUpdateId: Option[Int] = removingUpdateId,
+		                                        method: Option[Method] = method, description: String = description) =
+			copy(id = id, originalUpdateId = originalUpdateId, nodeId = nodeId, authId = authId, 
+				removingUpdateId = removingUpdateId, method = method, description = description)
 	}
 }
 

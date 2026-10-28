@@ -47,5 +47,6 @@ object PossibleResponse
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait PossibleResponse extends PossibleResponseLike[ResponseBodySchema, PossibleResponse]
+trait PossibleResponse
+	extends PossibleResponseLike[ResponseBodySchema, PossibleResponse]
 

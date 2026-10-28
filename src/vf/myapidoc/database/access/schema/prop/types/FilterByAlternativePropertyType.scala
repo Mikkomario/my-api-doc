@@ -3,7 +3,7 @@ package vf.myapidoc.database.access.schema.prop.types
 import utopia.vault.nosql.view.{FilterableView, FilterableViewWrapper}
 
 /**
-  * An interface which provides alternative property type -based filtering for other types of 
+  * An interface that provides alternative property type -based filtering for other types of 
   * access points.
   * @param wrapped Wrapped access point. Expected to include alternative_property_type.
   * @tparam A Type of the wrapped access class

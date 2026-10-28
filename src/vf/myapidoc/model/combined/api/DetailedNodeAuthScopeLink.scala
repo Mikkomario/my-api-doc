@@ -5,7 +5,7 @@ import utopia.flow.generic.model.immutable.{Constant, Model}
 import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.factory.api.NodeAuthScopeLinkFactoryWrapper
 import vf.myapidoc.model.partial.api.NodeAuthScopeLinkData
-import vf.myapidoc.model.stored.api.{NodeAuthScopeLink, StoredNodeAuthLinkLike}
+import vf.myapidoc.model.stored.api.{NodeAuthScopeLink, StoredNodeAuthLinkLike, StoredVersionedDocElementLike}
 import vf.myapidoc.model.stored.auth.Scope
 import vf.myapidoc.model.template.ClientModelConvertible
 
@@ -26,7 +26,7 @@ object DetailedNodeAuthScopeLink
 case class DetailedNodeAuthScopeLink(id: Int, data: NodeAuthScopeLinkData, scopes: Seq[Scope])
 	extends NodeAuthScopeLink with StoredNodeAuthLinkLike[NodeAuthScopeLinkData, DetailedNodeAuthScopeLink]
 		with NodeAuthScopeLinkFactoryWrapper[NodeAuthScopeLinkData, DetailedNodeAuthScopeLink]
-		with ClientModelConvertible
+		with ClientModelConvertible with StoredVersionedDocElementLike[NodeAuthScopeLinkData, DetailedNodeAuthScopeLink]
 {
 	override def toModel = super.toModel + Constant("scopes", scopes)
 	override def toClientModel: Model = {

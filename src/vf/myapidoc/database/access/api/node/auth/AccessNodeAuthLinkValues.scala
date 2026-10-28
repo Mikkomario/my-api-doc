@@ -3,6 +3,7 @@ package vf.myapidoc.database.access.api.node.auth
 import utopia.access.model.enumeration.Method
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.nosql.targeting.columns.AccessValues
+import vf.myapidoc.database.access.api.update.AccessVersionedDocElementValues
 import vf.myapidoc.database.props.api.NodeAuthLinkDbProps
 
 /**
@@ -10,14 +11,10 @@ import vf.myapidoc.database.props.api.NodeAuthLinkDbProps
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait AccessNodeAuthLinkValues extends AccessValues
+trait AccessNodeAuthLinkValues extends AccessVersionedDocElementValues
 {
 	// ATTRIBUTES	--------------------
 	
-	/**
-	  * Access to node auth link ids
-	  */
-	lazy val ids = apply(model.index) { _.getInt }
 	/**
 	  * ID of the node that accepts the linked authorization method.
 	  */
@@ -35,15 +32,6 @@ trait AccessNodeAuthLinkValues extends AccessValues
 	  * A description concerning this authorization method's function in the linked node.
 	  */
 	lazy val descriptions = apply(model.description) { v => v.getString }
-	/**
-	  * Time when this node auth link was added to the database
-	  */
-	lazy val creationTimes = apply(model.created) { v => v.getInstant }
-	/**
-	  * Time when this node auth link became deprecated. None while this node auth link is still 
-	  * valid.
-	  */
-	lazy val deprecationTimes = apply(model.deprecatedAfter).flatten { v => v.instant }
 	
 	
 	// ABSTRACT	--------------------

@@ -3,14 +3,15 @@ package vf.myapidoc.database.access.auth.scope
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
+import vf.myapidoc.database.access.api.update.FilterVersionedDocElements
 import vf.myapidoc.database.storable.auth.ScopeDbModel
 
 /**
-  * Common trait for access points which may be filtered based on scope properties
+  * Common trait for access points that may be filtered based on scope properties
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait FilterScopes[+Repr] extends NullDeprecatableView[Repr] with TimelineView[Repr]
+trait FilterScopes[+Repr] extends FilterVersionedDocElements[Repr]
 {
 	// COMPUTED	--------------------
 	
@@ -18,11 +19,6 @@ trait FilterScopes[+Repr] extends NullDeprecatableView[Repr] with TimelineView[R
 	  * Model that defines scope database properties
 	  */
 	def model = ScopeDbModel
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override def timestampColumn = model.created
 	
 	
 	// OTHER	--------------------

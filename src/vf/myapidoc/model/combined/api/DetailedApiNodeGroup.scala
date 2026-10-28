@@ -5,7 +5,7 @@ import utopia.flow.generic.model.immutable.{Constant, Model}
 import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.model.factory.api.ApiNodeGroupFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeGroupData
-import vf.myapidoc.model.stored.api.ApiNodeGroup
+import vf.myapidoc.model.stored.api.{ApiNodeGroup, StoredVersionedDocElementLike}
 import vf.myapidoc.model.template.ClientModelConvertible
 
 /**
@@ -19,7 +19,7 @@ import vf.myapidoc.model.template.ClientModelConvertible
  */
 case class DetailedApiNodeGroup(id: Int, data: ApiNodeGroupData, rootNodes: Seq[ValueTree[DetailedApiNode]])
 	extends ApiNodeGroup with ApiNodeGroupFactoryWrapper[ApiNodeGroupData, DetailedApiNodeGroup]
-		with ClientModelConvertible
+		with ClientModelConvertible with StoredVersionedDocElementLike[ApiNodeGroupData, DetailedApiNodeGroup]
 {
 	// COMPUTED ---------------------------
 	
@@ -38,5 +38,5 @@ case class DetailedApiNodeGroup(id: Int, data: ApiNodeGroupData, rootNodes: Seq[
 		.withoutEmptyValues
 	
 	override protected def wrap(factory: ApiNodeGroupData): DetailedApiNodeGroup = copy(data = factory)
-	override def withId(id: Int): ApiNodeGroup = copy(id = id)
+	override def withId(id: Int): DetailedApiNodeGroup = copy(id = id)
 }

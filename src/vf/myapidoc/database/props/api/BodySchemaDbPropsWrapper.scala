@@ -18,18 +18,12 @@ trait BodySchemaDbPropsWrapper extends BodySchemaDbProps
 	
 	// IMPLEMENTED	--------------------
 	
-	override def created = bodySchemaDbProps.created
-	
 	override def dataType = bodySchemaDbProps.dataType
-	
-	override def deprecatedAfter = bodySchemaDbProps.deprecatedAfter
-	
 	override def id = bodySchemaDbProps.id
-	
 	override def isArray = bodySchemaDbProps.isArray
-	
 	override def modelTypeId = bodySchemaDbProps.modelTypeId
-	
+	override def originalUpdateId = bodySchemaDbProps.originalUpdateId
 	override def parentId = bodySchemaDbProps.parentId
+	override def removingUpdateId = bodySchemaDbProps.removingUpdateId
 }
 

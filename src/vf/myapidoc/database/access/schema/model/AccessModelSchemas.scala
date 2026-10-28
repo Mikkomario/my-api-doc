@@ -40,8 +40,8 @@ object AccessModelSchemas
   * @since 15.10.2026, v0.1
   */
 abstract class AccessModelSchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessModelSchema[A]] with HasValues[AccessModelSchemaValues] 
-		with FilterModelSchemas[Repr] with TargetingManyLike[A, Repr, AccessModelSchema[A]]
+	extends TargetingManyLike[A, Repr, AccessModelSchema[A]] with HasValues[AccessModelSchemaValues]
+		with FilterModelSchemas[Repr]
 {
 	// ATTRIBUTES	--------------------
 	

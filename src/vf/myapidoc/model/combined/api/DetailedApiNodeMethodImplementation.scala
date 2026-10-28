@@ -5,7 +5,7 @@ import utopia.flow.generic.model.immutable.Model
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.factory.api.ApiNodeMethodImplementationFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeMethodImplementationData
-import vf.myapidoc.model.stored.api.ApiNodeMethodImplementation
+import vf.myapidoc.model.stored.api.{ApiNodeMethodImplementation, StoredVersionedDocElementLike}
 
 object DetailedApiNodeMethodImplementation
 {
@@ -32,11 +32,12 @@ case class DetailedApiNodeMethodImplementation(id: Int, data: ApiNodeMethodImple
                                                responses: Seq[DetailedPossibleResponse])
 	extends ApiNodeMethodImplementation
 		with ApiNodeMethodImplementationFactoryWrapper[ApiNodeMethodImplementationData, DetailedApiNodeMethodImplementation]
+		with StoredVersionedDocElementLike[ApiNodeMethodImplementationData, DetailedApiNodeMethodImplementation]
 {
 	override def toModel = super.toModel ++ Model.from(
 		"queryParams" -> queryParams, "requestBody" -> requestBodyOptions, "responses" -> responses)
 	
 	override protected def wrap(factory: ApiNodeMethodImplementationData): DetailedApiNodeMethodImplementation =
 		copy(data = factory)
-	override def withId(id: Int): ApiNodeMethodImplementation = copy(id = id)
+	override def withId(id: Int): DetailedApiNodeMethodImplementation = copy(id = id)
 }

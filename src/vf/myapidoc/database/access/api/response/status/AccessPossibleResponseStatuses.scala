@@ -31,7 +31,7 @@ object AccessPossibleResponseStatuses
   * @since 22.10.2026, v0.1
   */
 abstract class AccessPossibleResponseStatuses[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
-	extends TargetingTimeline[A, Repr, AccessPossibleResponseStatus[A]] 
+	extends TargetingManyLike[A, Repr, AccessPossibleResponseStatus[A]]
 		with HasValues[AccessPossibleResponseStatusValues] with FilterPossibleResponseStatuses[Repr]
 {
 	// ATTRIBUTES	--------------------

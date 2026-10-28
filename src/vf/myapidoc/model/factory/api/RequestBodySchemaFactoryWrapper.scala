@@ -15,7 +15,9 @@ trait RequestBodySchemaFactoryWrapper[A <: RequestBodySchemaFactory[A], +Repr]
 	
 	override def withCustomContentType(customContentType: String) = 
 		mapWrapped { _.withCustomContentType(customContentType) }
+	
 	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
+	
 	override def withImplementationId(implementationId: Int) = withParentId(implementationId)
 }
 

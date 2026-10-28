@@ -29,6 +29,7 @@ import vf.myapidoc.database.access.auth.scope.AccessScopes
 import vf.myapidoc.database.access.auth.token.AccessAuthTokenTypes
 import vf.myapidoc.database.access.schema.model.AccessModelSchemas
 import vf.myapidoc.database.storable.api._
+import vf.myapidoc.database.value.DocUpdateId
 import vf.myapidoc.model.cached._
 import vf.myapidoc.model.combined.api._
 import vf.myapidoc.model.combined.schema.CompleteModelSchema
@@ -180,8 +181,9 @@ object ApiDocDb
 		val existingVersion = AccessApi.withName(name).pull.map(pullDetailsFor)
 		// If no existing documentation was found, inserts a new API entry
 		val api = StoreResult.existingOrInsert[Api](existingVersion) { ApiDbModel.insert(ApiData(name)) }
+		implicit val updateId: DocUpdateId = DocUpdateId.newLazy(api.id)
 		// Stores the named model types
-		val storedNamedModels = storeApiModels(api.id, namedModels)
+		val storedNamedModels = storeApiModels(namedModels)
 		
 		existingVersion match {
 			// Case: Updating an existing version
@@ -190,20 +192,20 @@ object ApiDocDb
 			case None =>
 				// Stores all referenced token types & auth scopes (WET WET)
 				implicit val tokenTypes: MapAccess[String, StoreResult[AuthTokenType]] = AuthDb.storeApiTokenTypes(
-					api.id, nodeGroups.iterator.flatMap { _.tokenTypeNamesIterator }.toSet)
-				implicit val scopes: MapAccess[String, StoreResult[Scope]] = AuthDb.storeApiScopes(api.id,
+					nodeGroups.iterator.flatMap { _.tokenTypeNamesIterator }.toSet)
+				implicit val scopes: MapAccess[String, StoreResult[Scope]] = AuthDb.storeApiScopes(
 					nodeGroups.iterator.flatMap { _.scopeNamesIterator }.toSet)
 				
 				// Inserts the API node groups
 				val nodesByGroupId = ApiNodeGroupDbModel.insertFrom(nodeGroups.toOptimizedSeq) { group =>
-					ApiNodeGroupData(api.id, group.name, group.description)
+					ApiNodeGroupData(updateId.connectedValue, api.id, group.name, description = group.description)
 				} { (inserted, group ) => inserted.id -> group.nodes }
 				
 				// Inserts the individual API nodes
 				val modelNameToId = storedNamedModels.iterator.map { m => standardizeRef(m.name) -> m.id }.toMap
 				val nodeNameToId = mutable.Map[String, Int]()
 				nodesByGroupId.foreach { case (groupId, nodes) =>
-					nodes.foreach { insertNode(api.id, groupId, _, modelNameToId, nodeNameToId) }
+					nodes.foreach { insertNode(groupId, _, modelNameToId, nodeNameToId) }
 				}
 		}
 		
@@ -212,16 +214,17 @@ object ApiDocDb
 	
 	/**
 	 * Stores named API models
-	 * @param apiId ID of the updated API
 	 * @param models **All** named models in the API's current documentation
 	 * @param connection Implicit DB connection
 	 * @return Returns two values:
 	 *         1. Stored models
 	 *         1. Model names that were referenced but couldn't be resolved
 	 */
-	def storeApiModels(apiId: Int, models: Iterable[NewNamedModel])(implicit connection: Connection) = {
+	def storeApiModels(models: Iterable[NewNamedModel])
+	                  (implicit connection: Connection, updateId: DocUpdateId) =
+	{
 		// Pulls existing models from the DB
-		val existingModelsByName = AccessModelSchemas.complete.active.named.inApi(apiId).toMapBy { _.name }
+		val existingModelsByName = AccessModelSchemas.complete.active.named.inApi(updateId.apiId).toMapBy { _.name }
 		
 		// Deprecates existing models that are not present in the new set
 		AccessModelSchemas(existingModelsByName.valuesIterator
@@ -235,7 +238,7 @@ object ApiDocDb
 		// Handles model updates
 		val (updatedModels, delayedUpdatedModelPropInserts) = ModelSchemaDb.updateNamed(modelMatches, modelNameToId)
 		// Inserts the new models
-		val insertedNewModels = ModelSchemaDb.insertNamed(apiId, newModels, modelNameToId)
+		val insertedNewModels = ModelSchemaDb.insertNamed(newModels, modelNameToId)
 		// Resolves the delayed property inserts, if at all possible
 		val unresolvedModelRefs = delayedUpdatedModelPropInserts(modelNameToId)
 		if (unresolvedModelRefs.nonEmpty)
@@ -254,18 +257,18 @@ object ApiDocDb
 	 * @param nodeGroups Node groups in the current documentation version
 	 * @param namedModels Named models from the current documentation version
 	 * @param connection Implicit DB connection
+	 * @param updateId Update that introduces these changes
 	 */
 	// TODO: Accept modelNameToId instead of the models
 	def storeApiNodes(existing: DetailedApi, nodeGroups: Iterable[NewApiNodeGroup], namedModels: Iterable[ModelSchema])
-	                 (implicit connection: Connection): Unit =
+	                 (implicit connection: Connection, updateId: DocUpdateId): Unit =
 	{
-		val apiId = existing.id
 		val modelNameToId = namedModels.iterator.map { model => standardizeRef(model.name) -> model.id }.toMap
 		
 		// Stores all referenced token types & auth scopes
-		implicit val tokenTypes: MapAccess[String, StoreResult[AuthTokenType]] = AuthDb.storeApiTokenTypes(apiId,
+		implicit val tokenTypes: MapAccess[String, StoreResult[AuthTokenType]] = AuthDb.storeApiTokenTypes(
 			nodeGroups.iterator.flatMap { _.tokenTypeNamesIterator }.toSet)
-		implicit val scopes: MapAccess[String, StoreResult[Scope]] = AuthDb.storeApiScopes(apiId,
+		implicit val scopes: MapAccess[String, StoreResult[Scope]] = AuthDb.storeApiScopes(
 			nodeGroups.iterator.flatMap { _.scopeNamesIterator }.toSet)
 		
 		val nodesByGroup = updateExclusiveMatches(existing.nodeGroups, nodeGroups) {
@@ -282,8 +285,10 @@ object ApiDocDb
 			// Inserts the missing groups
 			newGroups =>
 				ApiNodeGroupDbModel.insertFrom(newGroups) {
-					group => ApiNodeGroupData(apiId, group.name, group.description) } {
-					(inserted, group) => inserted.id -> group.nodes }
+					group =>
+						ApiNodeGroupData(updateId.connectedValue, existing.id, group.name,
+							description = group.description)
+				} { (inserted, group) => inserted.id -> group.nodes }
 		}
 		
 		// Updates the API nodes next
@@ -308,19 +313,19 @@ object ApiDocDb
 						// Case: Incompatible changes => Deprecates the previous version and inserts a new one
 						if (shouldReplace) {
 							existingNode.access.deprecate()
-							insertNode(apiId, groupId, node, modelNameToId, nodeNameToId)
+							insertNode(groupId, node, modelNameToId, nodeNameToId)
 						}
 						// Case: The node itself is compatible => Proceeds to update its data
 						else {
 							nodeNameToId += (standardizeRef(node.name) -> existingNode.id)
-							updateNode(apiId, existingNode, node, modelNameToId)
+							updateNode(existingNode, node, modelNameToId)
 						}
 						
 						Some(existingNode.id)
 						
 					// Case: New node => Inserts it
 					case None =>
-						insertNode(apiId, groupId, node, modelNameToId, nodeNameToId)
+						insertNode(groupId, node, modelNameToId, nodeNameToId)
 						None
 				}
 			}
@@ -330,8 +335,8 @@ object ApiDocDb
 		AccessApiNodes(existing.nodesIterator.map { _.id }.toSet -- handledExistingNodeIds).deprecate()
 	}
 	
-	private def updateNode(apiId: Int, existing: DetailedApiNode, node: NewApiNode, modelNameToId: Map[String, Int])
-	                      (implicit connection: Connection,
+	private def updateNode(existing: DetailedApiNode, node: NewApiNode, modelNameToId: Map[String, Int])
+	                      (implicit connection: Connection, updateId: DocUpdateId,
 	                       tokenTypes: MapAccess[String, StoreResult[AuthTokenType]],
 	                       scopes: MapAccess[String, StoreResult[Scope]]) =
 	{
@@ -343,7 +348,7 @@ object ApiDocDb
 		if (existing.data.description != node.description)
 			existing.access.description.set(node.description)
 		
-		updatePathParams(apiId, existing.id, existing.directPathParams, node.pathParams, modelNameToId)
+		updatePathParams(existing.id, existing.directPathParams, node.pathParams, modelNameToId)
 		updateTokenTypeLinks(existing.id, existing.definedTokenTypes, node.allTokenOptions)
 		updateScopeLinks(existing.id, existing.definedScopes, node.allScopes)
 		
@@ -361,29 +366,30 @@ object ApiDocDb
 				//      1. Query params
 				//      2. Request body
 				//      3. Responses (status + body)
-				updateQueryParams(apiId, existing.id, existing.queryParams, implementation.queryParams, modelNameToId)
-				updateRequestBodyOptions(apiId, existing.id, existing.requestBodyOptions,
+				updateQueryParams(existing.id, existing.queryParams, implementation.queryParams, modelNameToId)
+				updateRequestBodyOptions(existing.id, existing.requestBodyOptions,
 					implementation.requestBodyOptions, modelNameToId)
-				updateResponsesStatuses(apiId, existing.id, existing.responses, implementation.responses, modelNameToId)
+				updateResponsesStatuses(existing.id, existing.responses, implementation.responses, modelNameToId)
 				
 				StoreResult.existed[ApiNodeMethodImplementation](existing)
 				
 		} { AccessApiNodeMethodImplementations(_).deprecate() } {
 			// Inserts the new method implementations
 			newImplementations =>
-				newImplementations.map { insertMethodImplementation(apiId, existing.id, _, modelNameToId) }
+				newImplementations.map { insertMethodImplementation(existing.id, _, modelNameToId) }
 		}
 		
 		StoreResult.existed(existing)
 	}
-	private def insertNode(apiId: Int, groupId: Int, node: NewApiNode, modelNameToId: Map[String, Int],
+	private def insertNode(groupId: Int, node: NewApiNode, modelNameToId: Map[String, Int],
 	                       nodeNameToId: mutable.Map[String, Int])
-	                      (implicit connection: Connection,
+	                      (implicit connection: Connection, updateId: DocUpdateId,
 	                       tokenTypes: MapAccess[String, StoreResult[AuthTokenType]],
 	                       scopes: MapAccess[String, StoreResult[Scope]]) =
 	{
 		// Inserts the API node entry
-		val stored = ApiNodeDbModel.insert(ApiNodeData(groupId, node.name, standardizeRef(node.name), node.path,
+		val stored = ApiNodeDbModel.insert(ApiNodeData(updateId.connectedValue, groupId, node.name,
+			standardizeRef(node.name), node.path,
 			parentId = node.parentName.ifNotEmpty.flatMap { parentName =>
 				val parentId = nodeNameToId.get(standardizeRef(parentName))
 				if (parentId.isEmpty)
@@ -396,17 +402,17 @@ object ApiDocDb
 		nodeNameToId += (standardizeRef(node.name) -> stored.id)
 		
 		// Inserts the rest of the node data
-		insertPathParams(apiId, stored.id, node.pathParams, modelNameToId)
+		insertPathParams(stored.id, node.pathParams, modelNameToId)
 		insertTokenTypeLinks(stored.id, node.allTokenOptions)
 		insertScopeLinks(stored.id, node.allScopes.toOptimizedSeq)
-		node.methodImplementations.foreach { insertMethodImplementation(apiId, stored.id, _, modelNameToId) }
+		node.methodImplementations.foreach { insertMethodImplementation(stored.id, _, modelNameToId) }
 		
 		StoreResult.inserted(stored)
 	}
 	
-	private def updatePathParams(apiId: Int, nodeId: Int, existingParams: Option[CompleteModelSchema],
+	private def updatePathParams(nodeId: Int, existingParams: Option[CompleteModelSchema],
 	                             params: Seq[NewProperty], modelNameToId: Map[String, Int])
-	                            (implicit connection: Connection): Unit =
+	                            (implicit connection: Connection, updateId: DocUpdateId): Unit =
 	{
 		// Case: No path parameters present => Deprecates any previous path parameters, where applicable
 		if (params.isEmpty)
@@ -419,19 +425,19 @@ object ApiDocDb
 				// Case: Updating existing path params => Updates
 				case Some(existingParams) => ModelSchemaDb.updateNameless(existingParams, params, modelNameToId)
 				// Case: Adding new path params => Inserts
-				case None => insertPathParams(apiId, nodeId, params, modelNameToId)
+				case None => insertPathParams(nodeId, params, modelNameToId)
 			}
 	}
-	private def insertPathParams(apiId: Int, nodeId: Int, params: Iterable[NewProperty],
-	                             modelNameToId: Map[String, Int])
-	                            (implicit connection: Connection) =
-		ModelSchemaDb.insertNamelessUseCase(apiId, params, modelNameToId) { modelId =>
-			PathParametersSchemaLinkDbModel.insert(PathParametersSchemaLinkData(nodeId, modelId))
+	private def insertPathParams(nodeId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
+	                            (implicit connection: Connection, updateId: DocUpdateId) =
+		ModelSchemaDb.insertNamelessUseCase(params, modelNameToId) { modelId =>
+			PathParametersSchemaLinkDbModel.insert(
+				PathParametersSchemaLinkData(updateId.connectedValue, nodeId, modelId))
 		}
 	
 	private def updateTokenTypeLinks(nodeId: Int, existingTokenLinks: Iterable[NodeAuthTypeLink],
 	                                 tokenTypes: Iterable[(Option[Method], String, String)])
-	                                (implicit connection: Connection,
+	                                (implicit connection: Connection, updateId: DocUpdateId,
 	                                 storedTypes: MapAccess[String, StoreResult[AuthTokenType]]): Unit =
 	{
 		// Matches by targeted method & token type ID
@@ -451,7 +457,8 @@ object ApiDocDb
 			linksToInsert =>
 				NodeAuthTypeLinkDbModel
 					.insert(linksToInsert.map { case (method, typeId, description) =>
-						NodeAuthTypeLinkData(nodeId, typeId, method, description)
+						NodeAuthTypeLinkData(updateId.connectedValue, nodeId, typeId, method = method,
+							description = description)
 					})
 					.map {
 						//noinspection ConvertibleToMethodValue
@@ -460,17 +467,19 @@ object ApiDocDb
 		}
 	}
 	private def insertTokenTypeLinks(nodeId: Int, tokenTypes: Iterable[(Option[Method], String, String)])
-	                                (implicit connection: Connection,
+	                                (implicit connection: Connection, updateId: DocUpdateId,
 	                                 storedTypes: MapAccess[String, StoreResult[AuthTokenType]]) =
 		NodeAuthTypeLinkDbModel.insert(tokenTypes.view
 			.map { case (method, name, description) =>
-				NodeAuthTypeLinkData(nodeId, storedTypes(name).id, method, description)
+				NodeAuthTypeLinkData(updateId.connectedValue, nodeId, storedTypes(name).id, method = method,
+					description = description)
 			}
 			.toOptimizedSeq)
 			
 	private def updateScopeLinks(nodeId: Int, existingScopeLinks: Iterable[DetailedNodeAuthScopeLink],
 	                             scopeLinks: IterableOnce[(Option[Method], Seq[String], String)])
-	                            (implicit connection: Connection, storedScopes: MapAccess[String, StoreResult[Scope]]): Unit =
+	                            (implicit connection: Connection, updateId: DocUpdateId,
+	                             storedScopes: MapAccess[String, StoreResult[Scope]]): Unit =
 	{
 		// Matches scope links by three parameters:
 		//      1. Targeted method
@@ -492,7 +501,8 @@ object ApiDocDb
 				// Inserts the new links
 				val additionalInserts = NodeAuthScopeLinkDbModel
 					.insertFrom(inserts) { case (method, primaryScopeId, _, description) =>
-						NodeAuthScopeLinkData(nodeId, primaryScopeId, method, description)
+						NodeAuthScopeLinkData(updateId.connectedValue, nodeId, primaryScopeId, method = method,
+							description = description)
 					} { case (inserted, (_, _, otherScopeIds, _)) =>
 						otherScopeIds.map { AdditionalNodeAuthScopeRequirementData(inserted.id, _) }
 					}
@@ -501,11 +511,13 @@ object ApiDocDb
 		}
 	}
 	private def insertScopeLinks(nodeId: Int, scopes: Seq[(Option[Method], Seq[String], String)])
-	                            (implicit connection: Connection, storedScopes: MapAccess[String, StoreResult[Scope]]) =
+	                            (implicit connection: Connection, updateId: DocUpdateId,
+	                             storedScopes: MapAccess[String, StoreResult[Scope]]) =
 	{
 		// Stores the scope links and prepares the additional requirements
 		val storedLinks = NodeAuthScopeLinkDbModel.insertFrom(scopes) { case (method, scopes, description) =>
-			NodeAuthScopeLinkData(nodeId, storedScopes(scopes.head).id, method, description)
+			NodeAuthScopeLinkData(updateId.connectedValue, nodeId, storedScopes(scopes.head).id, method = method,
+				description = description)
 		} { case (storedLink, (_, scopes, _)) =>
 			storedLink -> scopes.tail.map { scope =>
 				AdditionalNodeAuthScopeRequirementData(storedLink.id, storedScopes(scope).id)
@@ -521,29 +533,30 @@ object ApiDocDb
 		}
 	}
 	
-	private def insertMethodImplementation(apiId: Int, nodeId: Int, implementation: NewMethodImplementation,
+	private def insertMethodImplementation(nodeId: Int, implementation: NewMethodImplementation,
 	                                       modelNameToId: Map[String, Int])
-	                                      (implicit connection: Connection) =
+	                                      (implicit connection: Connection, updateId: DocUpdateId) =
 	{
 		// Inserts the method implementation
 		val stored = ApiNodeMethodImplementationDbModel.insert(
-			ApiNodeMethodImplementationData(nodeId, implementation.method, implementation.description,
+			ApiNodeMethodImplementationData(updateId.connectedValue, nodeId, method = implementation.method,
+				description = implementation.description,
 				requiresRequestBody = !implementation.requestBodyIsOptional &&
 					implementation.requestBodyOptions.nonEmpty))
 		
 		// Inserts linked data
-		insertQueryParams(apiId, stored.id, implementation.queryParams, modelNameToId)
-		implementation.requestBodyOptions.foreach { insertRequestBodyOption(apiId, stored.id, _, modelNameToId) }
+		insertQueryParams(stored.id, implementation.queryParams, modelNameToId)
+		implementation.requestBodyOptions.foreach { insertRequestBodyOption(stored.id, _, modelNameToId) }
 		implementation.responses.foreach { case (statusCode, body, description, hasBody) =>
-			insertResponseStatus(apiId, stored.id, statusCode, body, description, modelNameToId, hasBody = hasBody)
+			insertResponseStatus(stored.id, statusCode, body, description, modelNameToId, hasBody = hasBody)
 		}
 		
 		StoreResult.inserted(stored)
 	}
 	
-	private def updateQueryParams(apiId: Int, implementationId: Int, existingParams: Option[CompleteModelSchema],
+	private def updateQueryParams(implementationId: Int, existingParams: Option[CompleteModelSchema],
 	                              params: Iterable[NewProperty], modelNameToId: Map[String, Int])
-	                             (implicit connection: Connection): Unit =
+	                             (implicit connection: Connection, updateId: DocUpdateId): Unit =
 		existingParams match {
 			case Some(existing) =>
 				// Case: Removed query params => Deprecates the existing entries
@@ -558,19 +571,19 @@ object ApiDocDb
 			case None =>
 				// Case: Added query params => Inserts the new entries
 				if (params.nonEmpty)
-					insertQueryParams(apiId, implementationId, params, modelNameToId)
+					insertQueryParams(implementationId, params, modelNameToId)
 		}
-	private def insertQueryParams(apiId: Int, implementationId: Int, params: Iterable[NewProperty],
-	                              modelNameToId: Map[String, Int])
-	                             (implicit connection: Connection) =
-		ModelSchemaDb.insertNamelessUseCase(apiId, params, modelNameToId) { modelId =>
-			QueryParametersSchemaLinkDbModel.insert(QueryParametersSchemaLinkData(implementationId, modelId))
+	private def insertQueryParams(implementationId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
+	                             (implicit connection: Connection, updateId: DocUpdateId) =
+		ModelSchemaDb.insertNamelessUseCase(params, modelNameToId) { modelId =>
+			QueryParametersSchemaLinkDbModel.insert(
+				QueryParametersSchemaLinkData(updateId.connectedValue, implementationId, modelId))
 		}
 	
-	private def updateRequestBodyOptions(apiId: Int, implementationId: Int,
+	private def updateRequestBodyOptions(implementationId: Int,
 	                                     existingOptions: IterableOnce[DetailedRequestBodySchema],
 	                                     bodyOptions: IterableOnce[NewBodyDefinition], modelNameToId: Map[String, Int])
-	                                    (implicit connection: Connection): Unit =
+	                                    (implicit connection: Connection, updateId: DocUpdateId): Unit =
 	{
 		// Matches the body versions using three parameters:
 		//      1. Data type
@@ -603,29 +616,30 @@ object ApiDocDb
 			AccessModelSchemas.active.nameless.whereReferencingRequestBodySchemas.in(bodyIds).deprecate()
 			
 		} { newBodies =>
-			newBodies.map { case (body, _) => insertRequestBodyOption(apiId, implementationId, body, modelNameToId) }
+			newBodies.map { case (body, _) => insertRequestBodyOption(implementationId, body, modelNameToId) }
 		}
 	}
-	private def insertRequestBodyOption(apiId: Int, implementationId: Int, body: NewBodyDefinition,
+	private def insertRequestBodyOption(implementationId: Int, body: NewBodyDefinition,
 	                                    modelNameToId: Map[String, Int])
-	                                   (implicit connection: Connection) =
+	                                   (implicit connection: Connection, updateId: DocUpdateId) =
 	{
 		// Resolves the referenced model type
 		val schemaId = body.referencedType.ifNotEmpty match {
 			// Case: Named type reference => Attempts to resolve it
 			case Some(typeReference) => modelNameToId.get(standardizeRef(typeReference))
 			// Case: Unnamed model => Inserts a new nameless model schema, if needed
-			case None => ModelSchemaDb.insertNamelessCompletelyIfNecessary(apiId, body.properties, modelNameToId).map { _.id }
+			case None => ModelSchemaDb.insertNamelessCompletelyIfNecessary(body.properties, modelNameToId).map { _.id }
 		}
 		// Inserts the request body schema
-		RequestBodySchemaDbModel.insert(RequestBodySchemaData(implementationId, body.dataType, schemaId,
-			customContentType = body.contentType.mkString, description = body.details, isArray = body.isArray))
+		RequestBodySchemaDbModel.insert(RequestBodySchemaData(updateId.connectedValue, implementationId,
+			dataType = body.dataType, modelTypeId = schemaId, customContentType = body.contentType.mkString,
+			description = body.details, isArray = body.isArray))
 	}
 	
-	private def updateResponsesStatuses(apiId: Int, implementationId: Int, existing: Iterable[DetailedPossibleResponse],
+	private def updateResponsesStatuses(implementationId: Int, existing: Iterable[DetailedPossibleResponse],
 	                                    responses: Iterable[(Int, Option[NewBodyDefinition], String, UncertainBoolean)],
 	                                    modelNameToId: Map[String, Int])
-	                                   (implicit connection: Connection) =
+	                                   (implicit connection: Connection, updateId: DocUpdateId) =
 	{
 		// Matches against existing statuses by using status codes
 		updateExclusiveMatches(existing, responses) { _.statusCode } { _._1 } {
@@ -660,10 +674,11 @@ object ApiDocDb
 								if (shouldReplace) {
 									existingBody.access.deprecate()
 									existingBody.modelType.filter { _.isNameless }.foreach { _.access.deprecate() }
-									ResponseBodySchemaDbModel.insert(ResponseBodySchemaData(existing.id,
-										dataType = body.dataType,
+									ResponseBodySchemaDbModel.insert(ResponseBodySchemaData(updateId.connectedValue,
+										statusId = existing.id, dataType = body.dataType,
 										modelTypeId = referencedModelTypeId.orElse {
-											ModelSchemaDb.insertNamelessCompletelyIfNecessary(apiId, body.properties, modelNameToId)
+											ModelSchemaDb
+												.insertNamelessCompletelyIfNecessary(body.properties, modelNameToId)
 												.map { _.id }
 										},
 										isArray = body.isArray))
@@ -676,7 +691,7 @@ object ApiDocDb
 									}
 								
 							// Case: Adding a new response body
-							case None => insertResponseBody(apiId, existing.id, body, modelNameToId)
+							case None => insertResponseBody(existing.id, body, modelNameToId)
 						}
 					// Case: Response body removed => Deprecates the previous documentation
 					case None => existing.body.foreach { _.access.deprecate() }
@@ -694,32 +709,34 @@ object ApiDocDb
 		} {
 			// Inserts the missing status (& body) entries
 			newResponses => newResponses.map { case (statusCode, body, description, hasBody) =>
-				insertResponseStatus(apiId, implementationId, statusCode, body, description, modelNameToId, hasBody)
+				insertResponseStatus(implementationId, statusCode, body, description, modelNameToId, hasBody)
 			}
 		}
 	}
-	private def insertResponseStatus(apiId: Int, implementationId: Int, statusCode: Int,
+	private def insertResponseStatus(implementationId: Int, statusCode: Int,
 	                                 body: Option[NewBodyDefinition], description: String,
 	                                 modelNameToId: Map[String, Int], hasBody: UncertainBoolean)
-	                                (implicit connection: Connection) =
+	                                (implicit connection: Connection, updateId: DocUpdateId) =
 	{
 		// Stores the status entry
-		val stored = PossibleResponseStatusDbModel.insert(PossibleResponseStatusData(implementationId,
-			statusCode, description, hasBody = hasBody))
+		val stored = PossibleResponseStatusDbModel.insert(PossibleResponseStatusData(updateId.connectedValue,
+			implementationId, statusCode, description = description, hasBody = hasBody))
 		
 		// Stores the response body, if applicable
-		body.foreach { insertResponseBody(apiId, stored.id, _, modelNameToId) }
+		body.foreach { insertResponseBody(stored.id, _, modelNameToId) }
 		
 		StoreResult.inserted(stored)
 	}
-	private def insertResponseBody(apiId: Int, statusId: Int, body: NewBodyDefinition, modelNameToId: Map[String, Int])
-	                              (implicit connection: Connection) =
-		ResponseBodySchemaDbModel.insert(ResponseBodySchemaData(statusId,
+	private def insertResponseBody(statusId: Int, body: NewBodyDefinition, modelNameToId: Map[String, Int])
+	                              (implicit connection: Connection, updateId: DocUpdateId) =
+		ResponseBodySchemaDbModel.insert(ResponseBodySchemaData(updateId.connectedValue, statusId,
 			dataType = body.dataType,
 			// Resolves the referenced type
 			modelTypeId = body.referencedType.ifNotEmpty.flatMap { ref => modelNameToId.get(standardizeRef(ref)) }
 				// Handles the nameless model type insert, if applicable
-				.orElse { ModelSchemaDb.insertNamelessCompletelyIfNecessary(apiId, body.properties, modelNameToId).map { _.id } },
+				.orElse {
+					ModelSchemaDb.insertNamelessCompletelyIfNecessary(body.properties, modelNameToId).map { _.id }
+				},
 			isArray = body.isArray))
 	
 	private def standardizePath(path: String) = path.replaceEachMatchOf(pathParamR, "*").toLowerCase

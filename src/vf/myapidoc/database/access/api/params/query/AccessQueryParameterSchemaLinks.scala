@@ -33,7 +33,7 @@ object AccessQueryParameterSchemaLinks
   * @since 22.10.2026, v0.1
   */
 abstract class AccessQueryParameterSchemaLinks[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
-	extends TargetingTimeline[A, Repr, AccessQueryParametersSchemaLink[A]] 
+	extends TargetingManyLike[A, Repr, AccessQueryParametersSchemaLink[A]]
 		with HasValues[AccessQueryParametersSchemaLinkValues] with FilterQueryParameterSchemaLinks[Repr]
 {
 	// ATTRIBUTES	--------------------

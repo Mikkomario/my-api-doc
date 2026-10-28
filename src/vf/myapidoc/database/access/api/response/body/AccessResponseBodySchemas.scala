@@ -31,7 +31,7 @@ object AccessResponseBodySchemas
   * @since 27.10.2026, v0.1
   */
 abstract class AccessResponseBodySchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
-	extends TargetingTimeline[A, Repr, AccessResponseBodySchema[A]] 
+	extends TargetingManyLike[A, Repr, AccessResponseBodySchema[A]]
 		with HasValues[AccessResponseBodySchemaValues] with FilterResponseBodySchemas[Repr]
 {
 	// ATTRIBUTES	--------------------

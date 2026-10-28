@@ -3,6 +3,7 @@ package vf.myapidoc.database.access.schema.prop.types
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.database.Connection
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, AccessValues}
+import vf.myapidoc.database.access.api.update.AccessVersionedDocElementValues
 import vf.myapidoc.database.storable.schema.AlternativePropertyTypeDbModel
 import vf.myapidoc.model.enumeration.PropertyType
 
@@ -11,19 +12,16 @@ import vf.myapidoc.model.enumeration.PropertyType
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class AccessAlternativePropertyTypeValues(access: AccessManyColumns) extends AccessValues
+case class AccessAlternativePropertyTypeValues(access: AccessManyColumns) 
+	extends AccessVersionedDocElementValues with AccessValues
 {
 	// ATTRIBUTES	--------------------
 	
 	/**
 	  * Interface for accessing alternative property type database properties
 	  */
-	val model = AlternativePropertyTypeDbModel
+	override val model = AlternativePropertyTypeDbModel
 	
-	/**
-	  * Access to alternative property type ids
-	  */
-	lazy val ids = apply(model.index) { _.getInt }
 	/**
 	  * ID of the property that has this alternative type
 	  */
@@ -32,25 +30,17 @@ case class AccessAlternativePropertyTypeValues(access: AccessManyColumns) extend
 	  * Alternative data type supported by the linked property
 	  */
 	lazy val altTypes = apply(model.altType)(PropertyType.fromValue)
+	
+	
+	// COMPUTED	--------------------
+	
 	/**
-	  * Time when this alternative property type was added to the database
+	  * A map where keys are property IDs and values are alternative types defined for those 
+	  * properties
+	  * @param connection Implicit DB connection
 	  */
-	lazy val creationTimes = apply(model.created) { v => v.getInstant }
-	/**
-	  * Time when this alternative property type became deprecated. None while this alternative 
-	  * property type is still valid.
-	  */
-	lazy val deprecationTimes = apply(model.deprecatedAfter).flatten { v => v.instant }
-	
-	
-	// COMPUTED -------------------------
-	
-	/**
-	 * @param connection Implicit DB connection
-	 * @return A map where keys are property IDs and values are alternative types defined for those properties
-	 */
 	def toTypeMap(implicit connection: Connection) =
-		access.toMultiMap(model.propId, model.altType, includeDefault = true) {
-			_.getInt } { _.view.map(PropertyType.fromValue).toSet }
+		access.toMultiMap(model.propId, model.altType, includeDefault = true) { _.getInt } {
+			_.view.map(PropertyType.fromValue).toSet }
 }
 

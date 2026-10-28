@@ -32,7 +32,7 @@ object AccessApiNodeMethodImplementations
   * @since 22.10.2026, v0.1
   */
 abstract class AccessApiNodeMethodImplementations[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
-	extends TargetingTimeline[A, Repr, AccessApiNodeMethodImplementation[A]] 
+	extends TargetingManyLike[A, Repr, AccessApiNodeMethodImplementation[A]]
 		with HasValues[AccessApiNodeMethodImplementationValues] with FilterApiNodeMethodImplementations[Repr]
 {
 	// ATTRIBUTES	--------------------

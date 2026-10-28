@@ -1,7 +1,8 @@
 package vf.myapidoc.model.stored.api
 
 import utopia.vault.store.StandardStoredFactory
-import vf.myapidoc.model.partial.api.BodySchemaData
+import vf.myapidoc.model.factory.api.BodySchemaFactoryWrapper
+import vf.myapidoc.model.partial.api.{BodySchemaData, VersionedDocElementData}
 
 object BodySchema extends StandardStoredFactory[BodySchemaData, BodySchema]
 {
@@ -30,9 +31,12 @@ object BodySchema extends StandardStoredFactory[BodySchemaData, BodySchema]
 	  * @author Mikko Hilpinen
 	  * @since 27.10.2026
 	  */
-	private case class _BodySchema(id: Int, data: BodySchemaData) extends BodySchema
+	private case class _BodySchema(id: Int, data: BodySchemaData)
+		extends BodySchema with BodySchemaFactoryWrapper[BodySchemaData, BodySchema]
 	{
 		// IMPLEMENTED	--------------------
+		
+		override protected def wrappedFactory = data
 		
 		override def withId(id: Int) = copy(id = id)
 		
@@ -46,5 +50,7 @@ object BodySchema extends StandardStoredFactory[BodySchemaData, BodySchema]
   * @author Mikko Hilpinen
   * @since 27.10.2026, v0.1
   */
-trait BodySchema extends StoredBodySchemaLike[BodySchemaData, BodySchema] with BodySchemaData
+trait BodySchema 
+	extends StoredBodySchemaLike[BodySchemaData, BodySchema] with BodySchemaData with VersionedDocElementData 
+		with StoredVersionedDocElementLike[BodySchemaData, BodySchema]
 

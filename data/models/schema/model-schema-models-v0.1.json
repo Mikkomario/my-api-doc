@@ -1,6 +1,7 @@
 [
   {
     "name": "ModelSchema",
+    "parent": "VersionedDocElement",
     "access": "model",
     "doc": "Defines properties in an input or output model / JSON object.",
     "combo": {
@@ -30,17 +31,12 @@
         "name": "description",
         "type": "String(255-2048)",
         "doc": "Description of this model type's role / function."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   },
   {
     "name": "PropertySchema",
+    "parent": "VersionedDocElement",
     "access": "prop",
     "doc": "Defines an individual property in a model schema.",
     "stored": true,
@@ -77,12 +73,6 @@
         "doc": "A description of this property's role/function."
       },
       {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
-      },
-      {
         "name": "isArray",
         "name_plural": "areArrays",
         "type": "UncertainBoolean",
@@ -100,6 +90,7 @@
   },
   {
     "name": "AlternativePropertyType",
+    "parent": "VersionedDocElement",
     "access": "prop.types",
     "doc": "Defines an alternative supported data type for a property.",
     "props": [
@@ -114,17 +105,12 @@
         "name": "altType",
         "type": "Enum[PropertyType]",
         "doc": "Alternative data type supported by the linked property"
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   },
   {
     "name": "PossiblePropertyValue",
+    "parent": "VersionedDocElement",
     "access": "prop.value",
     "doc": "Defines a possible value for an enum property",
     "props": [
@@ -144,12 +130,6 @@
         "name": "description",
         "type": "String(255-2048)",
         "doc": "Description of this value's role / function"
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   }

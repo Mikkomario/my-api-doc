@@ -3,7 +3,7 @@ package vf.myapidoc.model.stored.api
 import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
 import vf.myapidoc.database.access.api.node.AccessApiNode
 import vf.myapidoc.model.factory.api.ApiNodeFactoryWrapper
-import vf.myapidoc.model.partial.api.ApiNodeData
+import vf.myapidoc.model.partial.api.{ApiNodeData, VersionedDocElementData}
 
 object ApiNode extends StandardStoredFactory[ApiNodeData, ApiNode]
 {
@@ -36,6 +36,8 @@ object ApiNode extends StandardStoredFactory[ApiNodeData, ApiNode]
 	{
 		// IMPLEMENTED	--------------------
 		
+		override protected def wrappedFactory = data
+		
 		override def withId(id: Int) = copy(id = id)
 		
 		override protected def wrap(data: ApiNodeData) = copy(data = data)
@@ -49,8 +51,8 @@ object ApiNode extends StandardStoredFactory[ApiNodeData, ApiNode]
   * @since 15.10.2026, v0.1
   */
 trait ApiNode 
-	extends StoredModelConvertible[ApiNodeData] with FromIdFactory[Int, ApiNode] 
-		with ApiNodeFactoryWrapper[ApiNodeData, ApiNode]
+	extends ApiNodeFactoryWrapper[ApiNodeData, ApiNode] with VersionedDocElementData 
+		with StoredVersionedDocElementLike[ApiNodeData, ApiNode]
 {
 	// COMPUTED	--------------------
 	
@@ -58,10 +60,5 @@ trait ApiNode
 	  * An access point to this api node in the database
 	  */
 	def access = AccessApiNode(id)
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
 }
 

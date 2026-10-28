@@ -18,6 +18,8 @@ object MyApiDocTables extends Tables(cPool)
 	 */
 	lazy val api = apply("api")
 	
+	lazy val docUpdate = apply("doc_update")
+	
 	/**
 	  * Table that contains alternative property types (Defines an alternative supported data type 
 	  * for a property.)

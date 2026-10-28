@@ -2,7 +2,6 @@ package vf.myapidoc.database.access.api.body
 
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.nosql.targeting.columns.AccessManyColumns
-import vf.myapidoc.database.access.api.node.impl.link.model.AccessApiNodeMethodImplementationModelSchemaLinkValues
 import vf.myapidoc.database.storable.api.RequestBodySchemaDbModel
 
 /**

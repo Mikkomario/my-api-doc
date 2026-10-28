@@ -3,7 +3,9 @@ package vf.myapidoc.model.stored.auth
 import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
 import vf.myapidoc.database.access.auth.scope.AccessScope
 import vf.myapidoc.model.factory.auth.ScopeFactoryWrapper
+import vf.myapidoc.model.partial.api.VersionedDocElementData
 import vf.myapidoc.model.partial.auth.ScopeData
+import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 
 object Scope extends StandardStoredFactory[ScopeData, Scope]
 {
@@ -21,8 +23,8 @@ object Scope extends StandardStoredFactory[ScopeData, Scope]
   * @since 15.10.2026, v0.1
   */
 case class Scope(id: Int, data: ScopeData) 
-	extends StoredModelConvertible[ScopeData] with FromIdFactory[Int, Scope] 
-		with ScopeFactoryWrapper[ScopeData, Scope]
+	extends ScopeFactoryWrapper[ScopeData, Scope] with VersionedDocElementData
+		with StoredVersionedDocElementLike[ScopeData, Scope]
 {
 	// COMPUTED	--------------------
 	

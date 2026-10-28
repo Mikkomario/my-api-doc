@@ -33,9 +33,8 @@ object AccessPathParameterSchemaLinks
   * @since 15.10.2026, v0.1
   */
 abstract class AccessPathParameterSchemaLinks[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
-	extends TargetingTimeline[A, Repr, AccessPathParametersSchemaLink[A]] 
-		with HasValues[AccessPathParametersSchemaLinkValues] with FilterPathParameterSchemaLinks[Repr] 
-		with TargetingManyLike[A, Repr, AccessPathParametersSchemaLink[A]]
+	extends TargetingManyLike[A, Repr, AccessPathParametersSchemaLink[A]]
+		with HasValues[AccessPathParametersSchemaLinkValues] with FilterPathParameterSchemaLinks[Repr]
 {
 	// ATTRIBUTES	--------------------
 	

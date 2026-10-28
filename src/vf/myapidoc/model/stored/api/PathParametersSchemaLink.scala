@@ -1,9 +1,9 @@
 package vf.myapidoc.model.stored.api
 
-import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
+import utopia.vault.store.StandardStoredFactory
 import vf.myapidoc.database.access.api.params.path.AccessPathParametersSchemaLink
 import vf.myapidoc.model.factory.api.PathParametersSchemaLinkFactoryWrapper
-import vf.myapidoc.model.partial.api.PathParametersSchemaLinkData
+import vf.myapidoc.model.partial.api.{PathParametersSchemaLinkData, VersionedDocElementData}
 
 object PathParametersSchemaLink 
 	extends StandardStoredFactory[PathParametersSchemaLinkData, PathParametersSchemaLink]
@@ -39,6 +39,8 @@ object PathParametersSchemaLink
 	{
 		// IMPLEMENTED	--------------------
 		
+		override protected def wrappedFactory = data
+		
 		override def withId(id: Int) = copy(id = id)
 		
 		override protected def wrap(data: PathParametersSchemaLinkData) = copy(data = data)
@@ -52,9 +54,9 @@ object PathParametersSchemaLink
   * @since 23.10.2026, v0.1
   */
 trait PathParametersSchemaLink 
-	extends StoredModelConvertible[PathParametersSchemaLinkData] 
-		with FromIdFactory[Int, PathParametersSchemaLink] 
-		with PathParametersSchemaLinkFactoryWrapper[PathParametersSchemaLinkData, PathParametersSchemaLink]
+	extends PathParametersSchemaLinkFactoryWrapper[PathParametersSchemaLinkData, PathParametersSchemaLink] 
+		with VersionedDocElementData 
+		with StoredVersionedDocElementLike[PathParametersSchemaLinkData, PathParametersSchemaLink]
 {
 	// COMPUTED	--------------------
 	
@@ -62,9 +64,5 @@ trait PathParametersSchemaLink
 	  * An access point to this path parameters schema link in the database
 	  */
 	def access = AccessPathParametersSchemaLink(id)
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
 }
+

@@ -16,70 +16,64 @@ import java.time.Instant
   * @author Mikko Hilpinen
   * @since 27.10.2026, v0.1
   */
-trait BodySchemaDbModelLike[+Repr] 
-	extends Storable with HasId[Option[Int]] with FromIdFactory[Int, Repr] with BodySchemaFactory[Repr]
+trait BodySchemaDbModelLike[+Repr] extends VersionedDocElementDbModelLike[Repr] with BodySchemaFactory[Repr]
 {
 	// ABSTRACT	--------------------
 	
 	def parentId: Option[Int]
-	
 	def dataType: Option[PropertyType]
-	
 	def modelTypeId: Option[Int]
-	
-	def created: Option[Instant]
-	
-	def deprecatedAfter: Option[Instant]
-	
 	def isArray: Option[Boolean]
 	
 	/**
-	  * Access to the database properties which are utilized in this model
+	  * Access to the database properties that are utilized in this model
 	  */
-	def dbProps: BodySchemaDbProps
+	override def dbProps: BodySchemaDbProps
 	
 	/**
-	  * @param id              Id to assign to the new model (default = currently assigned id)
-	  * @param parentId        parent id to assign to the new model (default = currently assigned 
-	  *                        value)
-	  * @param dataType        data type to assign to the new model (default = currently assigned 
-	  *                        value)
-	  * @param modelTypeId     model type id to assign to the new model (default = currently assigned 
-	  *                        value)
-	  * @param created         created to assign to the new model (default = currently assigned value)
-	  * @param deprecatedAfter deprecated after to assign to the new model (default = currently 
-	  *                        assigned value)
-	  * @param isArray         is array to assign to the new model (default = currently assigned 
-	  *                        value)
+	  * @param id               ID to assign to the new model (default = currently assigned id)
+	  * @param originalUpdateId original update id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  * @param parentId         parent id to assign to the new model (default = currently assigned 
+	  *                         value)
+	  * @param removingUpdateId removing update id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  * @param dataType         data type to assign to the new model (default = currently assigned 
+	  *                         value)
+	  * @param modelTypeId      model type id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  * @param isArray          is array to assign to the new model (default = currently assigned 
+	  *                         value)
 	  * @return Copy of this model with the specified body schema properties
 	  */
-	protected def copyBodySchema(id: Option[Int] = id, parentId: Option[Int] = parentId, 
-		dataType: Option[PropertyType] = dataType, modelTypeId: Option[Int] = modelTypeId, 
-		created: Option[Instant] = created, deprecatedAfter: Option[Instant] = deprecatedAfter, 
-		isArray: Option[Boolean] = isArray): Repr
+	protected def copyBodySchema(id: Option[Int] = id, originalUpdateId: Option[Int] = originalUpdateId,
+	                             parentId: Option[Int] = parentId, removingUpdateId: Option[Int] = removingUpdateId,
+	                             dataType: Option[PropertyType] = dataType, modelTypeId: Option[Int] = modelTypeId,
+	                             isArray: Option[Boolean] = isArray): Repr
 	
 	
 	// IMPLEMENTED	--------------------
 	
 	override def valueProperties: Seq[(String, Value)] = 
-		Vector(dbProps.id.name -> id, dbProps.parentId.name -> parentId, 
+		super[VersionedDocElementDbModelLike].valueProperties ++ Vector(dbProps.parentId.name -> parentId, 
 			dbProps.dataType.name -> dataType.map[Value] { e => e.id }.getOrElse(Value.empty), 
-			dbProps.modelTypeId.name -> modelTypeId, dbProps.created.name -> created, 
-			dbProps.deprecatedAfter.name -> deprecatedAfter, dbProps.isArray.name -> isArray)
+			dbProps.modelTypeId.name -> modelTypeId, dbProps.isArray.name -> isArray)
 	
-	override def withCreated(created: Instant) = copyBodySchema(created = Some(created))
+	/**
+	  * @param id               ID to assign to the new model (default = currently assigned id)
+	  * @param originalUpdateId original update id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  * @param removingUpdateId removing update id to assign to the new model (default = currently 
+	  *                         assigned value)
+	  */
+	override def copyVersionedDocElement(id: Option[Int] = id, 
+		originalUpdateId: Option[Int] = originalUpdateId, removingUpdateId: Option[Int] = removingUpdateId) = 
+		copyBodySchema(id = id, originalUpdateId = originalUpdateId, removingUpdateId = removingUpdateId)
 	
 	override def withDataType(dataType: PropertyType) = copyBodySchema(dataType = Some(dataType))
-	
-	override def withDeprecatedAfter(deprecatedAfter: Instant) = 
-		copyBodySchema(deprecatedAfter = Some(deprecatedAfter))
-	
 	override def withId(id: Int) = copyBodySchema(id = Some(id))
-	
 	override def withIsArray(isArray: Boolean) = copyBodySchema(isArray = Some(isArray))
-	
 	override def withModelTypeId(modelTypeId: Int) = copyBodySchema(modelTypeId = Some(modelTypeId))
-	
 	override def withParentId(parentId: Int) = copyBodySchema(parentId = Some(parentId))
 }
 

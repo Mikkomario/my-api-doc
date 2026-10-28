@@ -4,14 +4,15 @@ import utopia.access.model.enumeration.Method
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
+import vf.myapidoc.database.access.api.update.FilterVersionedDocElements
 import vf.myapidoc.database.props.api.NodeAuthLinkDbProps
 
 /**
-  * Common trait for access points which may be filtered based on node auth link properties
+  * Common trait for access points that may be filtered based on node auth link properties
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait FilterNodeAuthLinks[+Repr] extends NullDeprecatableView[Repr] with TimelineView[Repr]
+trait FilterNodeAuthLinks[+Repr] extends FilterVersionedDocElements[Repr]
 {
 	// ABSTRACT	--------------------
 	
@@ -19,11 +20,6 @@ trait FilterNodeAuthLinks[+Repr] extends NullDeprecatableView[Repr] with Timelin
 	  * Model that defines node auth link database properties
 	  */
 	def model: NodeAuthLinkDbProps
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override def timestampColumn = model.created
 	
 	
 	// OTHER	--------------------

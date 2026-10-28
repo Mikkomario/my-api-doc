@@ -17,7 +17,44 @@
     ]
   },
   {
+    "name": "DocUpdate",
+    "access": "update",
+    "doc": "Represents an API documentation update",
+    "props": [
+      {
+        "ref": "api",
+        "doc": "ID of the updated API",
+        "with": "ofApi"
+      },
+      {
+        "type": "creation"
+      }
+    ]
+  },
+  {
+    "name": "VersionedDocElement",
+    "generic": true,
+    "access": "update",
+    "doc": "Common trait for documentation elements which have current and historical versions.",
+    "props": [
+      {
+        "name": "originalUpdateId",
+        "ref": "doc_update",
+        "with": "addedInUpdate",
+        "doc": "ID of the update that introduced this element (version)"
+      },
+      {
+        "name": "removingUpdateId",
+        "ref": "doc_update",
+        "type": "Option[Int]",
+        "with": "removedInUpdate",
+        "doc": "ID of the update that removed or replaced this element (version)"
+      }
+    ]
+  },
+  {
     "name": "ApiNodeGroup",
+    "parent": "VersionedDocElement",
     "access": "node.group",
     "doc": "Defines a group of API nodes",
     "combo": {
@@ -45,17 +82,12 @@
         "name": "description",
         "type": "String(255-2048)",
         "doc": "Description of this group's function or theme"
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   },
   {
     "name": "ApiNode",
+    "parent": "VersionedDocElement",
     "access": "node",
     "has_combos": true,
     "doc": "Represents an individual API node implementation",
@@ -98,18 +130,13 @@
         "name": "description",
         "type": "String(255-2048)",
         "doc": "A description of this API node."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   },
   {
     "name": "PathParametersSchemaLink",
     "name_plural": "PathParameterSchemaLinks",
+    "parent": "VersionedDocElement",
     "access": "params.path",
     "has_combos": true,
     "doc": "Applies a specific schema to the path parameters received by an API node.",
@@ -125,17 +152,12 @@
         "ref": "model_schema",
         "with": "ofModelType",
         "doc": "ID of the model type that describes the received path parameters."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   },
   {
     "name": "ApiNodeMethodImplementation",
+    "parent": "VersionedDocElement",
     "access": "node.impl",
     "has_combos": true,
     "doc": "Describes how a specific HTTP method is implemented in an API node.",
@@ -159,12 +181,6 @@
         "doc": "A description of this implementation."
       },
       {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
-      },
-      {
         "name": "requiresRequestBody",
         "name_plural": "requireRequestBodies",
         "type": "Boolean",
@@ -173,43 +189,31 @@
     ]
   },
   {
-    "name": "ApiNodeMethodImplementationModelSchemaLink",
-    "generic": true,
-    "access": "node.impl.link.model",
-    "doc": "Links a model schema to to an API node's method implementation.",
+    "name": "QueryParametersSchemaLink",
+    "name_plural": "QueryParameterSchemaLinks",
+    "parent": "VersionedDocElement",
+    "access": "params.query",
+    "has_combos": true,
+    "doc": "Applies a specific schema to the query parameters accepted by an API node.",
     "props": [
       {
         "name": "implementationId",
         "ref": "api_node_method_implementation",
         "with": "ofImplementation",
-        "doc": "ID of the method implementation that uses the linked schema."
+        "doc": "ID of the method implementation that receives the linked parameters."
       },
       {
         "name": "modelTypeId",
         "ref": "model_schema",
         "with": "ofModelType",
-        "doc": "ID of the schema that defines the type of model accepted by the linked implementation."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
+        "doc": "ID of the schema that defines the accepted path parameters."
       }
     ]
   },
   {
-    "name": "QueryParametersSchemaLink",
-    "name_plural": "QueryParameterSchemaLinks",
-    "parent": "ApiNodeMethodImplementationModelSchemaLink",
-    "access": "params.query",
-    "has_combos": true,
-    "doc": "Applies a specific schema to the query parameters accepted by an API node.",
-    "props": []
-  },
-  {
     "name": "BodySchema",
     "generic": true,
+    "parent": "VersionedDocElement",
     "access": "body",
     "doc": "Common trait for request & response body schemas.",
     "props": [
@@ -230,12 +234,6 @@
         "ref": "model_schema",
         "type": "Option[Int]",
         "doc": "If this body contains an object or objects, contains the ID of the model schema that describes the applicable object structure."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       },
       {
         "name": "isArray",
@@ -275,6 +273,7 @@
   {
     "name": "PossibleResponseStatus",
     "name_plural": "PossibleResponseStatuses",
+    "parent": "VersionedDocElement",
     "access": "response.status",
     "doc": "Defines a possible response status for an API node method call.",
     "combo": {
@@ -304,12 +303,6 @@
         "doc": "Description of what this status signifies."
       },
       {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
-      },
-      {
         "name": "hasBody",
         "name_plural": "haveBodies",
         "type": "UncertainBoolean",
@@ -336,6 +329,7 @@
   },
   {
     "name": "NodeAuthLink",
+    "parent": "VersionedDocElement",
     "generic": true,
     "access": "node.auth",
     "doc": "Common trait for links between API nodes and possible authorization requirements",
@@ -364,12 +358,6 @@
         "name": "description",
         "type": "String(255-2048)",
         "doc": "A description concerning this authorization method's function in the linked node."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   },

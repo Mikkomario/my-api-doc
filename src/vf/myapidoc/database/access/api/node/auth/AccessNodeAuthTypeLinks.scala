@@ -31,7 +31,7 @@ object AccessNodeAuthTypeLinks
   * @since 22.10.2026, v0.1
   */
 abstract class AccessNodeAuthTypeLinks[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessNodeAuthTypeLink[A]] 
+	extends TargetingManyLike[A, Repr, AccessNodeAuthTypeLink[A]]
 		with HasValues[AccessNodeAuthTypeLinkValues] with FilterNodeAuthTypeLinks[Repr]
 {
 	// ATTRIBUTES	--------------------

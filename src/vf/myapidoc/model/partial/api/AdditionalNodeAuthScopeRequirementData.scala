@@ -14,8 +14,9 @@ object AdditionalNodeAuthScopeRequirementData
 	// ATTRIBUTES	--------------------
 	
 	override lazy val schema = 
-		ModelDeclaration(Pair(PropertyDeclaration("scopeLinkId", IntType, Single("scope_link_id")), 
-			PropertyDeclaration("scopeId", IntType, Single("scope_id"))))
+		ModelDeclaration(Pair(
+		PropertyDeclaration("scopeLinkId", IntType, Single("scope_link_id")), 
+		PropertyDeclaration("scopeId", IntType, Single("scope_id"))))
 	
 	
 	// IMPLEMENTED	--------------------

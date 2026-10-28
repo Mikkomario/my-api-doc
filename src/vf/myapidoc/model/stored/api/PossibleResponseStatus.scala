@@ -3,7 +3,7 @@ package vf.myapidoc.model.stored.api
 import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
 import vf.myapidoc.database.access.api.response.status.AccessPossibleResponseStatus
 import vf.myapidoc.model.factory.api.PossibleResponseStatusFactoryWrapper
-import vf.myapidoc.model.partial.api.PossibleResponseStatusData
+import vf.myapidoc.model.partial.api.{PossibleResponseStatusData, VersionedDocElementData}
 
 object PossibleResponseStatus 
 	extends StandardStoredFactory[PossibleResponseStatusData, PossibleResponseStatus]
@@ -39,6 +39,8 @@ object PossibleResponseStatus
 	{
 		// IMPLEMENTED	--------------------
 		
+		override protected def wrappedFactory = data
+		
 		override def withId(id: Int) = copy(id = id)
 		
 		override protected def wrap(data: PossibleResponseStatusData) = copy(data = data)
@@ -52,9 +54,9 @@ object PossibleResponseStatus
   * @since 22.10.2026, v0.1
   */
 trait PossibleResponseStatus 
-	extends StoredModelConvertible[PossibleResponseStatusData] 
-		with FromIdFactory[Int, PossibleResponseStatus] 
-		with PossibleResponseStatusFactoryWrapper[PossibleResponseStatusData, PossibleResponseStatus]
+	extends PossibleResponseStatusFactoryWrapper[PossibleResponseStatusData, PossibleResponseStatus] 
+		with VersionedDocElementData 
+		with StoredVersionedDocElementLike[PossibleResponseStatusData, PossibleResponseStatus]
 {
 	// COMPUTED	--------------------
 	
@@ -62,10 +64,5 @@ trait PossibleResponseStatus
 	  * An access point to this possible response status in the database
 	  */
 	def access = AccessPossibleResponseStatus(id)
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
 }
 

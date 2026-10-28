@@ -3,7 +3,7 @@ package vf.myapidoc.model.stored.api
 import utopia.vault.store.StandardStoredFactory
 import vf.myapidoc.database.access.api.params.query.AccessQueryParametersSchemaLink
 import vf.myapidoc.model.factory.api.QueryParametersSchemaLinkFactoryWrapper
-import vf.myapidoc.model.partial.api.{ApiNodeMethodImplementationModelSchemaLinkData, QueryParametersSchemaLinkData}
+import vf.myapidoc.model.partial.api.{QueryParametersSchemaLinkData, VersionedDocElementData}
 
 object QueryParametersSchemaLink 
 	extends StandardStoredFactory[QueryParametersSchemaLinkData, QueryParametersSchemaLink]
@@ -53,8 +53,8 @@ object QueryParametersSchemaLink
   */
 trait QueryParametersSchemaLink 
 	extends QueryParametersSchemaLinkFactoryWrapper[QueryParametersSchemaLinkData, QueryParametersSchemaLink] 
-		with ApiNodeMethodImplementationModelSchemaLinkData 
-		with StoredApiNodeMethodImplementationModelSchemaLinkLike[QueryParametersSchemaLinkData, QueryParametersSchemaLink]
+		with VersionedDocElementData 
+		with StoredVersionedDocElementLike[QueryParametersSchemaLinkData, QueryParametersSchemaLink]
 {
 	// COMPUTED	--------------------
 	

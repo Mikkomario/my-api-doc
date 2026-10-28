@@ -1,7 +1,8 @@
 package vf.myapidoc.model.stored.api
 
 import utopia.vault.store.StandardStoredFactory
-import vf.myapidoc.model.partial.api.NodeAuthLinkData
+import vf.myapidoc.model.factory.api.NodeAuthLinkFactoryWrapper
+import vf.myapidoc.model.partial.api.{NodeAuthLinkData, VersionedDocElementData}
 
 object NodeAuthLink extends StandardStoredFactory[NodeAuthLinkData, NodeAuthLink]
 {
@@ -46,5 +47,8 @@ object NodeAuthLink extends StandardStoredFactory[NodeAuthLinkData, NodeAuthLink
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait NodeAuthLink extends StoredNodeAuthLinkLike[NodeAuthLinkData, NodeAuthLink] with NodeAuthLinkData
+trait NodeAuthLink 
+	extends StoredNodeAuthLinkLike[NodeAuthLinkData, NodeAuthLink] with NodeAuthLinkData 
+		with VersionedDocElementData with StoredVersionedDocElementLike[NodeAuthLinkData, NodeAuthLink]
+		with NodeAuthLinkFactoryWrapper[NodeAuthLinkData, NodeAuthLink]
 

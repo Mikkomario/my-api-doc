@@ -6,8 +6,6 @@ import vf.myapidoc.database.storable.api.NodeAuthScopeLinkDbModel
 import vf.myapidoc.model.partial.api.NodeAuthScopeLinkData
 import vf.myapidoc.model.stored.api.NodeAuthScopeLink
 
-import java.time.Instant
-
 /**
   * Used for reading node auth scope link data from the DB
   * @author Mikko Hilpinen
@@ -28,18 +26,19 @@ object NodeAuthScopeLinkDbReader extends NodeAuthLinkDbReaderLike[NodeAuthScopeL
 	override def table = dbProps.table
 	
 	/**
-	  * @param model           Model from which additional data may be read
-	  * @param id              Id to assign to the read/parsed node auth link
-	  * @param nodeId          node id to assign to the new node auth link
-	  * @param authId          auth id to assign to the new node auth link
-	  * @param method          method to assign to the new node auth link
-	  * @param description     description to assign to the new node auth link
-	  * @param created         created to assign to the new node auth link
-	  * @param deprecatedAfter deprecated after to assign to the new node auth link
+	  * @param model            Model from which additional data may be read
+	  * @param id               ID to assign to the read/parsed node auth link
+	  * @param originalUpdateId original update id to assign to the new node auth link
+	  * @param nodeId           node id to assign to the new node auth link
+	  * @param authId           auth id to assign to the new node auth link
+	  * @param removingUpdateId removing update id to assign to the new node auth link
+	  * @param method           method to assign to the new node auth link
+	  * @param description      description to assign to the new node auth link
 	  */
-	override protected def apply(model: HasProperties, id: Int, nodeId: Int, authId: Int, 
-		method: Option[Method], description: String, created: Instant, deprecatedAfter: Option[Instant]) = 
-		NodeAuthScopeLink(id, NodeAuthScopeLinkData(nodeId = nodeId, scopeId = authId, method = method, 
-			description = description, created = created, deprecatedAfter = deprecatedAfter))
+	override protected def apply(model: HasProperties, id: Int, originalUpdateId: Int, nodeId: Int, authId: Int,
+	                             removingUpdateId: Option[Int], method: Option[Method], description: String) =
+		NodeAuthScopeLink(id, NodeAuthScopeLinkData(originalUpdateId = originalUpdateId, nodeId = nodeId, 
+			scopeId = authId, removingUpdateId = removingUpdateId, method = method, 
+			description = description))
 }
 

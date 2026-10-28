@@ -19,17 +19,11 @@ trait NodeAuthLinkDbPropsWrapper extends NodeAuthLinkDbProps
 	// IMPLEMENTED	--------------------
 	
 	override def authId = nodeAuthLinkDbProps.authId
-	
-	override def created = nodeAuthLinkDbProps.created
-	
-	override def deprecatedAfter = nodeAuthLinkDbProps.deprecatedAfter
-	
 	override def description = nodeAuthLinkDbProps.description
-	
 	override def id = nodeAuthLinkDbProps.id
-	
 	override def method = nodeAuthLinkDbProps.method
-	
 	override def nodeId = nodeAuthLinkDbProps.nodeId
+	override def originalUpdateId = nodeAuthLinkDbProps.originalUpdateId
+	override def removingUpdateId = nodeAuthLinkDbProps.removingUpdateId
 }
 

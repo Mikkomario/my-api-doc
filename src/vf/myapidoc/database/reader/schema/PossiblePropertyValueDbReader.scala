@@ -1,9 +1,11 @@
 package vf.myapidoc.database.reader.schema
 
 import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import utopia.vault.model.template.HasTableAsTarget
 import utopia.vault.nosql.read.DbRowReader
 import utopia.vault.nosql.read.parse.ParseTableModel
+import vf.myapidoc.database.reader.api.VersionedDocElementDbReaderLike
 import vf.myapidoc.database.storable.schema.PossiblePropertyValueDbModel
 import vf.myapidoc.model.partial.schema.PossiblePropertyValueData
 import vf.myapidoc.model.stored.schema.PossiblePropertyValue
@@ -15,28 +17,29 @@ import scala.util.Success
   * @author Mikko Hilpinen
   * @since 26.10.2026, v0.1
   */
-object PossiblePropertyValueDbReader 
-	extends DbRowReader[PossiblePropertyValue] with ParseTableModel[PossiblePropertyValue] 
-		with HasTableAsTarget
+object PossiblePropertyValueDbReader extends VersionedDocElementDbReaderLike[PossiblePropertyValue]
 {
 	// ATTRIBUTES	--------------------
 	
 	/**
 	  * Model that specifies how the data is read
 	  */
-	val model = PossiblePropertyValueDbModel
+	override val dbProps = PossiblePropertyValueDbModel
 	
 	
 	// IMPLEMENTED	--------------------
 	
-	override def table = model.table
+	override def table = dbProps.table
 	
-	override def fromValid(valid: Model) = 
-		Success(PossiblePropertyValue(valid(this.model.id.name).getInt, 
-			PossiblePropertyValueData(propId = valid(this.model.propId.name).getInt, 
-			value = valid(this.model.value.name).getString, 
-			description = valid(this.model.description.name).getString, 
-			created = valid(this.model.created.name).getInstant, 
-			deprecatedAfter = valid(this.model.deprecatedAfter.name).instant)))
+	/**
+	  * @param model            Model from which additional data may be read
+	  * @param id               ID to assign to the read/parsed versioned doc element
+	  * @param originalUpdateId original update id to assign to the new versioned doc element
+	  * @param removingUpdateId removing update id to assign to the new versioned doc element
+	  */
+	override protected def apply(model: HasProperties, id: Int, originalUpdateId: Int, removingUpdateId: Option[Int]) =
+		PossiblePropertyValue(id, PossiblePropertyValueData(originalUpdateId = originalUpdateId, 
+			propId = model(dbProps.propId.name).getInt, value = model(dbProps.value.name).getString, 
+			removingUpdateId = removingUpdateId, description = model(dbProps.description.name).getString))
 }
 

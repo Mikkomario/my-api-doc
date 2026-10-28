@@ -31,7 +31,7 @@ object AccessPossiblePropertyValues
   */
 abstract class AccessPossiblePropertyValues[A, +Repr <: TargetingManyLike[_, Repr, 
 	_]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessPossiblePropertyValue[A]] 
+	extends TargetingManyLike[A, Repr, AccessPossiblePropertyValue[A]]
 		with HasValues[AccessPossiblePropertyValueValueValues] with FilterPossiblePropertyValues[Repr]
 {
 	// ATTRIBUTES	--------------------

@@ -3,7 +3,7 @@ package vf.myapidoc.model.stored.api
 import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
 import vf.myapidoc.database.access.api.node.impl.AccessApiNodeMethodImplementation
 import vf.myapidoc.model.factory.api.ApiNodeMethodImplementationFactoryWrapper
-import vf.myapidoc.model.partial.api.ApiNodeMethodImplementationData
+import vf.myapidoc.model.partial.api.{ApiNodeMethodImplementationData, VersionedDocElementData}
 
 object ApiNodeMethodImplementation 
 	extends StandardStoredFactory[ApiNodeMethodImplementationData, ApiNodeMethodImplementation]
@@ -39,6 +39,8 @@ object ApiNodeMethodImplementation
 	{
 		// IMPLEMENTED	--------------------
 		
+		override protected def wrappedFactory = data
+		
 		override def withId(id: Int) = copy(id = id)
 		
 		override protected def wrap(data: ApiNodeMethodImplementationData) = copy(data = data)
@@ -52,9 +54,9 @@ object ApiNodeMethodImplementation
   * @since 23.10.2026, v0.1
   */
 trait ApiNodeMethodImplementation 
-	extends StoredModelConvertible[ApiNodeMethodImplementationData] 
-		with FromIdFactory[Int, ApiNodeMethodImplementation] 
-		with ApiNodeMethodImplementationFactoryWrapper[ApiNodeMethodImplementationData, ApiNodeMethodImplementation]
+	extends ApiNodeMethodImplementationFactoryWrapper[ApiNodeMethodImplementationData, ApiNodeMethodImplementation] 
+		with VersionedDocElementData 
+		with StoredVersionedDocElementLike[ApiNodeMethodImplementationData, ApiNodeMethodImplementation]
 {
 	// COMPUTED	--------------------
 	
@@ -62,9 +64,4 @@ trait ApiNodeMethodImplementation
 	  * An access point to this api node method implementation in the database
 	  */
 	def access = AccessApiNodeMethodImplementation(id)
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
 }

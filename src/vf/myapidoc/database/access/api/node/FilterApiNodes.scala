@@ -5,14 +5,15 @@ import utopia.vault.model.immutable.Column
 import utopia.vault.nosql.template.IntIndexFilterable
 import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
+import vf.myapidoc.database.access.api.update.FilterVersionedDocElements
 import vf.myapidoc.database.storable.api.ApiNodeDbModel
 
 /**
-  * Common trait for access points which may be filtered based on api node properties
+  * Common trait for access points that may be filtered based on api node properties
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait FilterApiNodes[+Repr] extends NullDeprecatableView[Repr] with TimelineView[Repr] with IntIndexFilterable[Repr]
+trait FilterApiNodes[+Repr] extends FilterVersionedDocElements[Repr] with IntIndexFilterable[Repr]
 {
 	// COMPUTED	--------------------
 	
@@ -25,8 +26,6 @@ trait FilterApiNodes[+Repr] extends NullDeprecatableView[Repr] with TimelineView
 	// IMPLEMENTED	--------------------
 	
 	override protected def idColumn: Column = model.id
-	
-	override def timestampColumn = model.created
 	
 	
 	// OTHER	--------------------

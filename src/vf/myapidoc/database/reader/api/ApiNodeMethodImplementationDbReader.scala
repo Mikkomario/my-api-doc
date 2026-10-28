@@ -2,6 +2,7 @@ package vf.myapidoc.database.reader.api
 
 import utopia.access.model.enumeration.Method
 import utopia.flow.generic.model.immutable.Model
+import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import utopia.vault.model.template.HasTableAsTarget
 import utopia.vault.nosql.read.DbRowReader
 import utopia.vault.nosql.read.parse.ParseTableModel
@@ -16,29 +17,31 @@ import scala.util.Success
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-object ApiNodeMethodImplementationDbReader 
-	extends DbRowReader[ApiNodeMethodImplementation] with ParseTableModel[ApiNodeMethodImplementation] 
-		with HasTableAsTarget
+object ApiNodeMethodImplementationDbReader extends VersionedDocElementDbReaderLike[ApiNodeMethodImplementation]
 {
 	// ATTRIBUTES	--------------------
 	
 	/**
 	  * Model that specifies how the data is read
 	  */
-	val model = ApiNodeMethodImplementationDbModel
+	override val dbProps = ApiNodeMethodImplementationDbModel
 	
 	
 	// IMPLEMENTED	--------------------
 	
-	override def table = model.table
+	override def table = dbProps.table
 	
-	override def fromValid(valid: Model) = 
-		Success(ApiNodeMethodImplementation(valid(this.model.id.name).getInt, 
-			ApiNodeMethodImplementationData(nodeId = valid(this.model.nodeId.name).getInt, 
-			method = Method(valid(this.model.method.name).getString), 
-			description = valid(this.model.description.name).getString, 
-			created = valid(this.model.created.name).getInstant, 
-			deprecatedAfter = valid(this.model.deprecatedAfter.name).instant, 
-			requiresRequestBody = valid(this.model.requiresRequestBody.name).getBoolean)))
+	/**
+	  * @param model            Model from which additional data may be read
+	  * @param id               ID to assign to the read/parsed versioned doc element
+	  * @param originalUpdateId original update id to assign to the new versioned doc element
+	  * @param removingUpdateId removing update id to assign to the new versioned doc element
+	  */
+	override protected def apply(model: HasProperties, id: Int, originalUpdateId: Int, removingUpdateId: Option[Int]) =
+		ApiNodeMethodImplementation(id, ApiNodeMethodImplementationData(originalUpdateId = originalUpdateId, 
+			nodeId = model(dbProps.nodeId.name).getInt, removingUpdateId = removingUpdateId, 
+			method = Method(model(dbProps.method.name).getString), 
+			description = model(dbProps.description.name).getString, 
+			requiresRequestBody = model(dbProps.requiresRequestBody.name).getBoolean))
 }
 

@@ -6,8 +6,6 @@ import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.partial.api.ResponseBodySchemaData
 import vf.myapidoc.model.stored.api.ResponseBodySchema
 
-import java.time.Instant
-
 /**
   * Used for reading response body schema data from the DB
   * @author Mikko Hilpinen
@@ -28,20 +26,20 @@ object ResponseBodySchemaDbReader extends BodySchemaDbReaderLike[ResponseBodySch
 	override def table = dbProps.table
 	
 	/**
-	  * @param model           Model from which additional data may be read
-	  * @param id              Id to assign to the read/parsed body schema
-	  * @param parentId        parent id to assign to the new body schema
-	  * @param dataType        data type to assign to the new body schema
-	  * @param modelTypeId     model type id to assign to the new body schema
-	  * @param created         created to assign to the new body schema
-	  * @param deprecatedAfter deprecated after to assign to the new body schema
-	  * @param isArray         is array to assign to the new body schema
+	  * @param model            Model from which additional data may be read
+	  * @param id               ID to assign to the read/parsed body schema
+	  * @param originalUpdateId original update id to assign to the new body schema
+	  * @param parentId         parent id to assign to the new body schema
+	  * @param removingUpdateId removing update id to assign to the new body schema
+	  * @param dataType         data type to assign to the new body schema
+	  * @param modelTypeId      model type id to assign to the new body schema
+	  * @param isArray          is array to assign to the new body schema
 	  */
-	override protected def apply(model: HasProperties, id: Int, parentId: Int, dataType: PropertyType,
-	                             modelTypeId: Option[Int], created: Instant, deprecatedAfter: Option[Instant],
+	override protected def apply(model: HasProperties, id: Int, originalUpdateId: Int, parentId: Int,
+	                             removingUpdateId: Option[Int], dataType: PropertyType, modelTypeId: Option[Int],
 	                             isArray: Boolean) =
-		ResponseBodySchema(id, ResponseBodySchemaData(statusId = parentId, dataType = dataType,
-			modelTypeId = modelTypeId, created = created, deprecatedAfter = deprecatedAfter, 
-			isArray = isArray))
+		ResponseBodySchema(id, ResponseBodySchemaData(originalUpdateId = originalUpdateId, 
+			statusId = parentId, removingUpdateId = removingUpdateId, dataType = dataType, 
+			modelTypeId = modelTypeId, isArray = isArray))
 }
 

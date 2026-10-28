@@ -1,7 +1,7 @@
 package vf.myapidoc.model.factory.api
 
 /**
-  * Common trait for response body schema-related factories which allow construction with 
+  * Common trait for response body schema-related factories that allow construction with 
   * individual properties
   * @tparam A Type of constructed instances
   * @author Mikko Hilpinen

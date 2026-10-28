@@ -4,6 +4,7 @@ import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.util.UncertainBoolean
 import utopia.vault.nosql.targeting.columns.AccessColumns.AccessColumn
 import utopia.vault.nosql.targeting.columns.AccessValue
+import vf.myapidoc.database.access.api.update.AccessVersionedDocElementValue
 import vf.myapidoc.database.storable.schema.PropertySchemaDbModel
 import vf.myapidoc.model.enumeration.PropertyType
 
@@ -12,19 +13,15 @@ import vf.myapidoc.model.enumeration.PropertyType
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class AccessPropertySchemaValue(access: AccessColumn) extends AccessValue
+case class AccessPropertySchemaValue(access: AccessColumn) extends AccessVersionedDocElementValue
 {
 	// ATTRIBUTES	--------------------
 	
 	/**
 	  * Interface for accessing property schema database properties
 	  */
-	val model = PropertySchemaDbModel
+	override val model = PropertySchemaDbModel
 	
-	/**
-	  * Access to property schema id
-	  */
-	lazy val id = apply(model.index).optional { _.int }
 	/**
 	  * ID of the model type that this property belongs to.
 	  */
@@ -46,15 +43,6 @@ case class AccessPropertySchemaValue(access: AccessColumn) extends AccessValue
 	  * A description of this property's role/function.
 	  */
 	lazy val description = apply(model.description) { v => v.getString }
-	/**
-	  * Time when this property schema was added to the database
-	  */
-	lazy val created = apply(model.created).optional { v => v.instant }
-	/**
-	  * Time when this property schema became deprecated. None while this property schema is still 
-	  * valid.
-	  */
-	lazy val deprecatedAfter = apply(model.deprecatedAfter).optional { v => v.instant }
 	/**
 	  * Whether this property is an array of values. False if this property contains a single value.
 	  */

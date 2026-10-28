@@ -10,8 +10,7 @@ import utopia.flow.util.Mutate
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-trait AdditionalNodeAuthScopeRequirementFactoryWrapper[A <: AdditionalNodeAuthScopeRequirementFactory[A], 
-	+Repr] 
+trait AdditionalNodeAuthScopeRequirementFactoryWrapper[A <: AdditionalNodeAuthScopeRequirementFactory[A], +Repr]
 	extends AdditionalNodeAuthScopeRequirementFactory[Repr]
 {
 	// ABSTRACT	--------------------
@@ -32,7 +31,6 @@ trait AdditionalNodeAuthScopeRequirementFactoryWrapper[A <: AdditionalNodeAuthSc
 	// IMPLEMENTED	--------------------
 	
 	override def withScopeId(scopeId: Int) = mapWrapped { _.withScopeId(scopeId) }
-	
 	override def withScopeLinkId(scopeLinkId: Int) = mapWrapped { _.withScopeLinkId(scopeLinkId) }
 	
 	

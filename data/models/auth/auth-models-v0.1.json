@@ -1,6 +1,7 @@
 [
   {
     "name": "AuthTokenType",
+    "parent": "VersionedDocElement",
     "access": "token",
     "doc": "Represents some (custom) token type used by the documented API.",
     "props": [
@@ -27,17 +28,12 @@
         "name": "useType",
         "type": "Enum[TokenUseType]",
         "doc": "Determines how this token is applied."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   },
   {
     "name": "Scope",
+    "parent": "VersionedDocElement",
     "doc": "Represents an authorization scope in the documented API.",
     "props": [
       {
@@ -51,12 +47,6 @@
         "index": true,
         "with": "withName",
         "doc": "Name / identifier of this scope."
-      },
-      {
-        "type": "creation"
-      },
-      {
-        "type": "deprecation"
       }
     ]
   }

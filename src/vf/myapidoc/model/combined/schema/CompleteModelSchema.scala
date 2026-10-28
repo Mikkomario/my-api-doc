@@ -1,6 +1,7 @@
 package vf.myapidoc.model.combined.schema
 
 import vf.myapidoc.model.partial.schema.ModelSchemaData
+import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 import vf.myapidoc.model.stored.schema.{ModelSchema, StoredPropertySchema}
 
 object CompleteModelSchema

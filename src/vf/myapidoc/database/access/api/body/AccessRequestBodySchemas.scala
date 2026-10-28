@@ -30,9 +30,8 @@ object AccessRequestBodySchemas
   * @author Mikko Hilpinen
   * @since 22.10.2026, v0.1
   */
-abstract class AccessRequestBodySchemas[A, +Repr <: TargetingManyLike[_, Repr, 
-	_]](wrapped: AccessManyColumns) 
-	extends TargetingTimeline[A, Repr, AccessRequestBodySchema[A]] 
+abstract class AccessRequestBodySchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
+	extends TargetingManyLike[A, Repr, AccessRequestBodySchema[A]]
 		with HasValues[AccessRequestBodySchemaValues] with FilterRequestBodySchemas[Repr]
 {
 	// ATTRIBUTES	--------------------

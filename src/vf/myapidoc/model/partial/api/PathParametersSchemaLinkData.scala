@@ -1,13 +1,11 @@
 package vf.myapidoc.model.partial.api
 
-import utopia.flow.collection.immutable.Single
+import utopia.flow.collection.immutable.{Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.factory.FromModelFactoryWithSchema
 import utopia.flow.generic.model.immutable.{Model, ModelDeclaration, PropertyDeclaration}
-import utopia.flow.generic.model.mutable.DataType.InstantType
-import utopia.flow.generic.model.mutable.DataType.IntType
+import utopia.flow.generic.model.mutable.DataType.{InstantType, IntType}
 import utopia.flow.generic.model.template.ModelConvertible
-import utopia.flow.time.Now
 import vf.myapidoc.model.factory.api.PathParametersSchemaLinkFactory
 
 import java.time.Instant
@@ -17,52 +15,42 @@ object PathParametersSchemaLinkData extends FromModelFactoryWithSchema[PathParam
 	// ATTRIBUTES	--------------------
 	
 	override lazy val schema = ModelDeclaration(Vector(
+		PropertyDeclaration("originalUpdateId", IntType, Single("original_update_id")),
 		PropertyDeclaration("nodeId", IntType, Single("node_id")),
 		PropertyDeclaration("modelTypeId", IntType, Single("model_type_id")),
-		PropertyDeclaration("created", InstantType, isOptional = true),
-		PropertyDeclaration("deprecatedAfter", InstantType, Single("deprecated_after"), isOptional = true)))
+		PropertyDeclaration("removingUpdateId", IntType, Single("removing_update_id"), isOptional = true)))
 	
 	
 	// IMPLEMENTED	--------------------
 	
 	override protected def fromValidatedModel(valid: Model) = 
-		PathParametersSchemaLinkData(valid("nodeId").getInt, valid("modelTypeId").getInt, 
-			valid("created").getInstant, valid("deprecatedAfter").instant)
+		PathParametersSchemaLinkData(valid("originalUpdateId").getInt, valid("nodeId").getInt, 
+			valid("modelTypeId").getInt, valid("removingUpdateId").int)
 }
 
 /**
   * Applies a specific schema to the path parameters received by an API node.
-  * @param nodeId          ID of the API node that accepts these parameters.
-  * @param modelTypeId     ID of the model type that describes the received path parameters.
-  * @param created         Time when this path parameters schema link was added to the database
-  * @param deprecatedAfter Time when this path parameters schema link became deprecated. None 
-  *                        while this path parameters schema link is still valid.
+  * @param originalUpdateId ID of the update that introduced this element (version)
+  * @param nodeId           ID of the API node that accepts these parameters.
+  * @param modelTypeId      ID of the model type that describes the received path parameters.
+  * @param removingUpdateId ID of the update that removed or replaced this element (version)
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class PathParametersSchemaLinkData(nodeId: Int, modelTypeId: Int, created: Instant = Now,
-                                        deprecatedAfter: Option[Instant] = None)
-	extends PathParametersSchemaLinkFactory[PathParametersSchemaLinkData] with ModelConvertible
+case class PathParametersSchemaLinkData(originalUpdateId: Int, nodeId: Int, modelTypeId: Int,
+                                        removingUpdateId: Option[Int] = None)
+	extends PathParametersSchemaLinkFactory[PathParametersSchemaLinkData] with VersionedDocElementData 
+		with VersionedDocElementDataLike[PathParametersSchemaLinkData]
 {
-	// COMPUTED	--------------------
-	
-	/**
-	  * Whether this path parameters schema link has already been deprecated
-	  */
-	def isDeprecated = deprecatedAfter.isDefined
-	/**
-	  * Whether this path parameters schema link is still valid (not deprecated)
-	  */
-	def isValid = !isDeprecated
-	
-	
 	// IMPLEMENTED	--------------------
 	
-	override def toModel = Model(Vector("nodeId" -> nodeId, "modelTypeId" -> modelTypeId, "created" -> created,
-		"deprecatedAfter" -> deprecatedAfter))
+	override def toModel = 
+		super[VersionedDocElementData].toModel ++ Model(Pair("nodeId" -> nodeId, 
+			"modelTypeId" -> modelTypeId))
 	
-	override def withCreated(created: Instant) = copy(created = created)
-	override def withDeprecatedAfter(deprecatedAfter: Instant) = copy(deprecatedAfter = Some(deprecatedAfter))
+	override def copyVersionedDocElement(originalUpdateId: Int, removingUpdateId: Option[Int]) = 
+		copy(originalUpdateId = originalUpdateId, removingUpdateId = removingUpdateId)
+	
 	override def withModelTypeId(modelTypeId: Int) = copy(modelTypeId = modelTypeId)
 	override def withNodeId(nodeId: Int) = copy(nodeId = nodeId)
 }
