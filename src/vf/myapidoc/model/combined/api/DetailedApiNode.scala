@@ -1,5 +1,6 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.access.model.enumeration.Method
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
@@ -166,4 +167,12 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 	
 	override protected def wrap(factory: ApiNodeData): DetailedApiNode = copy(data = factory)
 	override def withId(id: Int) = copy(id = id)
+	
+	
+	// OTHER    -------------------------
+	
+	def apply(method: Method) =
+		get(method).getOrElse { throw new NoSuchElementException(s"${
+			data.name } doesn't contain an implementation for ${ method.name }") }
+	def get(method: Method) = implementations.find { _.method == method }
 }

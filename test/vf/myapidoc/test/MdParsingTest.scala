@@ -13,7 +13,7 @@ import utopia.flow.parse.string.StringFrom
  */
 object MdParsingTest extends App
 {
-	import vf.myapidoc.controller.doc.MdParser._
+	import vf.myapidoc.controller.MdParser._
 	
 	private val testContent = StringFrom.path("data/test-data/md-test.md").get
 	

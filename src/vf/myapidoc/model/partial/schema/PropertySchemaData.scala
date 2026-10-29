@@ -8,7 +8,7 @@ import utopia.flow.generic.model.mutable.DataType.{BooleanType, InstantType, Int
 import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.util.UncertainBoolean
-import vf.myapidoc.model.cached.NewProperty
+import vf.myapidoc.model.cached.doc.NewProperty
 import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.enumeration.PropertyType.AnyProp
 import vf.myapidoc.model.enumeration.PropertyType.AnyProp

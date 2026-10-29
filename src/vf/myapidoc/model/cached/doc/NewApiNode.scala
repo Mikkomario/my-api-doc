@@ -1,4 +1,4 @@
-package vf.myapidoc.model.cached
+package vf.myapidoc.model.cached.doc
 
 import utopia.flow.collection.immutable.Empty
 import utopia.flow.collection.template.MapAccess

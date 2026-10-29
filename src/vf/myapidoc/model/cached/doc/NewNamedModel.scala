@@ -1,8 +1,8 @@
-package vf.myapidoc.model.cached
+package vf.myapidoc.model.cached.doc
 
+import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.generic.model.template.ModelConvertible
-import utopia.flow.generic.casting.ValueConversions._
 
 /**
  * Represents a named object schema that hasn't been stored yet

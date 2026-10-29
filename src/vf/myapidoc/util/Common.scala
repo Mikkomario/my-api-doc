@@ -9,6 +9,7 @@ import utopia.scribe.core.controller.logging.{ConsoleScribe, LazyScribe, Synagog
 import utopia.vault.database.ConnectionPool
 
 import scala.concurrent.ExecutionContext
+import scala.io.Codec
 
 /**
  * Contains commonly used values
@@ -18,6 +19,8 @@ import scala.concurrent.ExecutionContext
 object Common
 {
 	// ATTRIBUTES	--------------------
+	
+	implicit val codec: Codec = Codec.UTF8
 	
 	private val synagogue = new Synagogue()
 	

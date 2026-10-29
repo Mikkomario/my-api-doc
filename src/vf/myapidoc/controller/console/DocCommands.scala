@@ -19,7 +19,7 @@ import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import vf.myapidoc.controller.doc.DocParser
 import vf.myapidoc.database.access.api.AccessApis
 import vf.myapidoc.database.store.ApiDocDb
-import vf.myapidoc.model.cached.{NewApiNodeGroup, NewNamedModel}
+import vf.myapidoc.model.cached.doc.{NewApiNodeGroup, NewNamedModel}
 import vf.myapidoc.model.combined.api.{DetailedApi, DetailedApiNode}
 import vf.myapidoc.util.Common._
 

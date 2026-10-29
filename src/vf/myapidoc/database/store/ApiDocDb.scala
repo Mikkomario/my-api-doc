@@ -31,6 +31,7 @@ import vf.myapidoc.database.access.schema.model.AccessModelSchemas
 import vf.myapidoc.database.storable.api._
 import vf.myapidoc.database.value.DocUpdateId
 import vf.myapidoc.model.cached._
+import vf.myapidoc.model.cached.doc.{NewApiNode, NewApiNodeGroup, NewBodyDefinition, NewMethodImplementation, NewNamedModel, NewProperty}
 import vf.myapidoc.model.combined.api._
 import vf.myapidoc.model.combined.schema.CompleteModelSchema
 import vf.myapidoc.model.partial.api._

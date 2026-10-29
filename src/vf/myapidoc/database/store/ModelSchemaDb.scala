@@ -16,7 +16,7 @@ import vf.myapidoc.database.access.schema.prop.types.AccessAlternativePropertyTy
 import vf.myapidoc.database.access.schema.prop.value.AccessPossiblePropertyValues
 import vf.myapidoc.database.storable.schema.{AlternativePropertyTypeDbModel, ModelSchemaDbModel, PossiblePropertyValueDbModel, PropertySchemaDbModel}
 import vf.myapidoc.database.value.DocUpdateId
-import vf.myapidoc.model.cached.{NewNamedModel, NewProperty}
+import vf.myapidoc.model.cached.doc.{NewNamedModel, NewProperty}
 import vf.myapidoc.model.combined.schema.{CompleteModelSchema, DetailedModelSchema, DetailedPropertySchema}
 import vf.myapidoc.model.enumeration.PropertyType.AnyProp
 import vf.myapidoc.model.partial.schema.{AlternativePropertyTypeData, ModelSchemaData, PossiblePropertyValueData, PropertySchemaData}

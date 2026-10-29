@@ -14,7 +14,9 @@ import utopia.flow.util.EitherExtensions._
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.UncertainBoolean
 import utopia.scribe.core.controller.logging.Scribe
+import vf.myapidoc.controller.MdParser
 import vf.myapidoc.model.cached._
+import vf.myapidoc.model.cached.doc.{NewApiNode, NewApiNodeGroup, NewBodyDefinition, NewMethodImplementation, NewNamedModel, NewProperty}
 import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.enumeration.PropertyType.ModelProp
 import vf.myapidoc.util.Common._
@@ -45,42 +47,16 @@ object DocParser
 	 * @return Parsed API node groups. Failure if file-reading failed.
 	 */
 	def readApiNodesFrom(path: Path, groupHeaderLevel: Int = 2) =
-		Lines.iterate(path) { linesIter =>
-			// Removes links, italic & bold effects, as well as trailing whitespaces from all lines
-			val formattedLinesIter = linesIter.map(MdParser.stripFormattingFrom)
-			val groupsBuilder = OptimizedIndexedSeq.newBuilder[NewApiNodeGroup]
-			
-			// Finds the first header
-			formattedLinesIter.findMap { line =>
-				val headerDepth = line.iterator.takeWhile { _ == '#' }.size
-				if (headerDepth >= groupHeaderLevel) Some(headerDepth -> line.drop(headerDepth).trim) else None
-			} match {
-				case Some((firstHeaderDepth, firstHeader)) =>
-					// Continually parses the content one (node group) section at a time
-					var nextHeaderDepth = firstHeaderDepth
-					var nextHeader = firstHeader
-					while (formattedLinesIter.hasNext) {
-						val (section, stopHeader) = MdParser.nextSection(nextHeader, formattedLinesIter, nextHeaderDepth)
-						
-						// Processes subsections as API node docs and adds this section / group to the builder
-						val (sectionHeader, sectionLines) = section.value
-						groupsBuilder += NewApiNodeGroup(sectionHeader,
-							nodes = section.children.map(processApiNodeFrom),
-							description = sectionLines.dropRightWhile { _.isEmpty }.mkString("\n"))
-						
-						// Prepares to continue to the next group
-						stopHeader.foreach { case (depth, header) =>
-							nextHeader = header
-							nextHeaderDepth = depth
-						}
-					}
-				// Case: No headers found => Logs a warning and closes
-				case None =>
-					import utopia.flow.parse.file.FileExtensions._
-					scribe.in("read.apiNodes.noHeaders").warning("No headers found", Model.from("file" -> path.toJson))
-			}
-			
-			groupsBuilder.result()
+		MdParser.iterateSections(path, groupHeaderLevel, unformat = true) { sectionsIter =>
+			sectionsIter
+				.map { section =>
+					// Processes subsections as API node docs
+					val (sectionHeader, sectionLines) = section.value
+					NewApiNodeGroup(sectionHeader,
+						nodes = section.children.map(processApiNodeFrom),
+						description = sectionLines.dropRightWhile { _.isEmpty }.mkString("\n"))
+				}
+				.toOptimizedSeq
 		}
 	
 	/**

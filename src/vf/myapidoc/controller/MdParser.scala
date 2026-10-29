@@ -1,11 +1,13 @@
-package vf.myapidoc.controller.doc
+package vf.myapidoc.controller
 
 import utopia.flow.collection.CollectionExtensions._
-import utopia.flow.collection.immutable.{Empty, OptimizedIndexedSeq, Single}
 import utopia.flow.collection.immutable.tree.ValueTree
-import utopia.flow.collection.mutable.iterator.PollingIterator
-import utopia.flow.parse.string.Regex
+import utopia.flow.collection.immutable.{Empty, OptimizedIndexedSeq, Single}
+import utopia.flow.collection.mutable.iterator.{OptionsIterator, PollingIterator}
+import utopia.flow.parse.string.{Lines, Regex}
 import utopia.flow.util.StringExtensions._
+
+import java.nio.file.Path
 
 /**
  * Provides functions for parsing Markdown documents
@@ -23,6 +25,59 @@ object MdParser
 	
 	
 	// OTHER -----------------------
+	
+	/**
+	 * Iterates over the sections of a Markdown document
+	 * @param path Targeted document path
+	 * @param targetHeaderDepth Targeted header depth. E.g. if 2 (default),
+	 *                          'f' will receive sections of level 2 (i.e. those starting with ##)
+	 *                          and level 1 header(s) will be ignored.
+	 * @param unformat Whether to remove italic & bold effects, trailing whitespaces, and links from all lines.
+	 *                 Default = false.
+	 * @param f A function that receives an iterator of the targeted sections.
+	 *          Each section is represented using a [[ValueTree]], where values consist of 2 parts:
+	 *          1. Section header
+	 *          1. Section lines (not including subsections)
+	 *
+	 *          The child nodes contain the subsections.
+	 * @tparam A Type of 'f' results
+	 * @return 'f' results. Failure if file-reading failed or if no target headers were found.
+	 */
+	def iterateSections[A](path: Path, targetHeaderDepth: Int = 2, unformat: Boolean = false)(f: Iterator[ValueTree[(String, Seq[String])]] => A) =
+		Lines.iterate(path) { linesIter =>
+			// Removes links, italic & bold effects, as well as trailing whitespaces from all lines (optional)
+			val formattedLinesIter = if (unformat) linesIter.map(MdParser.stripFormattingFrom) else linesIter
+			
+			// Finds the first header
+			formattedLinesIter.findMap { line =>
+				val headerDepth = line.iterator.takeWhile { _ == '#' }.size
+				if (headerDepth >= targetHeaderDepth) Some(headerDepth -> line.drop(headerDepth).trim) else None
+			} match {
+				case Some((firstHeaderDepth, firstHeader)) =>
+					// Iterates over the target headers / sections and passes the iterator to the user-provided function
+					var nextHeaderDepth = firstHeaderDepth
+					var nextHeader = firstHeader
+					f(OptionsIterator.continually {
+						if (formattedLinesIter.hasNext) {
+							val (section, stopHeader) = MdParser.nextSection(nextHeader, formattedLinesIter,
+								nextHeaderDepth)
+							
+							// Prepares to continue to the next group
+							stopHeader.foreach { case (depth, header) =>
+								nextHeader = header
+								nextHeaderDepth = depth
+							}
+							
+							Some(section)
+						}
+						else
+							None
+					})
+					
+				// Case: No headers found => Fails
+				case None => throw new IllegalArgumentException("No target headers found")
+			}
+		}
 	
 	/**
 	 * Converts lines into MD sections
