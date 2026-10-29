@@ -1,7 +1,15 @@
-package vf.myapidoc.model.cached.testing.instruction
+package vf.myapidoc.model.cached.testing.evaluation
 
 import utopia.flow.generic.model.immutable.Value
+import utopia.flow.generic.casting.ValueConversions._
 import vf.myapidoc.controller.testing.TestContext
+
+object HardCodedValue
+{
+	val empty = HardCodedValue(Value.empty)
+	val trueValue = HardCodedValue(true)
+	val falseValue = HardCodedValue(false)
+}
 
 /**
  * Used for passing hard-coded values to test instructions

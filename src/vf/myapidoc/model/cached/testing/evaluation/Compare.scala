@@ -1,10 +1,10 @@
-package vf.myapidoc.model.cached.testing.instruction
+package vf.myapidoc.model.cached.testing.evaluation
 
 import utopia.flow.collection.immutable.Pair
-import utopia.flow.generic.model.immutable.Value
 import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Value
 import vf.myapidoc.controller.testing.TestContext
-import vf.myapidoc.model.cached.testing.instruction.ComparisonOperator.Equality
+import vf.myapidoc.model.cached.testing.evaluation.ComparisonOperator.Equality
 
 /**
  * Compares two values with each other

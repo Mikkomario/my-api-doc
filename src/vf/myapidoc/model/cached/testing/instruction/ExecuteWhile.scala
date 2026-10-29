@@ -1,6 +1,7 @@
 package vf.myapidoc.model.cached.testing.instruction
 
 import vf.myapidoc.controller.testing.TestContext
+import vf.myapidoc.model.cached.testing.evaluation.TestEvaluation
 import vf.myapidoc.model.error.TestFailedException
 
 /**

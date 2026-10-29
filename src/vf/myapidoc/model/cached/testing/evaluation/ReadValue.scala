@@ -1,4 +1,4 @@
-package vf.myapidoc.model.cached.testing.instruction
+package vf.myapidoc.model.cached.testing.evaluation
 
 import utopia.flow.generic.model.immutable.Value
 import vf.myapidoc.controller.testing.TestContext
