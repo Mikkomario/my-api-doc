@@ -2,7 +2,6 @@ package vf.myapidoc.database.access.schema.prop
 
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, HasValues}
 import utopia.vault.nosql.targeting.many._
-import utopia.vault.nosql.targeting.many.{AccessManyDeprecatingRoot, AccessRowsWrapper, AccessWrapper, DeprecatingWrapRowAccess, TargetingMany, TargetingManyLike, TargetingManyRows, TargetingTimeline, WrapOneToManyAccess}
 import utopia.vault.nosql.targeting.one.TargetingOne
 import vf.myapidoc.database.access.schema.model.FilterByModelSchema
 import vf.myapidoc.database.reader.schema.PropertySchemaDbReader
@@ -39,11 +38,7 @@ abstract class AccessPropertySchemas[A, +Repr <: TargetingManyLike[_, Repr, _]](
 	
 	override lazy val values = AccessPropertySchemaValues(wrapped)
 	
-	lazy val joinActiveModels = {
-		val modelModel = ModelSchemaDbModel
-		join(modelModel.table.onlyJoinIf(modelModel.activeCondition))
-	}
-	
+	lazy val joinActiveModels = join(ModelSchemaDbModel.toActiveJoin)
 	lazy val whereActiveModels = FilterByModelSchema(joinActiveModels)
 }
 
@@ -62,7 +57,6 @@ case class AccessPropertySchemaRows[A](wrapped: TargetingManyRows[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingManyRows[A]) = AccessPropertySchemaRows(newTarget)
-	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessPropertySchema(target)
 }
 
@@ -81,7 +75,6 @@ case class AccessCombinedPropertySchemas[A](wrapped: TargetingMany[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingMany[A]) = AccessCombinedPropertySchemas(newTarget)
-	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = AccessPropertySchema(target)
 }
 

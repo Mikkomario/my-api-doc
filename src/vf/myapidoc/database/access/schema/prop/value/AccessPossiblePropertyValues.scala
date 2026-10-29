@@ -1,10 +1,11 @@
 package vf.myapidoc.database.access.schema.prop.value
 
 import utopia.vault.nosql.targeting.columns.{AccessManyColumns, HasValues}
-import utopia.vault.nosql.targeting.many.{AccessManyDeprecatingRoot, AccessRowsWrapper, AccessWrapper, DeprecatingWrapRowAccess, TargetingMany, TargetingManyLike, TargetingManyRows, TargetingTimeline, WrapOneToManyAccess}
+import utopia.vault.nosql.targeting.many._
 import utopia.vault.nosql.targeting.one.TargetingOne
+import vf.myapidoc.database.access.schema.model.FilterByModelSchema
 import vf.myapidoc.database.reader.schema.PossiblePropertyValueDbReader
-import vf.myapidoc.database.storable.schema.PossiblePropertyValueDbModel
+import vf.myapidoc.database.storable.schema.{ModelSchemaDbModel, PossiblePropertyValueDbModel, PropertySchemaDbModel}
 import vf.myapidoc.model.stored.schema.PossiblePropertyValue
 
 object AccessPossiblePropertyValues 
@@ -29,14 +30,18 @@ object AccessPossiblePropertyValues
   * @author Mikko Hilpinen
   * @since 26.10.2026, v0.1
   */
-abstract class AccessPossiblePropertyValues[A, +Repr <: TargetingManyLike[_, Repr, 
-	_]](wrapped: AccessManyColumns) 
+abstract class AccessPossiblePropertyValues[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
 	extends TargetingManyLike[A, Repr, AccessPossiblePropertyValue[A]]
 		with HasValues[AccessPossiblePropertyValueValueValues] with FilterPossiblePropertyValues[Repr]
 {
 	// ATTRIBUTES	--------------------
 	
 	override lazy val values = AccessPossiblePropertyValueValueValues(wrapped)
+	
+	lazy val joinActiveProperties = join(PropertySchemaDbModel.toActiveJoin)
+	
+	lazy val joinActiveModels = joinActiveProperties.join(ModelSchemaDbModel.toActiveJoin)
+	lazy val whereActiveModels = FilterByModelSchema(joinActiveModels)
 }
 
 /**
@@ -54,7 +59,6 @@ case class AccessPossiblePropertyValueRows[A](wrapped: TargetingManyRows[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingManyRows[A]) = AccessPossiblePropertyValueRows(newTarget)
-	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = 
 		AccessPossiblePropertyValue(target)
 }
@@ -75,7 +79,6 @@ case class AccessCombinedPossiblePropertyValues[A](wrapped: TargetingMany[A])
 	override def self = this
 	
 	override protected def wrap(newTarget: TargetingMany[A]) = AccessCombinedPossiblePropertyValues(newTarget)
-	
 	override protected def wrapUniqueTarget(target: TargetingOne[Option[A]]) = 
 		AccessPossiblePropertyValue(target)
 }

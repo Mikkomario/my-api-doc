@@ -45,11 +45,12 @@ object ModelSchemaDb
 	 * @param connection Implicit DB connection
 	 * @return All models in the specified API
 	 */
-	// FIXME: Doesn't include nested models
 	def pullApiModels(apiId: Int)(implicit connection: Connection) =
 		combine(remainingModels = AccessModelSchemas.active.inApi(apiId).pull, completedModelsById = Map(),
 			rawProps = AccessPropertySchemas.active.whereActiveModels.inApi(apiId).pullAndGroupBy { _.modelTypeId },
 			propAltTypes = AccessAlternativePropertyTypes.active.whereActiveModels.inApi(apiId)
+				.pullAndGroupBy { _.propId },
+			possiblePropValues = AccessPossiblePropertyValues.active.whereActiveModels.inApi(apiId)
 				.pullAndGroupBy { _.propId })
 			.toOptimizedSeq
 	
@@ -363,7 +364,7 @@ object ModelSchemaDb
 	{
 		// Inserts the property to the DB
 		val stored = PropertySchemaDbModel.insert(PropertySchemaData(originalUpdateId = update.connectedValue,
-			modelTypeId = modelId, name = property.name, dataType = property.dataTypes.headOption.getOrElse(AnyProp),
+			modelTypeId = modelId, name = property.name, dataType = property.primaryType,
 			contentTypeId = contentTypeId, description = property.description, isArray = property.isArray,
 			isOptional = property.isOptional))
 		
@@ -383,7 +384,8 @@ object ModelSchemaDb
 	
 	private def combine(remainingModels: IterableOnce[ModelSchema], completedModelsById: Map[Int, DetailedModelSchema],
 	                    rawProps: Map[Int, Seq[StoredPropertySchema]],
-	                    propAltTypes: Map[Int, Seq[AlternativePropertyType]]): scala.collection.View[DetailedModelSchema] =
+	                    propAltTypes: Map[Int, Seq[AlternativePropertyType]],
+	                    possiblePropValues: Map[Int, Seq[PossiblePropertyValue]]): scala.collection.View[DetailedModelSchema] =
 	{
 		// Attempts to combine as many models as possible
 		val (delayedModels, completedModels) = remainingModels.divideWith { model =>
@@ -393,10 +395,11 @@ object ModelSchemaDb
 			props.findForAll { prop =>
 				// Case: Self-referential property => Omits the content type
 				if (prop.contentTypeId.contains(model.id))
-					Some(DetailedPropertySchema(prop.id, prop.data, altTypes = propAltTypes(prop.id)))
+					Some(DetailedPropertySchema(prop.id, prop.data, altTypes = propAltTypes(prop.id),
+						possibleValues = possiblePropValues(prop.id)))
 				else if (prop.contentTypeId.forall(completedModelsById.contains))
 					Some(DetailedPropertySchema(prop.id, prop.data, prop.contentTypeId.map(completedModelsById),
-						propAltTypes(prop.id)))
+						propAltTypes(prop.id), possibleValues = possiblePropValues(prop.id)))
 				else
 					None
 			} match {
@@ -436,7 +439,8 @@ object ModelSchemaDb
 		// Case: Some models remained incomplete => Continues using recursion
 		else {
 			val nowCompletedModelsById = completedModelsById ++ completedModels.iterator.map { m => m.id -> m }
-			completedModels.view ++ combine(delayedModels, nowCompletedModelsById, rawProps, propAltTypes)
+			completedModels.view ++ combine(delayedModels, nowCompletedModelsById, rawProps, propAltTypes,
+				possiblePropValues)
 		}
 	}
 	

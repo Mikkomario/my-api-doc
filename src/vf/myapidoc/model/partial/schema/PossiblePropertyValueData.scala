@@ -4,12 +4,11 @@ import utopia.flow.collection.immutable.Single
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.factory.FromModelFactoryWithSchema
 import utopia.flow.generic.model.immutable.{Model, ModelDeclaration, PropertyDeclaration}
-import utopia.flow.generic.model.mutable.DataType.{InstantType, IntType, StringType}
-import utopia.flow.generic.model.template.ModelConvertible
+import utopia.flow.generic.model.mutable.DataType.{IntType, StringType}
+import utopia.flow.util.StringExtensions._
 import vf.myapidoc.model.factory.schema.PossiblePropertyValueFactory
 import vf.myapidoc.model.partial.api.{VersionedDocElementData, VersionedDocElementDataLike}
-
-import java.time.Instant
+import vf.myapidoc.model.template.ClientModelConvertible
 
 object PossiblePropertyValueData extends FromModelFactoryWithSchema[PossiblePropertyValueData]
 {
@@ -40,17 +39,19 @@ object PossiblePropertyValueData extends FromModelFactoryWithSchema[PossibleProp
   * @author Mikko Hilpinen
   * @since 26.10.2026, v0.1
   */
-case class PossiblePropertyValueData(originalUpdateId: Int, propId: Int, value: String, 
-	removingUpdateId: Option[Int] = None, description: String = "") 
+case class PossiblePropertyValueData(originalUpdateId: Int, propId: Int, value: String,
+                                     removingUpdateId: Option[Int] = None, description: String = "")
 	extends PossiblePropertyValueFactory[PossiblePropertyValueData] with VersionedDocElementData 
-		with VersionedDocElementDataLike[PossiblePropertyValueData]
+		with VersionedDocElementDataLike[PossiblePropertyValueData] with ClientModelConvertible
 {
 	// IMPLEMENTED	--------------------
 	
 	override def toModel = super[VersionedDocElementData].toModel ++ Model(Vector("propId" -> propId, "value" -> value,
 		"description" -> description))
+	override def toClientModel: Model = Model.from("value" -> value.notSurroundedWith("\""),
+		"description" -> description)
 	
-	override def copyVersionedDocElement(originalUpdateId: Int, removingUpdateId: Option[Int]) = 
+	override def copyVersionedDocElement(originalUpdateId: Int, removingUpdateId: Option[Int]) =
 		copy(originalUpdateId = originalUpdateId, removingUpdateId = removingUpdateId)
 	
 	override def withDescription(description: String) = copy(description = description)

@@ -89,8 +89,7 @@ case class PropertySchemaData(originalUpdateId: Int, modelTypeId: Int, removingU
 	// OTHER    ---------------------------
 	
 	def ~==(update: NewProperty) =
-		isArray == update.isArray && isOptional == update.isOptional &&
-			dataType == update.dataTypes.headOption.getOrElse(AnyProp)
+		isArray == update.isArray && isOptional == update.isOptional && dataType == update.primaryType
 	/**
 	 * Checks whether this schema conflicts with the specified property update.
 	 * Assumes that property names are an exact match.

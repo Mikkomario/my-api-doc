@@ -8,7 +8,7 @@ import utopia.flow.util.UncertainBoolean.CertainlyTrue
 import vf.myapidoc.model.factory.schema.PropertySchemaFactoryWrapper
 import vf.myapidoc.model.partial.schema.PropertySchemaData
 import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
-import vf.myapidoc.model.stored.schema.{AlternativePropertyType, StoredPropertySchema}
+import vf.myapidoc.model.stored.schema.{AlternativePropertyType, PossiblePropertyValue, StoredPropertySchema}
 import vf.myapidoc.model.template.ClientModelConvertible
 
 /**
@@ -17,11 +17,13 @@ import vf.myapidoc.model.template.ClientModelConvertible
  * @param data Wrapped property data
  * @param contentType A type representing the contained object / model, if applicable
  * @param altTypes Alternative accepted content types / data types
+ * @param possibleValues Possible values for this property (if an enumeration)
  * @author Mikko Hilpinen
  * @since 23.10.2026, v0.1
  */
 case class DetailedPropertySchema(id: Int, data: PropertySchemaData, contentType: Option[DetailedModelSchema] = None,
-                                  altTypes: Seq[AlternativePropertyType] = Empty)
+                                  altTypes: Seq[AlternativePropertyType] = Empty,
+                                  possibleValues: Seq[PossiblePropertyValue] = Empty)
 	extends StoredPropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, DetailedPropertySchema]
 		with ClientModelConvertible with StoredVersionedDocElementLike[PropertySchemaData, DetailedPropertySchema]
 {
@@ -40,7 +42,8 @@ case class DetailedPropertySchema(id: Int, data: PropertySchemaData, contentType
 				case _ => Empty
 			},
 			if (data.isOptional) Single("optional" -> true) else Empty,
-			Pair("description" -> data.description, "content" -> contentType.map { _.toClientModel })
+			Pair("description" -> data.description, "content" -> contentType.map { _.toClientModel }),
+			if (possibleValues.isEmpty) Empty else Single("possibleValues" -> possibleValues.map { _.toClientModel })
 		))
 		.withoutEmptyValues
 	

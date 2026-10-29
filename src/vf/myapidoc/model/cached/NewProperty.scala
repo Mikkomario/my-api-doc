@@ -8,6 +8,7 @@ import utopia.flow.generic.model.template.ModelConvertible
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.UncertainBoolean
 import vf.myapidoc.model.enumeration.PropertyType
+import vf.myapidoc.model.enumeration.PropertyType.{AnyProp, ModelProp}
 
 /**
  * Represents a property that hasn't been stored yet
@@ -29,6 +30,16 @@ case class NewProperty(name: String, dataTypes: Seq[PropertyType] = Empty, refer
                        isOptional: Boolean = false, isArray: UncertainBoolean = false)
 	extends Tree with TreeLike[NewProperty] with ModelConvertible
 {
+	// ATTRIBUTES   -------------------------
+	
+	/**
+	 * Primary type of this property
+	 */
+	val primaryType = dataTypes.headOption.getOrElse {
+		if (referencedType.nonEmpty || children.nonEmpty) ModelProp else AnyProp
+	}
+	
+	
 	// COMPUTED -----------------------------
 	
 	/**
