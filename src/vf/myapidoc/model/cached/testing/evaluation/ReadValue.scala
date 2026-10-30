@@ -12,5 +12,7 @@ case class ReadValue(key: String) extends TestEvaluation
 {
 	override def toString = s"`$key`"
 	
+	override def sensitive(implicit context: TestContext): Boolean = context.isSensitive(key)
+	
 	override def run()(implicit context: TestContext): Value = context(key)
 }

@@ -12,13 +12,17 @@ import scala.io.StdIn
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-case class PromptForValue(prompt: String, sensitive: Boolean = false) extends TestEvaluation
+case class PromptForValue(prompt: String, hide: Boolean = false) extends TestEvaluation
 {
+	// IMPLEMENTED  ----------------------
+	
 	override def toString = s"prompt: \"$prompt\""
+	
+	override def sensitive(implicit context: TestContext): Boolean = hide
 	
 	override def run()(implicit context: TestContext): Value = StdIn.readNonEmptyLine(prompt) match {
 		case Some(input) =>
-			context.log(s"User passed `${ if (sensitive) input.map { _ => '*' } else input }`")
+			context.log(s"User passed `${ if (hide) input.map { _ => '*' } else input }`")
 			jsonParser.valueOf(input)
 			
 		case None =>

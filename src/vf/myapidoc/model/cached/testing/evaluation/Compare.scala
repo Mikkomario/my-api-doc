@@ -13,6 +13,10 @@ import vf.myapidoc.model.cached.testing.evaluation.ComparisonOperator.Equality
  */
 case class Compare(values: Pair[TestEvaluation], operator: ComparisonOperator = Equality) extends TestEvaluation
 {
+	// IMPLEMENTED  -------------------
+	
+	override def sensitive(implicit context: TestContext): Boolean = values.exists { _.sensitive }
+	
 	override def toString = s"${ values.first } $operator ${ values.second }"
 	
 	override def run()(implicit context: TestContext): Value = operator(values.map { _.run() })

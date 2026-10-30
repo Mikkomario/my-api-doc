@@ -13,6 +13,8 @@ case class ReadProperty(from: TestEvaluation, key: String) extends TestEvaluatio
 {
 	override def toString = s"$from.$key"
 	
+	override def sensitive(implicit context: TestContext): Boolean = from.sensitive || context.isSensitive(key)
+	
 	override def run()(implicit context: TestContext): Value = {
 		val origin = from.run()
 		// By default, looks for a model property value

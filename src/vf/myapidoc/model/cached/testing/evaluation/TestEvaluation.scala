@@ -13,6 +13,12 @@ trait TestEvaluation
 	// ABSTRACT -----------------------
 	
 	/**
+	 * @param context Applicable context
+	 * @return Whether this evaluation yields sensitive information
+	 */
+	def sensitive(implicit context: TestContext): Boolean
+	
+	/**
 	 * Executes this evaluation
 	 * @param context Implicit test context
 	 * @return Evaluation result as a value

@@ -12,5 +12,22 @@ case class Assign(key: String, getValue: TestEvaluation) extends TestInstruction
 {
 	override def toString = s"$key = $getValue"
 	
-	override def execute()(implicit context: TestContext) = context(key) = getValue.run()
+	override def execute()(implicit context: TestContext) = {
+		// Acquires the value to assign
+		val value = getValue.run()
+		// May mark the key as sensitive, depending on how the value was acquired
+		if (getValue.sensitive)
+			context.markSensitive(key)
+		// Stores the value
+		context(key) = value
+		
+		// Logs
+		val valueStr = {
+			if (context.isSensitive(key))
+				"<omitted>"
+			else
+				value.toJson
+		}
+		context.log(s"$key = `$getValue` = $valueStr")
+	}
 }

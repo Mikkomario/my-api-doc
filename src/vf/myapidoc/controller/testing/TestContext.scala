@@ -6,6 +6,7 @@ import utopia.access.model.enumeration.{Method, Status}
 import utopia.disciple.controller.Gateway
 import utopia.disciple.controller.parse.ResponseParser
 import utopia.disciple.model.request.{Request, StringBody, Timeout}
+import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
@@ -139,20 +140,63 @@ class TestContext(apiRootUrl: String, tests: Seq[(String, TestInstruction)] = Em
 	 * @param key A key
 	 * @return Current value assigned to the specified key
 	 */
-	def apply(key: String) = state(key)
+	def apply(key: String) = key.split(Regex.dot).oneOrMany match {
+		case Left(key) => state(key)
+		case Right(path) => nested(path)
+	}
+	/**
+	 * @param path A path to the targeted property
+	 * @return Currently assigned value in the targeted property
+	 */
+	def nested(path: IterableOnce[String]) = state.nested(path)
 	/**
 	 * Updates a context value
 	 * @param key Targeted key
 	 * @param value New value to assign
 	 */
-	def update(key: String, value: Value) = state(key) = value
+	def update(key: String, value: Value): Unit = key.split(Regex.dot).oneOrMany match {
+		case Left(key) => state(key) = value
+		case Right(path) => update(path, value)
+	}
+	/**
+	 * Updates a possibly nested context value
+	 * @param path Path to the targeted value. E.g. ["body", "property"]
+	 * @param value Value to assign to the end of that path
+	 * @throws IllegalArgumentException If 'path' is empty
+	*/
+	@throws[IllegalArgumentException]("If targeting an empty path")
+	def update(path: IterableOnce[String], value: Value): Unit = {
+		val pathIter = path.iterator
+		if (pathIter.hasNext) {
+			val primaryKey = pathIter.next()
+			// Case: Targeting a nested value => Modifies or creates a model value
+			if (pathIter.hasNext)
+				state(primaryKey) = state(primaryKey).getModel.withNestedValue(pathIter, value)
+			// Case: Targeting a direct value => Assigns the new value to this context directly
+			else
+				update(primaryKey, value)
+		}
+		else
+			throw new IllegalArgumentException("Path must contain at least one element")
+	}
 	
+	/**
+	 * @param key A key
+	 * @return Whether the specified key should be considered sensitive
+	 */
+	def isSensitive(key: String) = sensitiveKeys.contains(key.toLowerCase)
 	/**
 	 * Marks a key as sensitive. Sensitive values are not logged.
 	 * @param key Key that should be considered sensitive.
 	 */
-	def markSensitive(key: String): Unit = sensitiveKeys += key
+	def markSensitive(key: String): Unit = sensitiveKeys += key.toLowerCase
 	
+	/**
+	 * Updates the authorization method used in future requests to use basic authorization
+	 * @param user User
+	 * @param password Password
+	 */
+	def setBasicAuth(user: String, password: String) = authP.value = Left(user -> password)
 	/**
 	 * Updates the authorization method used in future requests
 	 * @param auth Authorization method to use (a bearer token or a user-password combo separated using '+')
@@ -227,13 +271,13 @@ class TestContext(apiRootUrl: String, tests: Seq[(String, TestInstruction)] = Em
 	 */
 	def run(test: String): Unit = tests.find { _._1 ~== test } match {
 		case Some((testName, testCode)) =>
-			log(s"\nRunning $testName")
+			log(s"\nrun($testName):")
 			testCode.execute()(this)
-			log(s"$testName completed")
+			log(s"$testName completed\n")
 			
 		case None =>
 			val message = s"Attempted to run a non-existing test: $test"
-			log(message)
+			log(s"Failure: $message")
 			throw new TestFailedException(message)
 	}
 	
@@ -257,7 +301,7 @@ class TestContext(apiRootUrl: String, tests: Seq[(String, TestInstruction)] = Em
 					}
 				} }
 				.mkString
-			// Case: Targeting an API node => Resolves the documented path parameters
+		// Case: Targeting an API node => Resolves the documented path parameters
 		case Right(node) =>
 			node.pathParams.foldLeft(node.absolutePath) { (path, param) =>
 				apply(param.name).tryString match {
