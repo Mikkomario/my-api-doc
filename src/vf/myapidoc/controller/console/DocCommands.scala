@@ -39,18 +39,7 @@ object DocCommands extends Extender[(String, Seq[Command])]
 	
 	private val printC = Command("print", help = "Prints API documentation as JSON")(
 		ArgumentSchema("api-name", "name", help = "Name of the targeted API", defaultDescription = "Select")) { args =>
-		cPool.logging { implicit c =>
-			val options = args("api-name").string match {
-				case Some(name) => AccessApis.withNameContaining(name).pull.bestMatch { _.name ~== name }
-				case None => AccessApis.pull
-			}
-			options.only
-				.orElse {
-					println("Which API did you mean?")
-					StdIn.selectFrom(options.map { api => api -> api.name })
-				}
-				.foreach { api => printApiDoc(ApiDocDb.pullDetailsFor(api)) }
-		}
+		cPool.logging { implicit c => resolveApi(args("api-name")) }.flatten.foreach(printApiDoc)
 	}
 	/**
 	 * A console command for updating API documentation from md files.

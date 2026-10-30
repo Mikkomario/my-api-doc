@@ -25,7 +25,7 @@ import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.model.enumeration.Severity
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import vf.myapidoc.controller.testing.TestContext.{TestScribe, pathParamR}
-import vf.myapidoc.model.cached.testing.instruction.TestInstruction
+import vf.myapidoc.model.cached.testing.Test
 import vf.myapidoc.model.combined.api.DetailedApiNode
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.error.TestFailedException
@@ -85,7 +85,7 @@ object TestContext
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-class TestContext(apiRootUrl: String, tests: Seq[(String, TestInstruction)] = Empty)
+class TestContext(apiRootUrl: String, tests: Iterable[Test] = Empty)
 {
 	// ATTRIBUTES   --------------------------
 	
@@ -266,14 +266,14 @@ class TestContext(apiRootUrl: String, tests: Seq[(String, TestInstruction)] = Em
 	}
 	
 	/**
-	 * Runs a named test
+	 * Runs a named test (inside another test)
 	 * @param test Name of the test to run
 	 */
-	def run(test: String): Unit = tests.find { _._1 ~== test } match {
-		case Some((testName, testCode)) =>
-			log(s"\nrun($testName):")
-			testCode.execute()(this)
-			log(s"$testName completed\n")
+	def run(test: String): Unit = tests.find { _.name ~== test } match {
+		case Some(test) =>
+			log(s"Calling test ${ test.name }")
+			if (!test.run()(this))
+				throw new TestFailedException(s"Test ${ test.name } failed")
 			
 		case None =>
 			val message = s"Attempted to run a non-existing test: $test"
