@@ -1,8 +1,21 @@
 package vf.myapidoc.model.cached.testing.instruction
 
-import utopia.flow.collection.immutable.{Pair, Single}
+import utopia.flow.collection.immutable.{OptimizedIndexedSeq, Pair, Single}
+import utopia.flow.collection.CollectionExtensions._
 import vf.myapidoc.controller.testing.TestContext
 import vf.myapidoc.model.error.TestFailedException
+
+object TestInstruction
+{
+	/**
+	 * @return A builder for building an instruction from possibly multiple lines.
+	 */
+	def newBuilder =
+		OptimizedIndexedSeq.newBuilder[TestInstruction].mapResult { _.emptyOneOrMany.map {
+			case Left(line) => line
+			case Right(lines) => ExecuteAll(lines)
+		} }
+}
 
 /**
  * Common trait for test code blocks / instructions
