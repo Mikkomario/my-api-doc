@@ -8,6 +8,7 @@ import utopia.flow.util.logging.SysErrLogger
 import utopia.scribe.core.controller.logging.{ConsoleScribe, LazyScribe, Synagogue}
 import utopia.vault.database.ConnectionPool
 
+import java.nio.file.Path
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
 
@@ -30,6 +31,15 @@ object Common
 	
 	implicit val cPool: ConnectionPool = new ConnectionPool()
 	val dbName = "my_api_doc_db"
+	
+	/**
+	 * Directory that contains the application data
+	 */
+	val dataDirectory: Path = "data"
+	/**
+	 * Directory that contains generated examples
+	 */
+	val examplesDirectory = dataDirectory / "examples"
 	
 	
 	// INITAL CODE  --------------------

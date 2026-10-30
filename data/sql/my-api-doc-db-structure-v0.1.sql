@@ -1,7 +1,7 @@
 -- 
 -- Database structure for my api doc models
 -- Version: v0.1
--- Last generated: 2026-10-28
+-- Last generated: 2026-10-30
 --
 
 CREATE DATABASE IF NOT EXISTS `my_api_doc_db` 
@@ -404,5 +404,37 @@ CREATE TABLE `additional_node_auth_scope_requirement`(
 	`scope_id` INT NOT NULL, 
 	CONSTRAINT anasr_nasl_scope_link_ref_fk FOREIGN KEY anasr_nasl_scope_link_ref_idx (scope_link_id) REFERENCES `node_auth_scope_link`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT anasr_s_scope_ref_fk FOREIGN KEY anasr_s_scope_ref_idx (scope_id) REFERENCES `scope`(`id`) ON DELETE CASCADE
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+
+--	Example	----------
+
+-- Represents a response received from a tested API
+-- tested_api_version_id: ID of the tested API (document) version
+-- status_id:             ID of the response (status) documentation entry that matches the received response
+-- relative_file_path:    Path to the file where the response body is stored. Relative to the examples directory.
+-- created:               Time when this example response was added to the database
+CREATE TABLE `example_response`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`tested_api_version_id` INT NOT NULL, 
+	`status_id` INT NOT NULL, 
+	`relative_file_path` VARCHAR(255), 
+	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	INDEX er_created_idx (`created`), 
+	CONSTRAINT er_du_tested_api_version_ref_fk FOREIGN KEY er_du_tested_api_version_ref_idx (tested_api_version_id) REFERENCES `doc_update`(`id`) ON DELETE CASCADE, 
+	CONSTRAINT er_prs_status_ref_fk FOREIGN KEY er_prs_status_ref_idx (status_id) REFERENCES `possible_response_status`(`id`) ON DELETE CASCADE
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+-- Documents a single property value received from a tested API
+-- response_id: ID of the response that contained this value
+-- prop_id:     ID of the property schema that matches the received property
+-- value:       Received property value
+CREATE TABLE `example_property_value`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`response_id` INT NOT NULL, 
+	`prop_id` INT NOT NULL, 
+	`value` VARCHAR(255), 
+	CONSTRAINT epv_er_response_ref_fk FOREIGN KEY epv_er_response_ref_idx (response_id) REFERENCES `example_response`(`id`) ON DELETE CASCADE, 
+	CONSTRAINT epv_ps_prop_ref_fk FOREIGN KEY epv_ps_prop_ref_idx (prop_id) REFERENCES `property_schema`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 

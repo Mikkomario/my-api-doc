@@ -116,6 +116,16 @@ object MyApiDocTables extends Tables(cPool)
 	  */
 	lazy val scope = apply("scope")
 	
+	/**
+	 * Table that contains example property values (Documents a single property value received from
+	 * a tested API)
+	 */
+	lazy val examplePropertyValue = apply("example_property_value")
+	/**
+	 * Table that contains example responses (Represents a response received from a tested API)
+	 */
+	lazy val exampleResponse = apply("example_response")
+	
 	
 	// OTHER	--------------------
 	

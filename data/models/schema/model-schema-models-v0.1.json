@@ -41,6 +41,14 @@
     "doc": "Defines an individual property in a model schema.",
     "stored": true,
     "has_combos": true,
+    "combo": {
+      "name": "PropertyExample",
+      "children": "ExamplePropertyValue",
+      "parent_alias": "prop",
+      "child_alias": "example",
+      "children_alias": "examples",
+      "doc": "Includes value examples with a property schema"
+    },
     "props": [
       {
         "name": "modelTypeId",

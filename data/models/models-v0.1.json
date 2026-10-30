@@ -78,6 +78,7 @@
   "classes": {
     "schema": "schema",
     "api": "api",
-    "auth": "auth"
+    "auth": "auth",
+    "example": "test-results"
   }
 }

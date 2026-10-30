@@ -1,0 +1,55 @@
+[
+  {
+    "name": "ExampleResponse",
+    "access": "response",
+    "doc": "Represents a response received from a tested API",
+    "props": [
+      {
+        "name": "testedApiVersionId",
+        "ref": "doc_update",
+        "with": "fromApiVersion",
+        "doc": "ID of the tested API (document) version"
+      },
+      {
+        "name": "statusId",
+        "ref": "possible_response_status",
+        "with": "matchingStatus",
+        "in": "matchingStatuses",
+        "doc": "ID of the response (status) documentation entry that matches the received response"
+      },
+      {
+        "name": "relativeFilePath",
+        "type": "Path",
+        "doc": "Path to the file where the response body is stored. Relative to the examples directory."
+      },
+      {
+        "type": "creation"
+      }
+    ]
+  },
+  {
+    "name": "ExamplePropertyValue",
+    "access": "prop",
+    "doc": "Documents a single property value received from a tested API",
+    "props": [
+      {
+        "name": "responseId",
+        "ref": "example_response",
+        "with": "inResponse",
+        "doc": "ID of the response that contained this value"
+      },
+      {
+        "name": "propId",
+        "ref": "property_schema",
+        "with": "ofProperty",
+        "in": "ofProperties",
+        "doc": "ID of the property schema that matches the received property"
+      },
+      {
+        "name": "value",
+        "type": "Value",
+        "doc": "Received property value"
+      }
+    ]
+  }
+]
