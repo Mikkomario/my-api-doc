@@ -2,6 +2,7 @@ package vf.myapidoc.model.combined.schema
 
 import vf.myapidoc.model.factory.schema.PropertySchemaFactoryWrapper
 import vf.myapidoc.model.partial.schema.PropertySchemaData
+import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 import vf.myapidoc.model.stored.example.ExamplePropertyValue
 import vf.myapidoc.model.stored.schema.StoredPropertySchema
 
@@ -52,6 +53,7 @@ object PropertyExample
   */
 trait PropertyExample 
 	extends StoredPropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, PropertyExample]
+		with StoredVersionedDocElementLike[PropertySchemaData, PropertyExample]
 {
 	// ABSTRACT	--------------------
 	

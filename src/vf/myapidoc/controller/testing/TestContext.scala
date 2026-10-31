@@ -25,6 +25,8 @@ import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.model.enumeration.Severity
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import vf.myapidoc.controller.testing.TestContext.{TestScribe, pathParamR}
+import vf.myapidoc.database.store.ExamplesDb
+import vf.myapidoc.database.value.DocUpdateId
 import vf.myapidoc.model.cached.testing.Test
 import vf.myapidoc.model.combined.api.DetailedApiNode
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
@@ -85,11 +87,12 @@ object TestContext
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-class TestContext(apiRootUrl: String, tests: Iterable[Test] = Empty)
+class TestContext(apiId: Int, apiRootUrl: String, tests: Iterable[Test] = Empty)
 {
 	// ATTRIBUTES   --------------------------
 	
-	private val eventLog = newScribe("testing.Context.writer").use { implicit scribe =>
+	private val altScribe = newScribe("testing.Context")
+	private val eventLog = altScribe.in("writer").use { implicit scribe =>
 		KeptOpenWriter(30.seconds).logging.to(Paths.get(s"log/test-runs/$Today-run-1.txt").unique)
 	}
 	/**
@@ -224,33 +227,28 @@ class TestContext(apiRootUrl: String, tests: Iterable[Test] = Empty)
 			else
 				resolveBody(pathOrNode, method)
 		}
-		log(s"Sending $method $path${ if (body.isEmpty) "" else " including a body" }")
+		log(s"Sending $method $path")
+		logBody(body)
 		val startTime = Now.toInstant
+		// Executes the request
 		gateway
 			.makeBlockingRequest(
 				Request(s"$apiRootUrl${ path.startingWith("/") }", method,
 					body = if (body.isEmpty) None else Some(StringBody.json(body.toJson)), headers = headersP.value)) {
 				response =>
+					// Handles and records the received response
 					_lastResponseStatus = Some(response.status)
+					log(s"Received ${ response.status.code }\nRequest took ${ (Now - startTime).description }")
 					response.consume(ResponseParser.string).wrapped match {
 						case Success(bodyStr) =>
-							_lastResponseBody = jsonParser.valueOf(bodyStr)
-							log(s"Received ${ response.status.code }: $bodyStr\nRequest took ${
-								(Now - startTime).description }")
-							
-							// Documents the response body, if received for a documented API node
-							// TODO: Once we have the models, document a DB entry of this example
-							pathOrNode.foreach { node =>
-								val standardizedName = node.name.toLowerCase.replace(" ", "-")
-								Paths
-									.get(s"examples/$standardizedName/$method/${
-										response.status.code }/$Today-$method-$standardizedName-${
-										response.status.code }-1.json")
-									.createParentDirectories()
-									.flatMap { path => path.unique.write(bodyStr) }
-									.logWith("Failed to write a response body example")
+							if (bodyStr.isEmpty)
+								_lastResponseBody = Value.empty
+							else {
+								val bodyValue = jsonParser.valueOf(bodyStr)
+								_lastResponseBody = bodyValue
+								logBody(bodyValue)
+								recordResponse(method, pathOrNode, response.status, bodyStr, bodyValue)
 							}
-						
 						case Failure(error) =>
 							scribe(error, "Failed to parse a response body",
 								Model.from("method" -> method.name, "path" -> path))
@@ -375,5 +373,62 @@ class TestContext(apiRootUrl: String, tests: Iterable[Test] = Empty)
 				Some(prop.name -> (if (prop.isArray.isCertainlyTrue) value.getVector else value))
 		})
 		result.notEmpty
+	}
+	
+	private def logBody(body: Value) = {
+		if (body.nonEmpty)
+			body.model match {
+				case Some(body) =>
+					body.nonEmptyPropertiesIterator.foreach { prop =>
+						log(s"- ${ prop.name }: ${ prop.value.toJson }")
+					}
+				case None =>
+					body.getVector.iterator.zipWithIndex.foreach { case (bodyElement, index) =>
+						log(s"${ index + 1 }. ${ bodyElement.toJson }")
+					}
+			}
+	}
+	
+	private def recordResponse(method: Method, pathOrNode: Either[String, DetailedApiNode], responseStatus: Status,
+	                           responseBodyStr: String, responseBodyValue: Value) =
+	{
+		// Documents the response body, if received for a documented API node
+		pathOrNode.foreach { node =>
+			def recordFile() = {
+				val standardizedName = node.name.toLowerCase.replace(" ", "-")
+				Paths
+					.get(s"examples/unimplemented/$standardizedName-$method-${ responseStatus.code }-$Today-1.json")
+					.createParentDirectories()
+					.flatMap { path => path.unique.write(responseBodyStr) }
+					.logWith("Failed to write a response body example")
+			}
+			// Finds the matching documentation entry
+			// If no documentation is found, records the response into a file and logs
+			node.get(method) match {
+				case Some(impl) =>
+					impl.responseWithStatus(responseStatus) match {
+						// Case: Documentation entry found => Records a response example, if needed
+						case Some(responseDoc) =>
+							cPool.logging { implicit c =>
+								implicit val updateId: DocUpdateId = DocUpdateId.latest(apiId)
+								ExamplesDb.storeResponseExample(node.name, method, responseDoc, responseBodyValue,
+									responseBodyStr)
+							}
+						case None =>
+							val filePath = recordFile()
+							altScribe.in("undocumented.response.status").info
+								.variant(Model.from("apiId" -> apiId, "node" -> node.name, "method" -> method.name,
+									"status" -> responseStatus.code))
+								.apply("Received a response status not found from the documentation",
+									Model.from("file" -> filePath.map { _.toJson }))
+					}
+				case None =>
+					val filePath = recordFile()
+					altScribe.in("undocumented.response").info
+						.variant(Model.from("apiId" -> apiId, "node" -> node.name, "method" -> method.name))
+						.apply("Received a response for an undocumented method implementation",
+							Model.from("file" -> filePath.map { _.toJson }))
+			}
+		}
 	}
 }

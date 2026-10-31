@@ -1,14 +1,30 @@
 package vf.myapidoc.database.value
 
+import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Model
+import utopia.scribe.core.controller.logging.Scribe
 import utopia.vault.database.Connection
 import utopia.vault.database.value.{DbValue, LazyLookUpDbValue}
+import vf.myapidoc.database.access.api.update.AccessDocUpdates
 import vf.myapidoc.database.storable.api.DocUpdateDbModel
 import vf.myapidoc.model.partial.api.DocUpdateData
 import vf.myapidoc.util.Common._
 
 object DocUpdateId
 {
+	// ATTRIBUTES   ------------------
+	
+	private implicit val scribe: Scribe = newScribe("Doc.Update.ID")
+	
+	
 	// OTHER    ----------------------
+	
+	/**
+	 * @param apiId ID of the targeted API
+	 * @param scribe Implicit scribe implementation for logging cases where no IDs are found.
+	 * @return
+	 */
+	def latest(apiId: Int)(implicit scribe: Scribe): DocUpdateId = new LazyLatestDocUpdateId(apiId)
 	
 	/**
 	 * Lazily inserts a Doc Update entry
@@ -27,6 +43,17 @@ object DocUpdateId
 	
 	
 	// NESTED   ----------------------
+	
+	private class LazyLatestDocUpdateId(override val apiId: Int) extends LazyLookUpDbValue[Int] with DocUpdateId
+	{
+		override protected def lookUp(implicit connection: Connection): Int =
+			AccessDocUpdates.ofApi(apiId).latest.id.pull.getOrElse {
+				// Case: For some reason, there's no doc update entry for the targeted API => Inserts a new update
+				scribe.in("DocUpdate.ID.Latest.lookUp").recoverable("No documentation updates were recorded",
+					Model.from("apiId" -> apiId))
+				DocUpdateDbModel.insert(DocUpdateData(apiId)).id
+			}
+	}
 	
 	private class LazilyInsertedDocUpdateId(override val apiId: Int) extends LazyLookUpDbValue[Int] with DocUpdateId
 	{

@@ -1,10 +1,9 @@
 package vf.myapidoc.database.store
 
 import utopia.access.model.enumeration.Method
-import utopia.flow.collection.immutable.{Empty, Single}
 import utopia.flow.collection.CollectionExtensions._
+import utopia.flow.collection.immutable.{Empty, Single}
 import utopia.flow.generic.model.immutable.{Model, Value}
-import utopia.flow.operator.Identity
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.time.Today
 import utopia.vault.database.Connection
@@ -27,7 +26,22 @@ import scala.util.Success
  */
 object ExamplesDb
 {
-	def storeResponseExample(nodeName: => String, method: => Method, doc: DetailedPossibleResponse, body: Value, rawBody: String)
+	/**
+	 * Stores a response example to the DB, if needed
+	 * @param nodeName Name of the node which this request concerns. Used in the generated file path, if needed.
+	 * @param method Method that was used. Used in the generated file path, if needed.
+	 * @param doc Matching response documentation (same node, same method, same status code)
+	 * @param body Received response body as a value
+	 * @param rawBody Received response body as a string. May be written into a local file.
+	 * @param connection Implicit DB connection
+	 * @param docId Implicit latest documentation version ID.
+	 * @return Returns either:
+	 *         - Success(Some((Stored example response, Stored example values))) if data was stored
+	 *         - Success(None) if storing was skipped because there already existed enough examples.
+	 *         - Failure if failed to write the response body into a local file
+	 */
+	def storeResponseExample(nodeName: => String, method: => Method, doc: DetailedPossibleResponse, body: Value,
+	                         rawBody: => String)
 	                        (implicit connection: Connection, docId: DocUpdateId) =
 	{
 		// Matches the received properties with the expected model schema
@@ -51,41 +65,39 @@ object ExamplesDb
 			}
 			.getOrElse { Map[Int, Seq[Value]]().withDefaultValue(Empty) }
 		
-		// Checks whether enough responses have been documented
-		if (AccessExampleResponses.matchingStatus(doc.id).size >= 3) {
-			// Pulls all existing property value examples
-			val existingExamples = AccessExamplePropertyValues.ofProperties(matchedValues.keys).valuesPerProp
-			
-			// Finds properties that could benefit from the additional values
-			val examplesToAddIter = matchedValues.iterator
-				.flatMap { case (propId, newValues) =>
-					val valuesToAddIter = existingExamples.get(propId) match {
-						case Some(existingValues) =>
-							if (existingValues.size < 3)
-								newValues.iterator.filter { v => !existingValues.exists { _ ~== v } }
-									.take(3 - existingValues.size)
-							else
-								Iterator.empty
-						case None => newValues.iterator
-					}
-					valuesToAddIter.map { propId -> _ }
+		// Pulls all existing property value examples
+		val existingExamples = AccessExamplePropertyValues.ofProperties(matchedValues.keys).valuesPerProp
+		
+		// Finds properties that could benefit from the additional values
+		val examplesToAddIter = matchedValues.iterator
+			.flatMap { case (propId, newValues) =>
+				val valuesToAddIter = existingExamples.get(propId) match {
+					case Some(existingValues) =>
+						if (existingValues.size < 3)
+							newValues.iterator.filter { v => !existingValues.exists { _ ~== v } }
+								.take(3 - existingValues.size)
+						else
+							Iterator.empty
+					case None => newValues.iterator
 				}
-			
-			// Case: New examples are appropriate
-			//       => Records the new response example and the selected property value examples
-			if (examplesToAddIter.hasNext)
-				insertResponseExample(nodeName, method, doc, rawBody).map { storedExample =>
-					val storedPropExamples = ExamplePropertyValueDbModel.insert(examplesToAddIter
-						.map { case (propId, value) => ExamplePropertyValueData(storedExample.id, propId, value) }
-						.toOptimizedSeq)
-					
-					Some(storedExample -> storedPropExamples)
-				}
-			else
-				Success(None)
+				valuesToAddIter.map { propId -> _ }
+			}
+		
+		// Checks whether it's appropriate to insert a new response example
+		// Case: New examples are appropriate
+		//       => Records the new response example and the selected property value examples
+		if (examplesToAddIter.hasNext || AccessExampleResponses.matchingStatus(doc.id).size < 3) {
+			insertResponseExample(nodeName, method, doc, rawBody).map { storedExample =>
+				val storedPropExamples = ExamplePropertyValueDbModel.insert(examplesToAddIter
+					.map { case (propId, value) => ExamplePropertyValueData(storedExample.id, propId, value) }
+					.toOptimizedSeq)
+				
+				Some(storedExample -> storedPropExamples)
+			}
 		}
+		// Case: No further examples are needed => Skips the insert
 		else
-			???
+			Success(None)
 	}
 	
 	private def insertResponseExample(nodeName: => String, method: => Method, doc: DetailedPossibleResponse,

@@ -1,5 +1,6 @@
 package vf.myapidoc.model.combined.api
 
+import utopia.access.model.enumeration.Status
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
@@ -34,10 +35,19 @@ case class DetailedApiNodeMethodImplementation(id: Int, data: ApiNodeMethodImple
 		with ApiNodeMethodImplementationFactoryWrapper[ApiNodeMethodImplementationData, DetailedApiNodeMethodImplementation]
 		with StoredVersionedDocElementLike[ApiNodeMethodImplementationData, DetailedApiNodeMethodImplementation]
 {
+	// IMPLEMENTED  ------------------------
+	
 	override def toModel = super.toModel ++ Model.from(
 		"queryParams" -> queryParams, "requestBody" -> requestBodyOptions, "responses" -> responses)
 	
 	override protected def wrap(factory: ApiNodeMethodImplementationData): DetailedApiNodeMethodImplementation =
 		copy(data = factory)
 	override def withId(id: Int): DetailedApiNodeMethodImplementation = copy(id = id)
+	
+	
+	// OTHER    ----------------------------
+	
+	def responseWithStatus(status: Status): Option[DetailedPossibleResponse] = responseWithStatus(status.code)
+	def responseWithStatus(statusCode: Int): Option[DetailedPossibleResponse] =
+		responses.find { _.statusCode == statusCode }
 }
