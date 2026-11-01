@@ -218,13 +218,17 @@ CREATE TABLE `possible_property_value`(
 
 -- Documents a targeted API's root URL
 -- api_id:   ID of the targeted API
+-- name:     Name given to this URL. May be empty.
 -- root_url: URL to the root API node. E.g. "https://domain/api/v1"
 -- created:  Time when this test url was added to the database
 CREATE TABLE `test_url`(
 	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
 	`api_id` INT NOT NULL, 
+	`name` VARCHAR(24), 
 	`root_url` VARCHAR(32) NOT NULL, 
 	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	INDEX tu_name_idx (`name`), 
+	INDEX tu_root_url_idx (`root_url`), 
 	CONSTRAINT tu_a_api_ref_fk FOREIGN KEY tu_a_api_ref_idx (api_id) REFERENCES `api`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
@@ -237,6 +241,7 @@ CREATE TABLE `tests_file`(
 	`api_id` INT NOT NULL, 
 	`path` VARCHAR(255), 
 	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	INDEX tf_path_idx (`path`), 
 	CONSTRAINT tf_a_api_ref_fk FOREIGN KEY tf_a_api_ref_idx (api_id) REFERENCES `api`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 

@@ -32,6 +32,11 @@ object TestUrlDbModel
 	lazy val apiId = property("apiId")
 	
 	/**
+	  * Database property used for interacting with names
+	  */
+	lazy val name = property("name")
+	
+	/**
 	  * Database property used for interacting with root urls
 	  */
 	lazy val rootUrl = property("rootUrl")
@@ -47,13 +52,15 @@ object TestUrlDbModel
 	override def table = MyApiDocTables.testUrl
 	
 	override def apply(data: TestUrlData): TestUrlDbModel = 
-		apply(None, Some(data.apiId), data.rootUrl, Some(data.created))
+		apply(None, Some(data.apiId), data.name, data.rootUrl, Some(data.created))
 	
 	override def withApiId(apiId: Int) = apply(apiId = Some(apiId))
 	
 	override def withCreated(created: Instant) = apply(created = Some(created))
 	
 	override def withId(id: Int) = apply(id = Some(id))
+	
+	override def withName(name: String) = apply(name = name)
 	
 	override def withRootUrl(rootUrl: String) = apply(rootUrl = rootUrl)
 	
@@ -66,8 +73,8 @@ object TestUrlDbModel
   * @author Mikko Hilpinen
   * @since 01.11.2026, v0.1
   */
-case class TestUrlDbModel(id: Option[Int] = None, apiId: Option[Int] = None, rootUrl: String = "", 
-	created: Option[Instant] = None) 
+case class TestUrlDbModel(id: Option[Int] = None, apiId: Option[Int] = None, name: String = "", 
+	rootUrl: String = "", created: Option[Instant] = None) 
 	extends Storable with HasId[Option[Int]] with FromIdFactory[Int, TestUrlDbModel] 
 		with TestUrlFactory[TestUrlDbModel]
 {
@@ -75,7 +82,8 @@ case class TestUrlDbModel(id: Option[Int] = None, apiId: Option[Int] = None, roo
 	
 	override lazy val valueProperties: Seq[(String, Value)] = 
 		Vector(TestUrlDbModel.id.name -> id, TestUrlDbModel.apiId.name -> apiId, 
-			TestUrlDbModel.rootUrl.name -> rootUrl, TestUrlDbModel.created.name -> created)
+			TestUrlDbModel.name.name -> name, TestUrlDbModel.rootUrl.name -> rootUrl, 
+			TestUrlDbModel.created.name -> created)
 	
 	
 	// IMPLEMENTED	--------------------
@@ -87,6 +95,8 @@ case class TestUrlDbModel(id: Option[Int] = None, apiId: Option[Int] = None, roo
 	override def withCreated(created: Instant) = copy(created = Some(created))
 	
 	override def withId(id: Int) = copy(id = Some(id))
+	
+	override def withName(name: String) = copy(name = name)
 	
 	override def withRootUrl(rootUrl: String) = copy(rootUrl = rootUrl)
 }

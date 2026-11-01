@@ -32,7 +32,7 @@ object TestUrlDbReader extends DbRowReader[TestUrl] with ParseTableModel[TestUrl
 	override def fromValid(valid: Model) = 
 		Success(TestUrl(valid(this.model.id.name).getInt, 
 			TestUrlData(apiId = valid(this.model.apiId.name).getInt, 
-			rootUrl = valid(this.model.rootUrl.name).getString, 
+			name = valid(this.model.name.name).getString, rootUrl = valid(this.model.rootUrl.name).getString, 
 			created = valid(this.model.created.name).getInstant)))
 }
 

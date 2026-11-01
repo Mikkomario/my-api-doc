@@ -6,6 +6,8 @@ import utopia.flow.util.console.Console
 import vf.myapidoc.database.SetupDb
 import vf.myapidoc.util.Common._
 
+import scala.util.{Failure, Success, Try}
+
 /**
  * Console application for this project
  * @author Mikko Hilpinen
@@ -17,10 +19,15 @@ object MyApiDocConsole extends App
 	
 	private val wasSuccess = {
 		if (SetupDb(enableUserInteraction = true)) {
-			val console = Console.staticNamespaced(Map(DocCommands), "\nPlease specify the next command: ", "exit",
-				listAvailableCommands = true)
-			console.run()
-			true
+			val commandsP = TestCommands.pointer.map { testCommands => Map(DocCommands, "test" -> testCommands) }
+			val console = Console.namespaced(commandsP, "\nPlease specify the next command: ",
+				closeCommandName = "exit", listAvailableCommands = true)
+			Try { console.run() } match {
+				case Success(_) => true
+				case Failure(error) =>
+					newScribe("Console")(error, "Unexpected failure while running the console")
+					false
+			}
 		}
 		else
 			false

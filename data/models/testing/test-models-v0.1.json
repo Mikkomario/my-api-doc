@@ -13,6 +13,8 @@
       {
         "name": "path",
         "type": "Path",
+        "index": true,
+        "with": "atPath",
         "doc": "Path to the tests-file"
       },
       {
@@ -32,8 +34,15 @@
         "doc": "ID of the targeted API"
       },
       {
+        "name": "name",
+        "type": "String(24-255)",
+        "index": true,
+        "doc": "Name given to this URL. May be empty."
+      },
+      {
         "name": "rootUrl",
         "type": "NonEmptyString(32-255)",
+        "index": true,
         "doc": "URL to the root API node. E.g. \"https://domain/api/v1\""
       },
       {

@@ -20,6 +20,8 @@ trait TestUrlFactoryWrapper[Data <: TestUrlFactory[Data], +Repr]
 	
 	override def withCreated(created: Instant) = mapData { _.withCreated(created) }
 	
+	override def withName(name: String) = mapData { _.withName(name) }
+	
 	override def withRootUrl(rootUrl: String) = mapData { _.withRootUrl(rootUrl) }
 }
 

@@ -25,6 +25,12 @@ trait TestUrlFactory[+A]
 	def withCreated(created: Instant): A
 	
 	/**
+	  * @param name New name to assign
+	  * @return Copy of this item with the specified name
+	  */
+	def withName(name: String): A
+	
+	/**
 	  * @param rootUrl New root url to assign
 	  * @return Copy of this item with the specified root url
 	  */

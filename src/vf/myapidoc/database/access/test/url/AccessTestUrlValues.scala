@@ -29,6 +29,11 @@ case class AccessTestUrlValues(access: AccessManyColumns) extends AccessValues
 	lazy val apiIds = apply(model.apiId) { v => v.getInt }
 	
 	/**
+	  * Name given to this URL. May be empty.
+	  */
+	lazy val names = apply(model.name) { v => v.getString }
+	
+	/**
 	  * URL to the root API node. E.g. "https://domain/api/v1"
 	  */
 	lazy val rootUrls = apply(model.rootUrl) { v => v.getString }

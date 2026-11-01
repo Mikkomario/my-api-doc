@@ -46,9 +46,7 @@ case class TestsFileData(apiId: Int, path: Path, created: Instant = Now)
 	override def toModel = Model(Vector("apiId" -> apiId, "path" -> path.toJson, "created" -> created))
 	
 	override def withApiId(apiId: Int) = copy(apiId = apiId)
-	
 	override def withCreated(created: Instant) = copy(created = created)
-	
 	override def withPath(path: Path) = copy(path = path)
 }
 
