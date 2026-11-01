@@ -1,7 +1,7 @@
 -- 
 -- Database structure for my api doc models
 -- Version: v0.1
--- Last generated: 2026-10-30
+-- Last generated: 2026-11-01
 --
 
 CREATE DATABASE IF NOT EXISTS `my_api_doc_db` 
@@ -211,6 +211,33 @@ CREATE TABLE `possible_property_value`(
 	CONSTRAINT ppv_du_original_update_ref_fk FOREIGN KEY ppv_du_original_update_ref_idx (original_update_id) REFERENCES `doc_update`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT ppv_ps_prop_ref_fk FOREIGN KEY ppv_ps_prop_ref_idx (prop_id) REFERENCES `property_schema`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT ppv_du_removing_update_ref_fk FOREIGN KEY ppv_du_removing_update_ref_idx (removing_update_id) REFERENCES `doc_update`(`id`) ON DELETE SET NULL
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+
+--	Test	----------
+
+-- Documents a targeted API's root URL
+-- api_id:   ID of the targeted API
+-- root_url: URL to the root API node. E.g. "https://domain/api/v1"
+-- created:  Time when this test url was added to the database
+CREATE TABLE `test_url`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`api_id` INT NOT NULL, 
+	`root_url` VARCHAR(32) NOT NULL, 
+	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	CONSTRAINT tu_a_api_ref_fk FOREIGN KEY tu_a_api_ref_idx (api_id) REFERENCES `api`(`id`) ON DELETE CASCADE
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+-- Documents the location of a single tests-file
+-- api_id:  ID of the tested API
+-- path:    Path to the tests-file
+-- created: Time when this tests file was added to the database
+CREATE TABLE `tests_file`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`api_id` INT NOT NULL, 
+	`path` VARCHAR(255), 
+	`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	CONSTRAINT tf_a_api_ref_fk FOREIGN KEY tf_a_api_ref_idx (api_id) REFERENCES `api`(`id`) ON DELETE CASCADE
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
 

@@ -126,6 +126,15 @@ object MyApiDocTables extends Tables(cPool)
 	 */
 	lazy val exampleResponse = apply("example_response")
 	
+	/**
+	 * Table that contains test urls (Documents a targeted API's root URL)
+	 */
+	lazy val testUrl = apply("test_url")
+	/**
+	 * Table that contains test files (Documents the location of a single tests-file)
+	 */
+	lazy val testsFile = apply("tests_file")
+	
 	
 	// OTHER	--------------------
 	

@@ -79,6 +79,7 @@
     "schema": "schema",
     "api": "api",
     "auth": "auth",
-    "example": "test-results"
+    "example": "testing/results",
+    "test": "testing"
   }
 }

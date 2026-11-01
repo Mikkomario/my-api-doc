@@ -1,0 +1,45 @@
+[
+  {
+    "name": "TestsFile",
+    "name_plural": "TestFiles",
+    "access": "file",
+    "doc": "Documents the location of a single tests-file",
+    "props": [
+      {
+        "ref": "api",
+        "with": "forApi",
+        "doc": "ID of the tested API"
+      },
+      {
+        "name": "path",
+        "type": "Path",
+        "doc": "Path to the tests-file"
+      },
+      {
+        "type": "creation",
+        "index": false
+      }
+    ]
+  },
+  {
+    "name": "TestUrl",
+    "access": "url",
+    "doc": "Documents a targeted API's root URL",
+    "props": [
+      {
+        "ref": "api",
+        "with": "ofApi",
+        "doc": "ID of the targeted API"
+      },
+      {
+        "name": "rootUrl",
+        "type": "NonEmptyString(32-255)",
+        "doc": "URL to the root API node. E.g. \"https://domain/api/v1\""
+      },
+      {
+        "type": "creation",
+        "index": false
+      }
+    ]
+  }
+]
