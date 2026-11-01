@@ -138,6 +138,8 @@ object TestParser
 					terminator.foreach(proceedAfter)
 				// Case: Assertion => Parses the asserted expression
 				case "assert" => builder += TestAssertion(parseEval(tokensIter, line))
+				// Case: Wait statement => Parses the wait duration
+				case "wait" => builder += ProceedAfterWait(parseEval(tokensIter, line))
 				// Case: Use authorization statement => Parses an authorization change instruction
 				case "use" => builder += parseAuthInstruction(tokensIter, line)
 				// Case: Run statement => Parses the code to run another test
