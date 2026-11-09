@@ -5,6 +5,7 @@ import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{OptimizedIndexedSeq, Pair, Single}
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.string.Regex
+import utopia.flow.time.Now
 import utopia.flow.util.StringExtensions._
 import vf.myapidoc.controller.MdParser
 import vf.myapidoc.model.cached.testing.Test
@@ -434,6 +435,8 @@ object TestParser
 			case "true" => HardCodedValue.trueValue
 			// Case: false => Hardcoded false value
 			case "false" => HardCodedValue.falseValue
+			// Case: now => Current timestamp (when first called)
+			case "now" => CurrentTimestamp
 			// Case: Another element => Treats it as a variable reference
 			case part => ReadValue(part)
 		}

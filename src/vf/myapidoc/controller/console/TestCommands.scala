@@ -9,9 +9,9 @@ import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.console.ConsoleExtensions._
 import utopia.flow.util.console.{ArgumentSchema, Command}
-import utopia.flow.view.immutable.caching.Lazy
 import utopia.flow.view.mutable.Pointer
 import utopia.scribe.core.controller.logging.Scribe
+import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import utopia.vault.database.Connection
 import utopia.vault.store.StoreResult
 import vf.myapidoc.controller.testing.{TestContext, TestParser}
@@ -25,7 +25,6 @@ import vf.myapidoc.model.stored.api.Api
 import vf.myapidoc.util.Common._
 
 import java.nio.file.Path
-import scala.annotation.tailrec
 import scala.io.StdIn
 import scala.util.{Failure, Success}
 
@@ -47,7 +46,7 @@ object TestCommands
 		ArgumentSchema("api-path", "url",
 			help = "URL to the tested API root node, including the protocol. \nAlternatively, may refer to a previously stored URL.",
 			defaultDescription = "Selected or requested"),
-		ArgumentSchema("tests-path", "path", help = "Path to the file that contains the test code",
+		ArgumentSchema("tests-path", "path", help = "Path to the file or directory that contains the test code",
 			defaultDescription = "Selected"),
 		ArgumentSchema("test", help = "Name of the test to run", defaultDescription = "Opens the console instead")) {
 		args =>
@@ -69,7 +68,7 @@ object TestCommands
 					val parsedTests = parseTests(path.path)
 					if (parsedTests.nonEmpty) {
 						// Activates the test console commands
-						val tests = new Tests(api.id, url.rootUrl, parsedTests, path.path)
+						val tests = new Tests(api.id, api.name, url.rootUrl, parsedTests, path.path)
 						testsP.setOne(tests)
 						args("test").string.foreach(tests.run)
 					}
@@ -155,34 +154,12 @@ object TestCommands
 				StdIn.selectFromOrAdd(
 					options = AccessTestFiles.forApi(apiId).pull.map { f => StoreResult.existed(f) -> f.path.toJson },
 					target = "tests") {
-					StdIn.readNonEmptyLine("Path to the tests file:").flatMap { storeTestsPath(apiId, _) }
+					StdIn.readNonEmptyLine("Path to the tests file or directory:").flatMap { storeTestsPath(apiId, _) }
 				}
 		}
 	private def storeTestsPath(apiId: Int, path: Path)(implicit connection: Connection) = {
-		if (path.exists) {
-			// Case: Directory => Allows the user to select from the Markdown files within it (if there are any)
-			if (path.isDirectory) {
-				path.iterateChildren { _.filter { p => p.fileType ~== "md" }.toOptimizedSeq } match {
-					case Success(files) =>
-						// Case: No files to select from => Fails
-						if (files.isEmpty) {
-							println(s"${ path.toAbsolutePath } doesn't contain any Markdown files")
-							None
-						}
-						else
-							StdIn.selectFrom(files.map { f => f -> f.fileName }, "files")
-								.map { TestsDb.storeTestPath(apiId, _) }
-								
-					// Case: Directory-reading failed => Fails
-					case Failure(error) =>
-						scribe.in("store.testsPath.listFiles")(error, "Couldn't scan the specified directory")
-						None
-				}
-			}
-			// Case: An existing test file => Stores it
-			else
-				Some(TestsDb.storeTestPath(apiId, path))
-		}
+		if (path.exists)
+			Some(TestsDb.storeTestPath(apiId, path))
 		// Case: Non-existing path => Fails
 		else {
 			println(s"${ path.toAbsolutePath } doesn't exist")
@@ -190,50 +167,70 @@ object TestCommands
 		}
 	}
 	
-	@tailrec
 	private def parseTests(path: Path)(implicit nodes: Iterable[DetailedApiNode]): Seq[Test] = {
-		TestParser(path) match {
-			case Success(tests) =>
-				if (tests.isEmpty)
-					println(s"No tests found in ${ path.toAbsolutePath }")
-				tests
-			case Failure(error) =>
-				scribe.in("parse.tests")(error, "Failed to parse the tests", Model.from("path" -> path.toJson))
-				error match {
-					case error: SyntaxException =>
-						println(s"Parsing failed at line: ${ error.line }\nPlease edit the file and make the necessary corrections.")
-						if (StdIn.ask("Do you want to try again now?"))
-							parseTests(path)
-						else
-							Empty
-					
-					case _ => Empty
+		// Case: Directory passed => Parses all test files in that directory and its subdirectories
+		if (path.isDirectory)
+			path
+				.iterateChildren { pathsIter =>
+					pathsIter
+						.flatMap { path =>
+							if ((path.fileType ~== "md") || path.isDirectory)
+								parseTests(path)
+							else
+								Empty
+						}
+						.toOptimizedSeq
 				}
-		}
+				.logWith("Failed to iterate over potential test files", Model.from("directory" -> path.toJson),
+					subContext = "parse.tests.directory.scanFiles")
+				.getOrElse(Empty)
+		// Case: Test file passed => Attempts to parse it
+		else
+            TestParser(path) match {
+                case Success(tests) =>
+                    if (tests.isEmpty)
+                        scribe.in("parse.tests.noTests").warning("No tests were found",
+	                        Model.from("path" -> path.toJson))
+	                tests
+                case Failure(error) =>
+                    scribe.in("parse.tests")(error, "Failed to parse the tests", Model.from("path" -> path.toJson))
+                    error match {
+                        case error: SyntaxException =>
+                            println(s"Parsing of ${ path.toJson } failed at line: ${
+                                error.line }\nPlease edit the file and make the necessary corrections.")
+                            if (StdIn.ask("Do you want to try again now?"))
+                                parseTests(path)
+                            else
+                                Empty
+                        
+                        case _ => Empty
+                    }
+            }
 	}
 	
 	
 	// NESTED   ------------------------
 	
-	private class Tests(apiId: Int, apiRootUrl: String, initialTests: Iterable[Test], path: Path)
+	private class Tests(apiId: Int, apiName: String, apiRootUrl: String, initialTests: Iterable[Test], path: Path)
 	                   (implicit nodes: Iterable[DetailedApiNode])
 	{
 		// ATTRIBUTES   -----------------
 		
-		private var tests = initialTests
-		private val contextP = Lazy.resettable { new TestContext(apiId, apiRootUrl, tests) }
+		private val testsP = Pointer(initialTests)
+		private implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP)
 		
 		
 		// COMPUTED ---------------------
 		
-		def all = tests
-		
-		private implicit def context: TestContext = contextP.value
+		def all = testsP.value
 		
 		
 		// OTHER    ---------------------
 		
+		// TODO: Remove this
+		// TODO: We should stop when a test fails
 		def runAll() = {
+			val tests = testsP.value
 			val testsCount = tests.size
 			println(s"Running $testsCount tests:")
 			val results = tests.iterator.zipWithIndex
@@ -251,7 +248,7 @@ object TestCommands
 				println(s"\n$failureCount/$testsCount tests failed")
 		}
 		
-		def run(testName: String): Unit = tests.find { _.name ~== testName } match {
+		def run(testName: String): Unit = testsP.value.find { _.name ~== testName } match {
 			case Some(test) => run(test)
 			case None =>
 				println(s"No test named \"$testName\" exists.")
@@ -277,14 +274,13 @@ object TestCommands
 		
 		def list() = {
 			println("Available tests:")
-			tests.foreach { test => println(s"- ${ test.name }${ test.description.prependIfNotEmpty(": ") }") }
+			testsP.value.foreach { test => println(s"- ${ test.name }${ test.description.prependIfNotEmpty(": ") }") }
 		}
 		
 		def reload() = TestParser(path) match {
 			case Success(tests) =>
-				this.tests = tests
+				testsP.value = tests
 				println("Tests reloaded")
-				contextP.reset()
 				true
 			case Failure(error) =>
 				scribe.in("Tests.reload").recoverable(error, "Failed to reload tests",

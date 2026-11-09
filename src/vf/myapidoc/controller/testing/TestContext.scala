@@ -11,18 +11,21 @@ import utopia.flow.collection.immutable.{Empty, Pair}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.generic.model.mutable.MutableModel
+import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.parse.file.KeptOpenWriter
 import utopia.flow.parse.string.Regex
 import utopia.flow.time.TimeExtensions._
 import utopia.flow.time.{Now, Today}
 import utopia.flow.util.EitherExtensions._
-import utopia.flow.util.Mutate
+import utopia.flow.util.{AppConfig, Mutate}
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.result.TryExtensions._
+import utopia.flow.view.immutable.View
 import utopia.flow.view.mutable.Pointer
 import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.model.enumeration.Severity
+import utopia.scribe.core.model.enumeration.Severity.Recoverable
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import vf.myapidoc.controller.testing.TestContext.{TestScribe, pathParamR}
 import vf.myapidoc.database.store.ExamplesDb
@@ -82,12 +85,14 @@ object TestContext
 
 /**
  * A stateful context for running tests
+ * @param apiId ID of the tested API
+ * @param apiName Name of the API that is being tested
  * @param apiRootUrl URL to the API root. Should NOT end with '/'.
- * @param tests Named tests that may be run using [[run]]
+ * @param testsView A view into named tests that may be run using [[run]]
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-class TestContext(apiId: Int, apiRootUrl: String, tests: Iterable[Test] = Empty)
+class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: View[Iterable[Test]] = View.fixed(Empty))
 {
 	// ATTRIBUTES   --------------------------
 	
@@ -102,8 +107,20 @@ class TestContext(apiId: Int, apiRootUrl: String, tests: Iterable[Test] = Empty)
 	
 	private val gateway = Gateway(maxConnectionsPerRoute = 1, maximumTimeout = Timeout(30.seconds, 90.seconds),
 		connectionTimeout = 10.seconds)
+	private val config = AppConfig("myapidoc", fileName = apiName.replace(' ', '-').toLowerCase,
+		allowWorkingDirectoryAsAppDirectory = true)
+		.logWith("Failed to initialize the persisted test config interface", subContext = "init.config")
 	
 	private val state = MutableModel()
+	/**
+	 * Contains the names of properties persisted between sessions.
+	 * All keys are lower case.
+	 */
+	private var persistedKeys = Set[String]()
+	/**
+	 * Contains names of properties that should be considered sensitive and not printed anywhere.
+	 * All keys are lower case.
+	 */
 	private var sensitiveKeys = Set[String]()
 	
 	/**
@@ -125,6 +142,21 @@ class TestContext(apiId: Int, apiRootUrl: String, tests: Iterable[Test] = Empty)
 	private var _lastResponseBody = Value.empty
 	
 	
+	// INITIAL CODE -----------------------
+	
+	// Sets up persistence using AppConfig
+	config.foreach { config =>
+		// Loads the previously persisted state
+		currentState = config
+		
+		// Whenever a persisted property value changes, stores it in the AppConfig
+		state.addListener { e =>
+			if (persistedKeys.contains(e.property.name.toLowerCase))
+				config(e.property.name) = e.newValue
+		}
+	}
+	
+	
 	// COMPUTED ---------------------------
 	
 	/**
@@ -135,6 +167,13 @@ class TestContext(apiId: Int, apiRootUrl: String, tests: Iterable[Test] = Empty)
 	 * @return Body within the last received response. If no response was received, yields an empty value.
 	 */
 	def lastResponseBody = _lastResponseBody
+	
+	/**
+	 * @return The current context state, including all context variables
+	 */
+	def currentState = state.immutableCopy
+	def currentState_=(state: HasProperties) = state.nonEmptyPropertiesIterator
+		.foreach { prop => update(prop.name, prop.value) }
 	
 	
 	// OTHER    ---------------------------
@@ -193,6 +232,19 @@ class TestContext(apiId: Int, apiRootUrl: String, tests: Iterable[Test] = Empty)
 	 * @param key Key that should be considered sensitive.
 	 */
 	def markSensitive(key: String): Unit = sensitiveKeys += key.toLowerCase
+	
+	/**
+	 * Marks a property as persisting, so that it will be loaded into consecutive sessions.
+	 * @param propertyName Name of the persisted property.
+	 */
+	def persist(propertyName: String) = {
+		val lowerKey = propertyName.toLowerCase
+		if (!persistedKeys.contains(lowerKey)) {
+			persistedKeys += lowerKey
+			// Persists the current value
+			config.foreach { _(propertyName) = state(propertyName) }
+		}
+	}
 	
 	/**
 	 * Updates the authorization method used in future requests to use basic authorization
@@ -267,7 +319,7 @@ class TestContext(apiId: Int, apiRootUrl: String, tests: Iterable[Test] = Empty)
 	 * Runs a named test (inside another test)
 	 * @param test Name of the test to run
 	 */
-	def run(test: String): Unit = tests.find { _.name ~== test } match {
+	def run(test: String): Unit = testsView.value.find { _.name ~== test } match {
 		case Some(test) =>
 			log(s"Calling test ${ test.name }")
 			if (!test.run()(this))
