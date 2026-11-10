@@ -37,7 +37,7 @@ object NodeAuthLink extends StandardStoredFactory[NodeAuthLinkData, NodeAuthLink
 		
 		override def withId(id: Int) = copy(id = id)
 		
-		override protected def wrap(data: NodeAuthLinkData) = copy(data = data)
+		override def wrap(data: NodeAuthLinkData) = copy(data = data)
 	}
 }
 

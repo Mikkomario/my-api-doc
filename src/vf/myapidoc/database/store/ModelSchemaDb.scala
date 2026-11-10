@@ -18,9 +18,8 @@ import vf.myapidoc.database.storable.schema.{AlternativePropertyTypeDbModel, Mod
 import vf.myapidoc.database.value.DocUpdateId
 import vf.myapidoc.model.cached.doc.{NewNamedModel, NewProperty}
 import vf.myapidoc.model.combined.schema.{CompleteModelSchema, DetailedModelSchema, DetailedPropertySchema}
-import vf.myapidoc.model.enumeration.PropertyType.AnyProp
 import vf.myapidoc.model.partial.schema.{AlternativePropertyTypeData, ModelSchemaData, PossiblePropertyValueData, PropertySchemaData}
-import vf.myapidoc.model.stored.schema.{AlternativePropertyType, ModelSchema, PossiblePropertyValue, StoredPropertySchema}
+import vf.myapidoc.model.stored.schema.{AlternativePropertyType, ModelSchema, PossiblePropertyValue, PropertySchema}
 import vf.myapidoc.util.Common.newScribe
 
 import scala.collection.mutable
@@ -202,7 +201,7 @@ object ModelSchemaDb
 		}.reduceOption { _ ++ _ }.getOrElse(DelayedPropInserts.empty)
 	}
 	
-	private def tryUpdateProperty(existing: StoredPropertySchema,
+	private def tryUpdateProperty(existing: PropertySchema,
 	                              existingAltTypes: => Iterable[AlternativePropertyType],
 	                              existingContent: => Option[ModelSchema],
 	                              existingPossibleValues: => IterableOnce[PossiblePropertyValue], property: NewProperty,
@@ -268,7 +267,7 @@ object ModelSchemaDb
 				property, modelNameToId)
 	}
 	// Assumes that the properties match and don't conflict
-	private def updateProperty(existing: StoredPropertySchema, existingAltTypes: Iterable[AlternativePropertyType],
+	private def updateProperty(existing: PropertySchema, existingAltTypes: Iterable[AlternativePropertyType],
 	                           existingPossibleValues: IterableOnce[PossiblePropertyValue],
 	                           existingNamelessContent: Option[CompleteModelSchema], property: NewProperty,
 	                           modelNameToId: collection.Map[String, Int])
@@ -277,6 +276,9 @@ object ModelSchemaDb
 		// Updates the property description
 		if (existing.data.description != property.description)
 			existing.access.description.set(property.description)
+		// Updates the sensitive status, if needed
+		if (existing.isSensitive != property.isSensitive)
+			existing.access.isSensitive.set(property.isSensitive)
 		
 		// Checks for alt type updates
 		val newAltTypes = property.dataTypes.drop(1)
@@ -366,7 +368,7 @@ object ModelSchemaDb
 		val stored = PropertySchemaDbModel.insert(PropertySchemaData(originalUpdateId = update.connectedValue,
 			modelTypeId = modelId, name = property.name, dataType = property.primaryType,
 			contentTypeId = contentTypeId, description = property.description, isArray = property.isArray,
-			isOptional = property.isOptional))
+			isOptional = property.isOptional, isSensitive = property.isSensitive))
 		
 		// Registers the alternative property types, if applicable
 		if (property.dataTypes.hasSize > 1)
@@ -383,7 +385,7 @@ object ModelSchemaDb
 	}
 	
 	private def combine(remainingModels: IterableOnce[ModelSchema], completedModelsById: Map[Int, DetailedModelSchema],
-	                    rawProps: Map[Int, Seq[StoredPropertySchema]],
+	                    rawProps: Map[Int, Seq[PropertySchema]],
 	                    propAltTypes: Map[Int, Seq[AlternativePropertyType]],
 	                    possiblePropValues: Map[Int, Seq[PossiblePropertyValue]]): scala.collection.View[DetailedModelSchema] =
 	{

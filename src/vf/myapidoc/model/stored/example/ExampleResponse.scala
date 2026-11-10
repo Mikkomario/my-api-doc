@@ -38,6 +38,6 @@ case class ExampleResponse(id: Int, data: ExampleResponseData)
 	
 	override def withId(id: Int) = copy(id = id)
 	
-	override protected def wrap(data: ExampleResponseData) = copy(data = data)
+	override def wrap(data: ExampleResponseData) = copy(data = data)
 }
 

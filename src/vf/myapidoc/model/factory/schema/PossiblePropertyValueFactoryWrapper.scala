@@ -15,8 +15,8 @@ trait PossiblePropertyValueFactoryWrapper[A <: PossiblePropertyValueFactory[A], 
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
-	override def withPropId(propId: Int) = mapWrapped { _.withPropId(propId) }
-	override def withValue(value: String) = mapWrapped { _.withValue(value) }
+	override def withDescription(description: String) = mapData { _.withDescription(description) }
+	override def withPropId(propId: Int) = mapData { _.withPropId(propId) }
+	override def withValue(value: String) = mapData { _.withValue(value) }
 }
 

@@ -1,6 +1,6 @@
 package vf.myapidoc.model.stored.auth
 
-import utopia.vault.store.{FromIdFactory, StandardStoredFactory, StoredModelConvertible}
+import utopia.vault.store.StandardStoredFactory
 import vf.myapidoc.database.access.auth.scope.AccessScope
 import vf.myapidoc.model.factory.auth.ScopeFactoryWrapper
 import vf.myapidoc.model.partial.api.VersionedDocElementData
@@ -36,10 +36,7 @@ case class Scope(id: Int, data: ScopeData)
 	
 	// IMPLEMENTED	--------------------
 	
-	override protected def wrappedFactory = data
-	
 	override def withId(id: Int) = copy(id = id)
-	
-	override protected def wrap(data: ScopeData) = copy(data = data)
+	override def wrap(data: ScopeData) = copy(data = data)
 }
 

@@ -36,5 +36,5 @@ case class DetailedPossibleResponse(id: Int, data: PossibleResponseStatusData,
 		.withoutEmptyValues
 	
 	override def withId(id: Int) = copy(id = id)
-	override protected def wrap(factory: PossibleResponseStatusData): DetailedPossibleResponse = copy(data = factory)
+	override def wrap(factory: PossibleResponseStatusData): DetailedPossibleResponse = copy(data = factory)
 }

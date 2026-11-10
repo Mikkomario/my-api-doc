@@ -1,9 +1,7 @@
 package vf.myapidoc.model.stored.api
 
 import utopia.access.model.enumeration.Method
-import utopia.flow.util.Mutate
-import utopia.vault.store.{FromIdFactory, Stored, StoredModelConvertible}
-import vf.myapidoc.model.factory.api.{NodeAuthLinkFactory, NodeAuthLinkFactoryWrapper}
+import vf.myapidoc.model.factory.api.NodeAuthLinkFactory
 import vf.myapidoc.model.partial.api.{NodeAuthLinkDataLike, VersionedDocElementData}
 
 /**
@@ -27,7 +25,5 @@ trait StoredNodeAuthLinkLike[Data <: NodeAuthLinkDataLike[Data], +Repr <: Versio
 	override def copyNodeAuthLink(originalUpdateId: Int, nodeId: Int, authId: Int, removingUpdateId: Option[Int],
 	                              method: Option[Method], description: String) =
 		wrap(data.copyNodeAuthLink(originalUpdateId, nodeId, authId, removingUpdateId, method, description))
-	
-	override protected def mapWrapped(f: Mutate[Data]) = wrap(f(data))
 }
 

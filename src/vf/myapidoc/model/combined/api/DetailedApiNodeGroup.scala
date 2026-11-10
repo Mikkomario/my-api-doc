@@ -37,6 +37,6 @@ case class DetailedApiNodeGroup(id: Int, data: ApiNodeGroupData, rootNodes: Seq[
 			"nodes" -> nodesIterator.map { _.toClientModel }.toVector)
 		.withoutEmptyValues
 	
-	override protected def wrap(factory: ApiNodeGroupData): DetailedApiNodeGroup = copy(data = factory)
+	override def wrap(factory: ApiNodeGroupData): DetailedApiNodeGroup = copy(data = factory)
 	override def withId(id: Int): DetailedApiNodeGroup = copy(id = id)
 }

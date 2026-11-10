@@ -3,7 +3,7 @@ package vf.myapidoc.model.combined.schema
 import vf.myapidoc.model.factory.schema.ModelSchemaFactoryWrapper
 import vf.myapidoc.model.partial.schema.ModelSchemaData
 import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
-import vf.myapidoc.model.stored.schema.{ModelSchema, StoredPropertySchema}
+import vf.myapidoc.model.stored.schema.ModelSchema
 
 /**
   * Includes the declared properties in a model schema.

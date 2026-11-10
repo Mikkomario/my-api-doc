@@ -36,11 +36,8 @@ object ApiNodeGroup extends StandardStoredFactory[ApiNodeGroupData, ApiNodeGroup
 	{
 		// IMPLEMENTED	--------------------
 		
-		override protected def wrappedFactory = data
-		
 		override def withId(id: Int) = copy(id = id)
-		
-		override protected def wrap(data: ApiNodeGroupData) = copy(data = data)
+		override def wrap(data: ApiNodeGroupData) = copy(data = data)
 	}
 }
 

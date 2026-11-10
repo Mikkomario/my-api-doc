@@ -41,5 +41,5 @@ case class DetailedNodeAuthScopeLink(id: Int, data: NodeAuthScopeLinkData, scope
 	}
 	
 	override def withId(id: Int): DetailedNodeAuthScopeLink = copy(id = id)
-	override protected def wrap(factory: NodeAuthScopeLinkData): DetailedNodeAuthScopeLink = copy(data = factory)
+	override def wrap(factory: NodeAuthScopeLinkData): DetailedNodeAuthScopeLink = copy(data = factory)
 }

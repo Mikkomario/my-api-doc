@@ -403,6 +403,7 @@ object DocParser
 		val typesBuilder = OptimizedIndexedSeq.newBuilder[PropertyType]
 		var referencedType = ""
 		var optional = false
+		var sensitive = false
 		var array: UncertainBoolean = false
 		val descriptionBuilder = OptimizedIndexedSeq.newBuilder[ValueTree[String]]
 		var children: Seq[NewProperty] = Empty
@@ -444,7 +445,9 @@ object DocParser
 					// Remembers the referenced basic types
 					typesBuilder ++= parts.iterator.flatMap { _._1.rightOption }
 					
-				case "optional" => optional = true
+				case "optional" => optional = value.booleanOr(true)
+				case "sensitive" => sensitive = value.booleanOr(true)
+				case "array" => value.boolean.foreach { array = _ }
 				case "description" => descriptionBuilder += detail.withValue(value)
 				case "possiblevalues" =>
 					if (possibleValues.nonEmpty)
@@ -480,7 +483,7 @@ object DocParser
 				case Some(Right(entries)) => MdParser.listToString(entries)
 			},
 			children = children,
-			possibleValues = possibleValues, isOptional = optional, isArray = array)
+			possibleValues = possibleValues, isOptional = optional, isSensitive = sensitive, isArray = array)
 	}
 	
 	private def parseTokenTypes(lines: Iterable[String]) = {

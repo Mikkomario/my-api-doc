@@ -15,9 +15,9 @@ trait BodySchemaFactoryWrapper[A <: BodySchemaFactory[A], +Repr]
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withDataType(dataType: PropertyType) = mapWrapped { _.withDataType(dataType) }
-	override def withIsArray(isArray: Boolean) = mapWrapped { _.withIsArray(isArray) }
-	override def withModelTypeId(modelTypeId: Int) = mapWrapped { _.withModelTypeId(modelTypeId) }
-	override def withParentId(parentId: Int) = mapWrapped { _.withParentId(parentId) }
+	override def withDataType(dataType: PropertyType) = mapData { _.withDataType(dataType) }
+	override def withIsArray(isArray: Boolean) = mapData { _.withIsArray(isArray) }
+	override def withModelTypeId(modelTypeId: Int) = mapData { _.withModelTypeId(modelTypeId) }
+	override def withParentId(parentId: Int) = mapData { _.withParentId(parentId) }
 }
 

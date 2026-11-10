@@ -6,12 +6,12 @@ import utopia.vault.nosql.targeting.one.TargetingOne
 import vf.myapidoc.database.access.schema.model.FilterByModelSchema
 import vf.myapidoc.database.reader.schema.PropertySchemaDbReader
 import vf.myapidoc.database.storable.schema.{ModelSchemaDbModel, PropertySchemaDbModel}
-import vf.myapidoc.model.stored.schema.StoredPropertySchema
+import vf.myapidoc.model.stored.schema.PropertySchema
 
 object AccessPropertySchemas 
 	extends DeprecatingWrapRowAccess[AccessPropertySchemaRows](PropertySchemaDbModel) 
 		with WrapOneToManyAccess[AccessCombinedPropertySchemas] 
-		with AccessManyDeprecatingRoot[AccessPropertySchemaRows[StoredPropertySchema]]
+		with AccessManyDeprecatingRoot[AccessPropertySchemaRows[PropertySchema]]
 {
 	// ATTRIBUTES	--------------------
 	

@@ -36,11 +36,8 @@ object BodySchema extends StandardStoredFactory[BodySchemaData, BodySchema]
 	{
 		// IMPLEMENTED	--------------------
 		
-		override protected def wrappedFactory = data
-		
 		override def withId(id: Int) = copy(id = id)
-		
-		override protected def wrap(data: BodySchemaData) = copy(data = data)
+		override def wrap(data: BodySchemaData) = copy(data = data)
 	}
 }
 

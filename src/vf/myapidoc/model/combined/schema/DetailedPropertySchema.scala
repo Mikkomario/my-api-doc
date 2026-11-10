@@ -8,7 +8,7 @@ import utopia.flow.util.UncertainBoolean.CertainlyTrue
 import vf.myapidoc.model.factory.schema.PropertySchemaFactoryWrapper
 import vf.myapidoc.model.partial.schema.PropertySchemaData
 import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
-import vf.myapidoc.model.stored.schema.{AlternativePropertyType, PossiblePropertyValue, StoredPropertySchema}
+import vf.myapidoc.model.stored.schema.{AlternativePropertyType, PossiblePropertyValue, PropertySchema}
 import vf.myapidoc.model.template.ClientModelConvertible
 
 /**
@@ -24,7 +24,7 @@ import vf.myapidoc.model.template.ClientModelConvertible
 case class DetailedPropertySchema(id: Int, data: PropertySchemaData, contentType: Option[DetailedModelSchema] = None,
                                   altTypes: Seq[AlternativePropertyType] = Empty,
                                   possibleValues: Seq[PossiblePropertyValue] = Empty)
-	extends StoredPropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, DetailedPropertySchema]
+	extends PropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, DetailedPropertySchema]
 		with ClientModelConvertible with StoredVersionedDocElementLike[PropertySchemaData, DetailedPropertySchema]
 {
 	override def toModel = super.toModel ++ Model.from("altTypes" -> altTypes, "content" -> contentType)
@@ -42,11 +42,12 @@ case class DetailedPropertySchema(id: Int, data: PropertySchemaData, contentType
 				case _ => Empty
 			},
 			if (data.isOptional) Single("optional" -> true) else Empty,
+			if (data.isSensitive) Single("sensitive" -> true) else Empty,
 			Pair("description" -> data.description, "content" -> contentType.map { _.toClientModel }),
 			if (possibleValues.isEmpty) Empty else Single("possibleValues" -> possibleValues.map { _.toClientModel })
 		))
 		.withoutEmptyValues
 	
-	override protected def wrap(factory: PropertySchemaData): DetailedPropertySchema = copy(data = factory)
+	override def wrap(factory: PropertySchemaData): DetailedPropertySchema = copy(data = factory)
 	override def withId(id: Int) = copy(id = id)
 }

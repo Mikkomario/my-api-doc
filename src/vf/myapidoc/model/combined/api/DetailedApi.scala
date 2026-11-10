@@ -42,7 +42,7 @@ case class DetailedApi(id: Int, data: ApiData, nodeGroups: Seq[DetailedApiNodeGr
 	override def toClientModel: Model = Model.from("name" -> data.name, "models" -> models.map { _.toClientModel },
 		"nodeGroups" -> nodeGroups.map { _.toClientModel })
 	
-	override protected def wrap(factory: ApiData): DetailedApi = copy(data = factory)
+	override def wrap(factory: ApiData): DetailedApi = copy(data = factory)
 	override def withId(id: Int): Api = copy(id = id)
 	
 	

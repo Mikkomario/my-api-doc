@@ -39,6 +39,6 @@ case class AlternativePropertyType(id: Int, data: AlternativePropertyTypeData)
 	// IMPLEMENTED	--------------------
 	
 	override def withId(id: Int) = copy(id = id)
-	override protected def wrap(data: AlternativePropertyTypeData) = copy(data = data)
+	override def wrap(data: AlternativePropertyTypeData) = copy(data = data)
 }
 

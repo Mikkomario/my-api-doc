@@ -72,6 +72,13 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 	 */
 	def parent = parents.headOption
 	
+	/**
+	 * @return An iterator that yields names of all sensitive properties listed in this node's documentation
+	 */
+	def sensitivePropertyNamesIterator =
+		implementations.iterator.flatMap { _.sensitivePropertyNamesIterator } ++
+			directPathParams.iterator.flatMap { _.sensitivePropertyNamesIterator }
+	
 	private def definitionsIter = Iterator.single(this) ++ parents.iterator
 	
 	
@@ -165,7 +172,7 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 		))
 		.withoutEmptyValues
 	
-	override protected def wrap(factory: ApiNodeData): DetailedApiNode = copy(data = factory)
+	override def wrap(factory: ApiNodeData): DetailedApiNode = copy(data = factory)
 	override def withId(id: Int) = copy(id = id)
 	
 	

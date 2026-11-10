@@ -13,8 +13,8 @@ trait QueryParametersSchemaLinkFactoryWrapper[A <: QueryParametersSchemaLinkFact
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withImplementationId(implementationId: Int) = 
-		mapWrapped { _.withImplementationId(implementationId) }
-	override def withModelTypeId(modelTypeId: Int) = mapWrapped { _.withModelTypeId(modelTypeId) }
+	override def withImplementationId(implementationId: Int) =
+		mapData { _.withImplementationId(implementationId) }
+	override def withModelTypeId(modelTypeId: Int) = mapData { _.withModelTypeId(modelTypeId) }
 }
 

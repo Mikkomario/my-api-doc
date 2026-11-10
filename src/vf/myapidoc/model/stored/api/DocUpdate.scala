@@ -38,6 +38,6 @@ case class DocUpdate(id: Int, data: DocUpdateData)
 	
 	override def withId(id: Int) = copy(id = id)
 	
-	override protected def wrap(data: DocUpdateData) = copy(data = data)
+	override def wrap(data: DocUpdateData) = copy(data = data)
 }
 

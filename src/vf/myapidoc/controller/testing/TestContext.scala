@@ -18,14 +18,13 @@ import utopia.flow.parse.string.Regex
 import utopia.flow.time.TimeExtensions._
 import utopia.flow.time.{Now, Today}
 import utopia.flow.util.EitherExtensions._
-import utopia.flow.util.{AppConfig, Mutate}
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.result.TryExtensions._
+import utopia.flow.util.{AppConfig, Mutate}
 import utopia.flow.view.immutable.View
 import utopia.flow.view.mutable.Pointer
 import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.model.enumeration.Severity
-import utopia.scribe.core.model.enumeration.Severity.Recoverable
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import vf.myapidoc.controller.testing.TestContext.{TestScribe, pathParamR}
 import vf.myapidoc.database.store.ExamplesDb
@@ -89,10 +88,12 @@ object TestContext
  * @param apiName Name of the API that is being tested
  * @param apiRootUrl URL to the API root. Should NOT end with '/'.
  * @param testsView A view into named tests that may be run using [[run]]
+ * @param sensitiveApiPropertyNames Names of properties documented as sensitive in the API.
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: View[Iterable[Test]] = View.fixed(Empty))
+class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: View[Iterable[Test]] = View.fixed(Empty),
+                  sensitiveApiPropertyNames: Set[String] = Set[String]())
 {
 	// ATTRIBUTES   --------------------------
 	
@@ -107,7 +108,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	
 	private val gateway = Gateway(maxConnectionsPerRoute = 1, maximumTimeout = Timeout(30.seconds, 90.seconds),
 		connectionTimeout = 10.seconds)
-	private val config = AppConfig("myapidoc", fileName = apiName.replace(' ', '-').toLowerCase,
+	private val config = AppConfig("myapidoc",
+		fileName = s"${ apiName.replace(' ', '-').toLowerCase }-test-context.json",
 		allowWorkingDirectoryAsAppDirectory = true)
 		.logWith("Failed to initialize the persisted test config interface", subContext = "init.config")
 	
@@ -121,7 +123,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 * Contains names of properties that should be considered sensitive and not printed anywhere.
 	 * All keys are lower case.
 	 */
-	private var sensitiveKeys = Set[String]()
+	private var sensitiveKeys = sensitiveApiPropertyNames.map { _.toLowerCase }
 	
 	/**
 	 * Contains the currently used authorization method, which is either:
@@ -148,6 +150,18 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	config.foreach { config =>
 		// Loads the previously persisted state
 		currentState = config
+		
+		// Loads persisted sensitive keys
+		val sensitiveKeysInConfig = config("sensitiveKeys").getVector.iterator.flatMap { _.string }.toSet
+		if (sensitiveKeysInConfig.isEmpty) {
+			if (sensitiveKeys.nonEmpty)
+				config("sensitiveKeys") = sensitiveKeys.toVector.sorted
+		}
+		else {
+			sensitiveKeys ++= sensitiveKeysInConfig
+			if (sensitiveKeys != sensitiveKeysInConfig)
+				config("sensitiveKeys") = sensitiveKeys.toVector.sorted
+		}
 		
 		// Whenever a persisted property value changes, stores it in the AppConfig
 		state.addListener { e =>
@@ -231,7 +245,13 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 * Marks a key as sensitive. Sensitive values are not logged.
 	 * @param key Key that should be considered sensitive.
 	 */
-	def markSensitive(key: String): Unit = sensitiveKeys += key.toLowerCase
+	def markSensitive(key: String): Unit = {
+		val lowerKey = key.toLowerCase
+		if (!sensitiveKeys.contains(lowerKey)) {
+			sensitiveKeys += lowerKey
+			config.foreach { _("sensitiveKeys") = sensitiveKeys.toVector.sorted }
+		}
+	}
 	
 	/**
 	 * Marks a property as persisting, so that it will be loaded into consecutive sessions.

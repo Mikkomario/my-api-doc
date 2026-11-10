@@ -38,7 +38,7 @@ object PossibleResponse
 		
 		override def withId(id: Int) = copy(id = id)
 		
-		override protected def wrap(factory: PossibleResponseStatusData) = copy(data = factory)
+		override def wrap(factory: PossibleResponseStatusData) = copy(data = factory)
 	}
 }
 

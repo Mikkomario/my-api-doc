@@ -36,11 +36,8 @@ object RequestBodySchema extends StandardStoredFactory[RequestBodySchemaData, Re
 	{
 		// IMPLEMENTED	--------------------
 		
-		override protected def wrappedFactory = data
-		
 		override def withId(id: Int) = copy(id = id)
-		
-		override protected def wrap(data: RequestBodySchemaData) = copy(data = data)
+		override def wrap(data: RequestBodySchemaData) = copy(data = data)
 	}
 }
 
@@ -61,10 +58,5 @@ trait RequestBodySchema
 	  * An access point to this request body schema in the database
 	  */
 	def access = AccessRequestBodySchema(id)
-	
-	
-	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
 }
 

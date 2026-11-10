@@ -16,7 +16,7 @@ trait AlternativePropertyTypeFactoryWrapper[A <: AlternativePropertyTypeFactory[
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withAltType(altType: PropertyType) = mapWrapped { _.withAltType(altType) }
-	override def withPropId(propId: Int) = mapWrapped { _.withPropId(propId) }
+	override def withAltType(altType: PropertyType) = mapData { _.withAltType(altType) }
+	override def withPropId(propId: Int) = mapData { _.withPropId(propId) }
 }
 

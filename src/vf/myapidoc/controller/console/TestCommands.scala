@@ -81,23 +81,17 @@ object TestCommands
 		testsP.value.foreach { _.list() }
 	}
 	private val runC = Command("run", help = "Runs a tests or all tests")(
-		ArgumentSchema("test-name", "test", help = "Name of the test to run. Pass \"all\" to run all tests",
-			defaultDescription = "Select")) {
-		args =>
-			testsP.value.foreach { tests =>
-				args("test-name").string match {
-					case Some(testName) =>
-						if (testName == "all")
-							tests.runAll()
-						else
-							tests.run(testName)
-					case None =>
-						println("Which test do you want to run?")
-						StdIn.selectFrom(tests.all.view.map { t => t -> t.name }.toVector, "Tests").foreach { test =>
-							tests.run(test)
-						}
-				}
+		ArgumentSchema("test-name", "test", help = "Name of the test to run", defaultDescription = "Select")) { args =>
+		testsP.value.foreach { tests =>
+			args("test-name").string match {
+				case Some(testName) => tests.run(testName)
+				case None =>
+					println("Which test do you want to run?")
+					StdIn.selectFrom(tests.all.view.map { t => t -> t.name }.toVector, "Tests").foreach { test =>
+						tests.run(test)
+					}
 			}
+		}
 	}
 	private val reloadC = Command.withoutArguments("reload", help = "Reloads the tests by reading the tests file again") {
 		testsP.value.foreach { _.reload() }
@@ -217,7 +211,8 @@ object TestCommands
 		// ATTRIBUTES   -----------------
 		
 		private val testsP = Pointer(initialTests)
-		private implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP)
+		private implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP,
+			sensitiveApiPropertyNames = nodes.iterator.flatMap { _.sensitivePropertyNamesIterator }.toSet)
 		
 		
 		// COMPUTED ---------------------
@@ -226,27 +221,6 @@ object TestCommands
 		
 		
 		// OTHER    ---------------------
-		
-		// TODO: Remove this
-		// TODO: We should stop when a test fails
-		def runAll() = {
-			val tests = testsP.value
-			val testsCount = tests.size
-			println(s"Running $testsCount tests:")
-			val results = tests.iterator.zipWithIndex
-				.map { case (test, i) =>
-					print(s"${ i + 1 }/$testsCount: ${ test.name }: ")
-					val result = test.run()
-					println(if (result) "passed" else "failed")
-					result
-				}
-				.toOptimizedSeq
-			val failureCount = results.count { !_ }
-			if (failureCount == 0)
-				println("\nAll tests passed successfully")
-			else
-				println(s"\n$failureCount/$testsCount tests failed")
-		}
 		
 		def run(testName: String): Unit = testsP.value.find { _.name ~== testName } match {
 			case Some(test) => run(test)

@@ -38,11 +38,8 @@ object NodeAuthScopeLink extends StandardStoredFactory[NodeAuthScopeLinkData, No
 	{
 		// IMPLEMENTED	--------------------
 		
-		override protected def wrappedFactory = data
-		
 		override def withId(id: Int) = copy(id = id)
-		
-		override protected def wrap(data: NodeAuthScopeLinkData) = copy(data = data)
+		override def wrap(data: NodeAuthScopeLinkData) = copy(data = data)
 	}
 }
 

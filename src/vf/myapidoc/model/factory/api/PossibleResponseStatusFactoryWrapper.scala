@@ -15,10 +15,10 @@ trait PossibleResponseStatusFactoryWrapper[A <: PossibleResponseStatusFactory[A]
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
-	override def withHasBody(hasBody: UncertainBoolean) = mapWrapped { _.withHasBody(hasBody) }
-	override def withImplementationId(implementationId: Int) = 
-		mapWrapped { _.withImplementationId(implementationId) }
-	override def withStatusCode(statusCode: Int) = mapWrapped { _.withStatusCode(statusCode) }
+	override def withDescription(description: String) = mapData { _.withDescription(description) }
+	override def withHasBody(hasBody: UncertainBoolean) = mapData { _.withHasBody(hasBody) }
+	override def withImplementationId(implementationId: Int) =
+		mapData { _.withImplementationId(implementationId) }
+	override def withStatusCode(statusCode: Int) = mapData { _.withStatusCode(statusCode) }
 }
 

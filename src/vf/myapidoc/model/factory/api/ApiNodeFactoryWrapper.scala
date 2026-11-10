@@ -12,11 +12,11 @@ trait ApiNodeFactoryWrapper[A <: ApiNodeFactory[A], +Repr]
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
-	override def withGroupId(groupId: Int) = mapWrapped { _.withGroupId(groupId) }
-	override def withName(name: String) = mapWrapped { _.withName(name) }
-	override def withNameNoSpaces(nameNoSpaces: String) = mapWrapped { _.withNameNoSpaces(nameNoSpaces) }
-	override def withParentId(parentId: Int) = mapWrapped { _.withParentId(parentId) }
-	override def withRelativePath(relativePath: String) = mapWrapped { _.withRelativePath(relativePath) }
+	override def withDescription(description: String) = mapData { _.withDescription(description) }
+	override def withGroupId(groupId: Int) = mapData { _.withGroupId(groupId) }
+	override def withName(name: String) = mapData { _.withName(name) }
+	override def withNameNoSpaces(nameNoSpaces: String) = mapData { _.withNameNoSpaces(nameNoSpaces) }
+	override def withParentId(parentId: Int) = mapData { _.withParentId(parentId) }
+	override def withRelativePath(relativePath: String) = mapData { _.withRelativePath(relativePath) }
 }
 

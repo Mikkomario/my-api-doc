@@ -39,7 +39,6 @@
     "parent": "VersionedDocElement",
     "access": "prop",
     "doc": "Defines an individual property in a model schema.",
-    "stored": true,
     "has_combos": true,
     "combo": {
       "name": "PropertyExample",
@@ -93,6 +92,13 @@
         "type": "Boolean",
         "default": false,
         "doc": "Whether this property may be omitted from the input and/or output."
+      },
+      {
+        "name": "isSensitive",
+        "name_plural": "areSensitive",
+        "type": "Boolean",
+        "default": false,
+        "doc": "Whether this property contains sensitive information."
       }
     ]
   },

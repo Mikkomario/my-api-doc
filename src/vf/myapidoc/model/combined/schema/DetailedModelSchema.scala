@@ -1,7 +1,8 @@
 package vf.myapidoc.model.combined.schema
 
-import utopia.flow.generic.model.immutable.{Constant, Model}
+import utopia.flow.collection.immutable.{Empty, Single}
 import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.{Constant, Model}
 import vf.myapidoc.model.partial.schema.ModelSchemaData
 import vf.myapidoc.model.stored.schema.ModelSchema
 import vf.myapidoc.model.template.ClientModelConvertible
@@ -21,11 +22,42 @@ case class DetailedModelSchema(id: Int, data: ModelSchemaData, properties: Seq[D
 	extends CompleteModelSchema with CompleteModelSchemaLike[DetailedPropertySchema, DetailedModelSchema]
 		with ClientModelConvertible
 {
+	// COMPUTED ----------------------------
+	
+	/**
+	 * @return An iterator that yields all property names in this model structure (including nested models)
+	 */
+	def propertyNamesIterator: Iterator[String] = properties.iterator.flatMap { prop =>
+		prop.contentType match {
+			case Some(content) => Iterator.single(prop.name) ++ content.propertyNamesIterator
+			case None => Single(prop.name)
+		}
+	}
+	/**
+	 * @return An iterator that yields all names of sensitive properties within this model structure
+	 *         (including nested models)
+	 */
+	def sensitivePropertyNamesIterator: Iterator[String] = properties.iterator.flatMap { prop =>
+		if (prop.isSensitive)
+			prop.contentType match {
+				case Some(content) => Iterator.single(prop.name) ++ content.propertyNamesIterator
+				case None => Single(prop.name)
+			}
+		else
+			prop.contentType match {
+				case Some(content) => content.sensitivePropertyNamesIterator
+				case None => Empty
+			}
+	}
+	
+	
+	// IMPLEMENTED  ------------------------
+	
 	override def toModel = super.toModel + Constant("properties", properties)
 	override def toClientModel: Model = Model.from("name" -> data.name, "description" -> data.description,
 		"properties" -> properties.map { _.toClientModel })
 		.withoutEmptyValues
 	
 	override def withId(id: Int) = copy(id = id)
-	override protected def wrap(factory: ModelSchemaData): DetailedModelSchema = copy(data = factory)
+	override def wrap(factory: ModelSchemaData): DetailedModelSchema = copy(data = factory)
 }

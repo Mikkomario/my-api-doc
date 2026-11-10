@@ -27,8 +27,6 @@ object VersionedDocElementDbReader
 	{
 		// IMPLEMENTED	--------------------
 		
-		override def table = dbProps.table
-		
 		/**
 		  * @param model            Model from which additional data may be read
 		  * @param id               ID to assign to the read/parsed versioned doc element

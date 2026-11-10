@@ -13,7 +13,7 @@ trait PathParametersSchemaLinkFactoryWrapper[A <: PathParametersSchemaLinkFactor
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withModelTypeId(modelTypeId: Int) = mapWrapped { _.withModelTypeId(modelTypeId) }
-	override def withNodeId(nodeId: Int) = mapWrapped { _.withNodeId(nodeId) }
+	override def withModelTypeId(modelTypeId: Int) = mapData { _.withModelTypeId(modelTypeId) }
+	override def withNodeId(nodeId: Int) = mapData { _.withNodeId(nodeId) }
 }
 

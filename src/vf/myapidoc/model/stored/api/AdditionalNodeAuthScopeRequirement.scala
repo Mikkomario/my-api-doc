@@ -41,6 +41,6 @@ case class AdditionalNodeAuthScopeRequirement(id: Int, data: AdditionalNodeAuthS
 	
 	override def withId(id: Int) = copy(id = id)
 	
-	override protected def wrap(data: AdditionalNodeAuthScopeRequirementData) = copy(data = data)
+	override def wrap(data: AdditionalNodeAuthScopeRequirementData) = copy(data = data)
 }
 

@@ -16,9 +16,9 @@ trait AuthTokenTypeFactoryWrapper[A <: AuthTokenTypeFactory[A], +Repr]
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withApiId(apiId: Int) = mapWrapped { _.withApiId(apiId) }
-	override def withName(name: String) = mapWrapped { _.withName(name) }
-	override def withNameNoSpaces(nameNoSpaces: String) = mapWrapped { _.withNameNoSpaces(nameNoSpaces) }
-	override def withUseType(useType: TokenUseType) = mapWrapped { _.withUseType(useType) }
+	override def withApiId(apiId: Int) = mapData { _.withApiId(apiId) }
+	override def withName(name: String) = mapData { _.withName(name) }
+	override def withNameNoSpaces(nameNoSpaces: String) = mapData { _.withNameNoSpaces(nameNoSpaces) }
+	override def withUseType(useType: TokenUseType) = mapData { _.withUseType(useType) }
 }
 

@@ -38,7 +38,7 @@ object Api extends StandardStoredFactory[ApiData, Api]
 		
 		override def withId(id: Int) = copy(id = id)
 		
-		override protected def wrap(data: ApiData) = copy(data = data)
+		override def wrap(data: ApiData) = copy(data = data)
 	}
 }
 

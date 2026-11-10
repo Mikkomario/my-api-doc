@@ -4,8 +4,6 @@ import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Value
 import utopia.flow.util.UncertainBoolean
 import utopia.vault.model.immutable.{DbPropertyDeclaration, Storable}
-import utopia.vault.model.template.{DeprecatesAfterDefined, HasIdProperty}
-import utopia.vault.nosql.storable.StorableFactory
 import utopia.vault.store.{FromIdFactory, HasId}
 import vf.myapidoc.database.MyApiDocTables
 import vf.myapidoc.database.props.api.VersionedDocElementDbProps
@@ -13,9 +11,7 @@ import vf.myapidoc.database.storable.api.{VersionedDocElementDbModel, VersionedD
 import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.factory.schema.PropertySchemaFactory
 import vf.myapidoc.model.partial.schema.PropertySchemaData
-import vf.myapidoc.model.stored.schema.StoredPropertySchema
-
-import java.time.Instant
+import vf.myapidoc.model.stored.schema.PropertySchema
 
 /**
   * Used for constructing PropertySchemaDbModel instances and for inserting property schemas to 
@@ -24,7 +20,7 @@ import java.time.Instant
   * @since 15.10.2026, v0.1
   */
 object PropertySchemaDbModel 
-	extends VersionedDocElementDbModelFactoryLike[PropertySchemaDbModel, StoredPropertySchema, PropertySchemaData] 
+	extends VersionedDocElementDbModelFactoryLike[PropertySchemaDbModel, PropertySchema, PropertySchemaData]
 		with PropertySchemaFactory[PropertySchemaDbModel] with VersionedDocElementDbProps
 {
 	// ATTRIBUTES	--------------------
@@ -66,6 +62,10 @@ object PropertySchemaDbModel
 	  * Database property used for interacting with are optional
 	  */
 	lazy val isOptional = property("isOptional")
+	/**
+	  * Database property used for interacting with are sensitive
+	  */
+	lazy val isSensitive = property("isSensitive")
 	
 	
 	// IMPLEMENTED	--------------------
@@ -75,7 +75,7 @@ object PropertySchemaDbModel
 	override def apply(data: PropertySchemaData): PropertySchemaDbModel = 
 		apply(None, Some(data.originalUpdateId), Some(data.modelTypeId), data.removingUpdateId, data.name, 
 			Some(data.dataType), data.contentTypeId, data.description, data.isArray.exact, 
-			Some(data.isOptional))
+			Some(data.isOptional), Some(data.isSensitive))
 	
 	override def withContentTypeId(contentTypeId: Int) = apply(contentTypeId = Some(contentTypeId))
 	override def withDataType(dataType: PropertyType) = apply(dataType = Some(dataType))
@@ -83,12 +83,15 @@ object PropertySchemaDbModel
 	override def withId(id: Int) = apply(id = Some(id))
 	override def withIsArray(isArray: UncertainBoolean) = apply(isArray = isArray.exact)
 	override def withIsOptional(isOptional: Boolean) = apply(isOptional = Some(isOptional))
+	override def withIsSensitive(isSensitive: Boolean) = apply(isSensitive = Some(isSensitive))
 	override def withModelTypeId(modelTypeId: Int) = apply(modelTypeId = Some(modelTypeId))
 	override def withName(name: String) = apply(name = name)
-	override def withOriginalUpdateId(originalUpdateId: Int) = apply(originalUpdateId = Some(originalUpdateId))
-	override def withRemovingUpdateId(removingUpdateId: Int) = apply(removingUpdateId = Some(removingUpdateId))
+	override def withOriginalUpdateId(originalUpdateId: Int) = apply(originalUpdateId = 
+		Some(originalUpdateId))
+	override def withRemovingUpdateId(removingUpdateId: Int) = apply(removingUpdateId = 
+		Some(removingUpdateId))
 	
-	override protected def complete(id: Value, data: PropertySchemaData) = StoredPropertySchema(id.getInt, data)
+	override protected def complete(id: Value, data: PropertySchemaData) = PropertySchema(id.getInt, data)
 }
 
 /**
@@ -101,7 +104,8 @@ case class PropertySchemaDbModel(id: Option[Int] = None, originalUpdateId: Optio
                                  modelTypeId: Option[Int] = None, removingUpdateId: Option[Int] = None,
                                  name: String = "", dataType: Option[PropertyType] = None,
                                  contentTypeId: Option[Int] = None, description: String = "",
-                                 isArray: Option[Boolean] = None, isOptional: Option[Boolean] = None)
+                                 isArray: Option[Boolean] = None, isOptional: Option[Boolean] = None,
+                                 isSensitive: Option[Boolean] = None)
 	extends VersionedDocElementDbModel with VersionedDocElementDbModelLike[PropertySchemaDbModel] 
 		with PropertySchemaFactory[PropertySchemaDbModel] with Storable with HasId[Option[Int]] 
 		with FromIdFactory[Int, PropertySchemaDbModel]
@@ -115,7 +119,8 @@ case class PropertySchemaDbModel(id: Option[Int] = None, originalUpdateId: Optio
 			PropertySchemaDbModel.contentTypeId.name -> contentTypeId, 
 			PropertySchemaDbModel.description.name -> description, 
 			PropertySchemaDbModel.isArray.name -> isArray, 
-			PropertySchemaDbModel.isOptional.name -> isOptional)
+			PropertySchemaDbModel.isOptional.name -> isOptional, 
+			PropertySchemaDbModel.isSensitive.name -> isSensitive)
 	
 	
 	// IMPLEMENTED	--------------------
@@ -141,6 +146,7 @@ case class PropertySchemaDbModel(id: Option[Int] = None, originalUpdateId: Optio
 	override def withId(id: Int) = copy(id = Some(id))
 	override def withIsArray(isArray: UncertainBoolean) = copy(isArray = isArray.exact)
 	override def withIsOptional(isOptional: Boolean) = copy(isOptional = Some(isOptional))
+	override def withIsSensitive(isSensitive: Boolean) = copy(isSensitive = Some(isSensitive))
 	override def withModelTypeId(modelTypeId: Int) = copy(modelTypeId = Some(modelTypeId))
 	override def withName(name: String) = copy(name = name)
 }

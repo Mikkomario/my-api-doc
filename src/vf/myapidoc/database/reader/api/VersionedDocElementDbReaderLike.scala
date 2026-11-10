@@ -2,6 +2,7 @@ package vf.myapidoc.database.reader.api
 
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
+import utopia.vault.model.immutable.Table
 import utopia.vault.model.template.HasTableAsTarget
 import utopia.vault.nosql.read.DbRowReader
 import utopia.vault.nosql.read.parse.ParseTableModel
@@ -37,7 +38,9 @@ trait VersionedDocElementDbReaderLike[+A] extends DbRowReader[A] with ParseTable
 	
 	// IMPLEMENTED	--------------------
 	
-	override def fromValid(valid: Model) = 
+	override def table: Table = dbProps.table
+	
+	override def fromValid(valid: Model) =
 		Success(apply(valid, valid(dbProps.id.name).getInt, 
 			originalUpdateId = valid(dbProps.originalUpdateId.name).getInt, 
 			removingUpdateId = valid(dbProps.removingUpdateId.name).int))

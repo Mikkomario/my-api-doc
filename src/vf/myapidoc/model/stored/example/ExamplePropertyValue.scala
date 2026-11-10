@@ -38,6 +38,6 @@ case class ExamplePropertyValue(id: Int, data: ExamplePropertyValueData)
 	
 	override def withId(id: Int) = copy(id = id)
 	
-	override protected def wrap(data: ExamplePropertyValueData) = copy(data = data)
+	override def wrap(data: ExamplePropertyValueData) = copy(data = data)
 }
 

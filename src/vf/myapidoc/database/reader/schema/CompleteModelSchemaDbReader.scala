@@ -2,7 +2,7 @@ package vf.myapidoc.database.reader.schema
 
 import utopia.vault.nosql.read.linked.MultiLinkedDbReader
 import vf.myapidoc.model.combined.schema.CompleteModelSchema
-import vf.myapidoc.model.stored.schema.{ModelSchema, StoredPropertySchema}
+import vf.myapidoc.model.stored.schema.{ModelSchema, PropertySchema}
 
 /**
   * Used for reading complete model schemas from the database
@@ -10,7 +10,7 @@ import vf.myapidoc.model.stored.schema.{ModelSchema, StoredPropertySchema}
   * @since 15.10.2026, v0.1
   */
 object CompleteModelSchemaDbReader 
-	extends MultiLinkedDbReader[ModelSchema, StoredPropertySchema, CompleteModelSchema](ModelSchemaDbReader, 
+	extends MultiLinkedDbReader[ModelSchema, PropertySchema, CompleteModelSchema](ModelSchemaDbReader,
 		PropertySchemaDbReader, neverEmptyRight = true)
 {
 	// IMPLEMENTED	--------------------
@@ -19,7 +19,7 @@ object CompleteModelSchemaDbReader
 	  * @param model      model to wrap
 	  * @param properties properties to attach
 	  */
-	override def combine(model: ModelSchema, properties: Seq[StoredPropertySchema]) = 
+	override def combine(model: ModelSchema, properties: Seq[PropertySchema]) =
 		CompleteModelSchema(model, properties)
 }
 

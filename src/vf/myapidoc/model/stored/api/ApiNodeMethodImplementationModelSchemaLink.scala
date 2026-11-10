@@ -42,7 +42,7 @@ object ApiNodeMethodImplementationModelSchemaLink
 		
 		override def withId(id: Int) = copy(id = id)
 		
-		override protected def wrap(data: ApiNodeMethodImplementationModelSchemaLinkData) = copy(data = data)
+		override def wrap(data: ApiNodeMethodImplementationModelSchemaLinkData) = copy(data = data)
 	}
 }
 

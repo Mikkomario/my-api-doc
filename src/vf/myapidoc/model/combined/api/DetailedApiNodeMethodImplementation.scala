@@ -35,12 +35,23 @@ case class DetailedApiNodeMethodImplementation(id: Int, data: ApiNodeMethodImple
 		with ApiNodeMethodImplementationFactoryWrapper[ApiNodeMethodImplementationData, DetailedApiNodeMethodImplementation]
 		with StoredVersionedDocElementLike[ApiNodeMethodImplementationData, DetailedApiNodeMethodImplementation]
 {
+	// COMPUTED ----------------------------
+	
+	/**
+	 * @return An iterator that yields all sensitive property names listed in this implementation's documentation
+	 */
+	def sensitivePropertyNamesIterator =
+		queryParams.iterator.flatMap { _.sensitivePropertyNamesIterator } ++
+			requestBodyOptions.iterator.flatMap { _.modelType }.flatMap { _.sensitivePropertyNamesIterator } ++
+			responses.iterator.flatMap { _.body }.flatMap { _.modelType }.flatMap { _.sensitivePropertyNamesIterator }
+	
+	
 	// IMPLEMENTED  ------------------------
 	
 	override def toModel = super.toModel ++ Model.from(
 		"queryParams" -> queryParams, "requestBody" -> requestBodyOptions, "responses" -> responses)
 	
-	override protected def wrap(factory: ApiNodeMethodImplementationData): DetailedApiNodeMethodImplementation =
+	override def wrap(factory: ApiNodeMethodImplementationData): DetailedApiNodeMethodImplementation =
 		copy(data = factory)
 	override def withId(id: Int): DetailedApiNodeMethodImplementation = copy(id = id)
 	

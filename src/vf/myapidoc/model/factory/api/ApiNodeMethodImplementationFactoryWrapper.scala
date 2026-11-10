@@ -15,10 +15,10 @@ trait ApiNodeMethodImplementationFactoryWrapper[A <: ApiNodeMethodImplementation
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
-	override def withMethod(method: Method) = mapWrapped { _.withMethod(method) }
-	override def withNodeId(nodeId: Int) = mapWrapped { _.withNodeId(nodeId) }
-	override def withRequiresRequestBody(requiresRequestBody: Boolean) = 
-		mapWrapped { _.withRequiresRequestBody(requiresRequestBody) }
+	override def withDescription(description: String) = mapData { _.withDescription(description) }
+	override def withMethod(method: Method) = mapData { _.withMethod(method) }
+	override def withNodeId(nodeId: Int) = mapData { _.withNodeId(nodeId) }
+	override def withRequiresRequestBody(requiresRequestBody: Boolean) =
+		mapData { _.withRequiresRequestBody(requiresRequestBody) }
 }
 

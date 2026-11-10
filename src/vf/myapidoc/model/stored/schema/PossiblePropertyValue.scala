@@ -39,6 +39,6 @@ case class PossiblePropertyValue(id: Int, data: PossiblePropertyValueData)
 	
 	override def withId(id: Int) = copy(id = id)
 	
-	override protected def wrap(data: PossiblePropertyValueData) = copy(data = data)
+	override def wrap(data: PossiblePropertyValueData) = copy(data = data)
 }
 

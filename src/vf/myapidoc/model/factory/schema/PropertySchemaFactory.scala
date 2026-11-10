@@ -4,8 +4,6 @@ import utopia.flow.util.UncertainBoolean
 import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.factory.api.VersionedDocElementFactory
 
-import java.time.Instant
-
 /**
   * Common trait for property schema-related factories that allow construction with individual 
   * properties
@@ -42,6 +40,11 @@ trait PropertySchemaFactory[+A] extends VersionedDocElementFactory[A]
 	  * @return Copy of this item with the specified is optional
 	  */
 	def withIsOptional(isOptional: Boolean): A
+	/**
+	  * @param isSensitive New is sensitive to assign
+	  * @return Copy of this item with the specified is sensitive
+	  */
+	def withIsSensitive(isSensitive: Boolean): A
 	/**
 	  * @param modelTypeId New model type id to assign
 	  * @return Copy of this item with the specified model type id

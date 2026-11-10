@@ -37,6 +37,6 @@ case class AuthTokenType(id: Int, data: AuthTokenTypeData)
 	// IMPLEMENTED	--------------------
 	
 	override def withId(id: Int) = copy(id = id)
-	override protected def wrap(data: AuthTokenTypeData) = copy(data = data)
+	override def wrap(data: AuthTokenTypeData) = copy(data = data)
 }
 

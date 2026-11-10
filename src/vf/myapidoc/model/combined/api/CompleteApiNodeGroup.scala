@@ -37,8 +37,7 @@ object CompleteApiNodeGroup
 		// IMPLEMENTED	--------------------
 		
 		override def withId(id: Int) = copy(id = id)
-		
-		override protected def wrap(factory: ApiNodeGroupData) = copy(data = factory)
+		override def wrap(factory: ApiNodeGroupData) = copy(data = factory)
 	}
 }
 

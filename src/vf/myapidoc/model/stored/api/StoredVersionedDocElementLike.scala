@@ -1,6 +1,5 @@
 package vf.myapidoc.model.stored.api
 
-import utopia.flow.util.Mutate
 import utopia.vault.store.{FromIdFactory, Stored, StoredModelConvertible}
 import vf.myapidoc.model.factory.api.{VersionedDocElementFactory, VersionedDocElementFactoryWrapper}
 import vf.myapidoc.model.partial.api.VersionedDocElementDataLike
@@ -19,14 +18,10 @@ trait StoredVersionedDocElementLike[Data <: VersionedDocElementDataLike[Data], +
 {
 	// IMPLEMENTED	--------------------
 	
-	override protected def wrappedFactory = data
-	
 	override def originalUpdateId = data.originalUpdateId
 	override def removingUpdateId = data.removingUpdateId
 	
 	override def copyVersionedDocElement(originalUpdateId: Int, removingUpdateId: Option[Int]) =
 		wrap(data.copyVersionedDocElement(originalUpdateId, removingUpdateId))
-	
-	override protected def mapWrapped(f: Mutate[Data]) = super[VersionedDocElementFactoryWrapper].mapWrapped(f)
 }
 

@@ -4,7 +4,7 @@ import vf.myapidoc.model.factory.schema.PropertySchemaFactoryWrapper
 import vf.myapidoc.model.partial.schema.PropertySchemaData
 import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 import vf.myapidoc.model.stored.example.ExamplePropertyValue
-import vf.myapidoc.model.stored.schema.StoredPropertySchema
+import vf.myapidoc.model.stored.schema.PropertySchema
 
 object PropertyExample
 {
@@ -15,7 +15,7 @@ object PropertyExample
 	  * @param examples examples to attach
 	  * @return Combination of the specified prop and example
 	  */
-	def apply(prop: StoredPropertySchema, examples: Seq[ExamplePropertyValue]): PropertyExample = 
+	def apply(prop: PropertySchema, examples: Seq[ExamplePropertyValue]): PropertyExample =
 		apply(prop.id, prop.data, examples)
 	
 	/**
@@ -42,7 +42,7 @@ object PropertyExample
 		
 		override def withId(id: Int) = copy(id = id)
 		
-		override protected def wrap(factory: PropertySchemaData) = copy(data = factory)
+		override def wrap(factory: PropertySchemaData) = copy(data = factory)
 	}
 }
 
@@ -52,7 +52,7 @@ object PropertyExample
   * @since 30.10.2026, v0.1
   */
 trait PropertyExample 
-	extends StoredPropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, PropertyExample]
+	extends PropertySchema with PropertySchemaFactoryWrapper[PropertySchemaData, PropertyExample]
 		with StoredVersionedDocElementLike[PropertySchemaData, PropertyExample]
 {
 	// ABSTRACT	--------------------

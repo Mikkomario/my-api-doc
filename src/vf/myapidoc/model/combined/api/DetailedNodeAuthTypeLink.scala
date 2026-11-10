@@ -43,7 +43,7 @@ object DetailedNodeAuthTypeLink
 		
 		override def withId(id: Int) = copy(id = id)
 		
-		override protected def wrap(factory: NodeAuthTypeLinkData) = copy(data = factory)
+		override def wrap(factory: NodeAuthTypeLinkData) = copy(data = factory)
 	}
 }
 

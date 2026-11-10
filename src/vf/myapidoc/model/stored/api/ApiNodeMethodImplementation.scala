@@ -39,11 +39,8 @@ object ApiNodeMethodImplementation
 	{
 		// IMPLEMENTED	--------------------
 		
-		override protected def wrappedFactory = data
-		
 		override def withId(id: Int) = copy(id = id)
-		
-		override protected def wrap(data: ApiNodeMethodImplementationData) = copy(data = data)
+		override def wrap(data: ApiNodeMethodImplementationData) = copy(data = data)
 	}
 }
 

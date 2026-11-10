@@ -4,9 +4,7 @@ import utopia.flow.collection.immutable.Single
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.factory.{FromModelFactory, FromModelFactoryWithSchema}
 import utopia.flow.generic.model.immutable.{Model, ModelDeclaration, PropertyDeclaration}
-import utopia.flow.generic.model.mutable.DataType.{BooleanType, InstantType, IntType, StringType}
-import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
-import utopia.flow.generic.model.template.ModelConvertible
+import utopia.flow.generic.model.mutable.DataType.{BooleanType, IntType, StringType}
 import utopia.flow.util.UncertainBoolean
 import vf.myapidoc.model.cached.doc.NewProperty
 import vf.myapidoc.model.enumeration.PropertyType
@@ -14,8 +12,6 @@ import vf.myapidoc.model.enumeration.PropertyType.AnyProp
 import vf.myapidoc.model.enumeration.PropertyType.AnyProp
 import vf.myapidoc.model.factory.schema.PropertySchemaFactory
 import vf.myapidoc.model.partial.api.{VersionedDocElementData, VersionedDocElementDataLike}
-
-import java.time.Instant
 
 object PropertySchemaData 
 	extends FromModelFactoryWithSchema[PropertySchemaData] with FromModelFactory[PropertySchemaData]
@@ -31,17 +27,19 @@ object PropertySchemaData
 		PropertyDeclaration("contentTypeId", IntType, Single("content_type_id"), isOptional = true),
 		PropertyDeclaration("description", StringType, isOptional = true),
 		PropertyDeclaration("isArray", BooleanType, Single("is_array"), false, isOptional = true),
-		PropertyDeclaration("isOptional", BooleanType, Single("is_optional"), false)))
+		PropertyDeclaration("isOptional", BooleanType, Single("is_optional"), false),
+		PropertyDeclaration("isSensitive", BooleanType, Single("is_sensitive"), false)))
 	
 	
 	// IMPLEMENTED	--------------------
 	
-	override protected def fromValidatedModel(valid: Model) = 
-		PropertySchemaData(valid("originalUpdateId").getInt, valid("modelTypeId").getInt, 
-			valid("removingUpdateId").int, valid("name").getString, 
-			PropertyType.fromValue(valid("dataType")), valid("contentTypeId").int, 
-			valid("description").getString, UncertainBoolean(valid("isArray").boolean), 
-			valid("isOptional").getBoolean)
+	override protected def fromValidatedModel(model: Model) = PropertySchemaData(
+		originalUpdateId = model("originalUpdateId").getInt,
+		modelTypeId = model("modelTypeId").getInt, removingUpdateId = model("removingUpdateId").int,
+		name = model("name").getString, dataType = PropertyType.fromValue(model("dataType")),
+		contentTypeId = model("contentTypeId").int, description = model("description").getString,
+		isArray = UncertainBoolean(model("isArray").boolean),
+		isOptional = model("isOptional").getBoolean, isSensitive = model("isSensitive").getBoolean)
 }
 
 /**
@@ -60,20 +58,31 @@ object PropertySchemaData
   *                         False if this property contains a single value. Uncertain if both are 
   *                         possible.
   * @param isOptional       Whether this property may be omitted from the input and/or output.
+  * @param isSensitive      Whether this property contains sensitive information.
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
 case class PropertySchemaData(originalUpdateId: Int, modelTypeId: Int, removingUpdateId: Option[Int] = None,
                               name: String = "", dataType: PropertyType = AnyProp, contentTypeId: Option[Int] = None,
-                              description: String = "", isArray: UncertainBoolean = false, isOptional: Boolean = false)
+                              description: String = "", isArray: UncertainBoolean = false, isOptional: Boolean = false,
+                              isSensitive: Boolean = false)
 	extends PropertySchemaFactory[PropertySchemaData] with VersionedDocElementData 
 		with VersionedDocElementDataLike[PropertySchemaData]
 {
+	// COMPUTED ------------------------
+	
+	/**
+	 * @return Whether this property doesn't contain information marked as sensitive
+	 */
+	def isNotSensitive = !isSensitive
+	
+	
 	// IMPLEMENTED	--------------------
 	
-	override def toModel = super[VersionedDocElementData].toModel ++ Model(Vector("modelTypeId" -> modelTypeId,
-		"name" -> name, "dataType" -> dataType.id, "contentTypeId" -> contentTypeId, "description" -> description,
-		"isArray" -> isArray.exact, "isOptional" -> isOptional))
+	override def toModel = super[VersionedDocElementData].toModel ++ Model(Vector(
+		"modelTypeId" -> modelTypeId, "name" -> name,
+		"dataType" -> dataType.id, "contentTypeId" -> contentTypeId, "description" -> description,
+		"isArray" -> isArray.exact, "isOptional" -> isOptional, "isSensitive" -> isSensitive))
 	
 	override def copyVersionedDocElement(originalUpdateId: Int, removingUpdateId: Option[Int]) = 
 		copy(originalUpdateId = originalUpdateId, removingUpdateId = removingUpdateId)
@@ -83,8 +92,10 @@ case class PropertySchemaData(originalUpdateId: Int, modelTypeId: Int, removingU
 	override def withDescription(description: String) = copy(description = description)
 	override def withIsArray(isArray: UncertainBoolean) = copy(isArray = isArray)
 	override def withIsOptional(isOptional: Boolean) = copy(isOptional = isOptional)
+	override def withIsSensitive(isSensitive: Boolean) = copy(isSensitive = isSensitive)
 	override def withModelTypeId(modelTypeId: Int) = copy(modelTypeId = modelTypeId)
 	override def withName(name: String) = copy(name = name)
+	
 	
 	// OTHER    ---------------------------
 	

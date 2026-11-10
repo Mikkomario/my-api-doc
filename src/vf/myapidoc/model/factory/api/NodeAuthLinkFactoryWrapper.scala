@@ -15,9 +15,9 @@ trait NodeAuthLinkFactoryWrapper[A <: NodeAuthLinkFactory[A], +Repr]
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withAuthId(authId: Int) = mapWrapped { _.withAuthId(authId) }
-	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
-	override def withMethod(method: Method) = mapWrapped { _.withMethod(method) }
-	override def withNodeId(nodeId: Int) = mapWrapped { _.withNodeId(nodeId) }
+	override def withAuthId(authId: Int) = mapData { _.withAuthId(authId) }
+	override def withDescription(description: String) = mapData { _.withDescription(description) }
+	override def withMethod(method: Method) = mapData { _.withMethod(method) }
+	override def withNodeId(nodeId: Int) = mapData { _.withNodeId(nodeId) }
 }
 

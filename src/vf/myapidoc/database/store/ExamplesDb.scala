@@ -125,7 +125,9 @@ object ExamplesDb
 	 */
 	private def matchPropertyValues(properties: Iterable[DetailedPropertySchema],
 	                                body: Model): Iterator[(DetailedPropertySchema, Value)] =
-		properties.iterator.flatMap { prop =>
+	{
+		// Skips sensitive properties
+		properties.iterator.filter { _.isNotSensitive }.flatMap { prop =>
 			// Reads the matching value
 			val value = body(prop.name)
 			// Case: Empty value => Skips this property
@@ -158,4 +160,5 @@ object ExamplesDb
 							Single(prop -> value)
 				}
 		}
+	}
 }

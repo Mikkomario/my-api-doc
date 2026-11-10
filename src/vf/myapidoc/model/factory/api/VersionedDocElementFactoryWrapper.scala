@@ -1,49 +1,21 @@
 package vf.myapidoc.model.factory.api
 
 import utopia.flow.util.Mutate
+import utopia.vault.store.CanCopyData
 
 /**
-  * Common trait for classes that implement VersionedDocElementFactory by wrapping a 
-  * VersionedDocElementFactory instance
-  * @tparam A Type of constructed instances
-  * @tparam Repr Implementing type of this factory
+  * Common trait for classes that implement VersionedDocElementFactory by wrapping another such instance
+  * @tparam Data Type of the wrapped data
+  * @tparam Repr Type of the implementing class
   * @author Mikko Hilpinen
   * @since 28.10.2026, v0.1
   */
-trait VersionedDocElementFactoryWrapper[A <: VersionedDocElementFactory[A], +Repr] 
-	extends VersionedDocElementFactory[Repr]
+trait VersionedDocElementFactoryWrapper[Data <: VersionedDocElementFactory[Data], +Repr]
+	extends VersionedDocElementFactory[Repr] with CanCopyData[Data, Repr]
 {
-	// ABSTRACT	--------------------
-	
-	/**
-	  * The factory wrapped by this instance
-	  */
-	protected def wrappedFactory: A
-	
-	/**
-	  * Mutates this item by wrapping a mutated instance
-	  * @param factory The new factory instance to wrap
-	  * @return Copy of this item with the specified wrapped factory
-	  */
-	protected def wrap(factory: A): Repr
-	
-	
 	// IMPLEMENTED	--------------------
 	
-	override def withOriginalUpdateId(originalUpdateId: Int) = 
-		mapWrapped { _.withOriginalUpdateId(originalUpdateId) }
-	
-	override def withRemovingUpdateId(removingUpdateId: Int) = 
-		mapWrapped { _.withRemovingUpdateId(removingUpdateId) }
-	
-	
-	// OTHER	--------------------
-	
-	/**
-	  * Modifies this item by mutating the wrapped factory instance
-	  * @param f A function for mutating the wrapped factory instance
-	  * @return Copy of this item with a mutated wrapped factory
-	  */
-	protected def mapWrapped(f: Mutate[A]) = wrap(f(wrappedFactory))
+	override def withOriginalUpdateId(originalUpdateId: Int) = mapData { _.withOriginalUpdateId(originalUpdateId) }
+	override def withRemovingUpdateId(removingUpdateId: Int) = mapData { _.withRemovingUpdateId(removingUpdateId) }
 }
 

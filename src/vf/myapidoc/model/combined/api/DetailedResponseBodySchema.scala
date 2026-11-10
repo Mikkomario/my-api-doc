@@ -39,5 +39,5 @@ case class DetailedResponseBodySchema(id: Int, data: ResponseBodySchemaData,
 	}
 	
 	override def withId(id: Int): DetailedResponseBodySchema = copy(id = id)
-	override protected def wrap(factory: ResponseBodySchemaData): DetailedResponseBodySchema = copy(data = factory)
+	override def wrap(factory: ResponseBodySchemaData): DetailedResponseBodySchema = copy(data = factory)
 }

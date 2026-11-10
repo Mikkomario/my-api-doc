@@ -36,6 +36,6 @@ case class DetailedRequestBodySchema(id: Int, data: RequestBodySchemaData, model
 		))
 		.withoutEmptyValues
 	
-	override protected def wrap(factory: RequestBodySchemaData): DetailedRequestBodySchema = copy(data = factory)
+	override def wrap(factory: RequestBodySchemaData): DetailedRequestBodySchema = copy(data = factory)
 	override def withId(id: Int): DetailedRequestBodySchema = copy(id = id)
 }

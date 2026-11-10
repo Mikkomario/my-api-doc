@@ -30,16 +30,12 @@ object VersionedDocElement extends StandardStoredFactory[VersionedDocElementData
 	  * @author Mikko Hilpinen
 	  * @since 28.10.2026
 	  */
-	private case class _VersionedDocElement(id: Int, 
-		data: VersionedDocElementData) extends VersionedDocElement
+	private case class _VersionedDocElement(id: Int, data: VersionedDocElementData) extends VersionedDocElement
 	{
 		// IMPLEMENTED	--------------------
 		
-		override protected def wrappedFactory = data
-		
 		override def withId(id: Int) = copy(id = id)
-		
-		override protected def wrap(data: VersionedDocElementData) = copy(data = data)
+		override def wrap(data: VersionedDocElementData) = copy(data = data)
 	}
 }
 
@@ -52,9 +48,4 @@ object VersionedDocElement extends StandardStoredFactory[VersionedDocElementData
 trait VersionedDocElement 
 	extends StoredVersionedDocElementLike[VersionedDocElementData, VersionedDocElement] 
 		with VersionedDocElementData
-{
-	// IMPLEMENTED	--------------------
-	
-	override protected def wrappedFactory = data
-}
 

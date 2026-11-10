@@ -2,9 +2,9 @@ package vf.myapidoc.database.access.schema.prop
 
 import utopia.vault.nosql.targeting.columns.HasValues
 import utopia.vault.nosql.targeting.one.{AccessOneDeprecatingRoot, AccessOneWrapper, TargetingOne}
-import vf.myapidoc.model.stored.schema.StoredPropertySchema
+import vf.myapidoc.model.stored.schema.PropertySchema
 
-object AccessPropertySchema extends AccessOneDeprecatingRoot[AccessPropertySchema[StoredPropertySchema]]
+object AccessPropertySchema extends AccessOneDeprecatingRoot[AccessPropertySchema[PropertySchema]]
 {
 	// ATTRIBUTES	--------------------
 	

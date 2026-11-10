@@ -42,7 +42,7 @@ object NodeAuthScopeLinkWithAdditionalRequirements
 		
 		override def withId(id: Int) = copy(id = id)
 		
-		override protected def wrap(factory: NodeAuthScopeLinkData) = copy(data = factory)
+		override def wrap(factory: NodeAuthScopeLinkData) = copy(data = factory)
 	}
 }
 

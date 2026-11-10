@@ -15,8 +15,8 @@ trait ModelSchemaFactoryWrapper[A <: ModelSchemaFactory[A], +Repr]
 {
 	// IMPLEMENTED	--------------------
 	
-	override def withApiId(apiId: Int) = mapWrapped { _.withApiId(apiId) }
-	override def withDescription(description: String) = mapWrapped { _.withDescription(description) }
-	override def withName(name: String) = mapWrapped { _.withName(name) }
+	override def withApiId(apiId: Int) = mapData { _.withApiId(apiId) }
+	override def withDescription(description: String) = mapData { _.withDescription(description) }
+	override def withName(name: String) = mapData { _.withName(name) }
 }
 
