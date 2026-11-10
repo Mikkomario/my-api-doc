@@ -139,6 +139,17 @@ object TestParser
 					terminator.foreach(proceedAfter)
 				// Case: Assertion => Parses the asserted expression
 				case "assert" => builder += TestAssertion(parseEval(tokensIter, line))
+				// Case: Persist statement => Parses the persist target properties
+				case "persist" =>
+					val (secondToken, secondTokenType) = expectNextToken(tokensIter, line)
+					secondTokenType match {
+						case CodeArray =>
+							builder += Persist(secondToken.splitIterator(Regex.comma).map { _.trim }.toOptimizedSeq)
+						case Code => builder += Persist(Single(secondToken))
+						case _ =>
+							throw new IllegalArgumentException(
+								s"Expected code or array as a persist target, but got $secondTokenType")
+					}
 				// Case: Wait statement => Parses the wait duration
 				case "wait" => builder += ProceedAfterWait(parseEval(tokensIter, line))
 				// Case: Use authorization statement => Parses an authorization change instruction
@@ -461,8 +472,8 @@ object TestParser
 		}
 	/**
 	 * Splits the input into:
-	 *      1. Quotations
-	 *      1. Arrays
+	 *      1. Quotations (without starting and ending markers)
+	 *      1. Arrays. Note: Array start and end markers have been removed.
 	 *      1. Code sequences
 	 * @param code Code to split
 	 * @return An iterator that yields the split parts and their roles

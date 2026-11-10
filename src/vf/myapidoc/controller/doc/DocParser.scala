@@ -154,6 +154,7 @@ object DocParser
 	}
 	
 	private def processMethodImplementation(nodeName: => String, method: Method, lines: Seq[String]) = {
+		var namedQueryParamsReference: String = ""
 		var queryParams: Seq[NewProperty] = Empty
 		var requestBodyOptions: Seq[NewBodyDefinition] = Empty
 		var optionalRequestBody = false
@@ -165,7 +166,12 @@ object DocParser
 			(key, lines) =>
 				key match {
 					case "queryparameters" | "queryparams" =>
-						queryParams = parseProps(lines.iterator.pollable)
+						// Case: Query params are listed as list items (properties)
+						if (MdParser.regex.newListItem(lines.head))
+							queryParams = parseProps(lines.iterator.pollable)
+						// Case: Query params are listed as a named reference
+						else
+							namedQueryParamsReference = lines.head.trim
 						true
 					case "requestbody" | "request" =>
 						if (MdParser.regex.newListItem(lines.head)) {
@@ -231,7 +237,8 @@ object DocParser
 		}
 		// Combines the collected information
 		NewMethodImplementation(method = method, tokenOptions = tokenOptions, scopes = scopes,
-			queryParams = queryParams, requestBodyOptions = requestBodyOptions, statusCodes = statusCodes,
+			queryParams = if (namedQueryParamsReference.isEmpty) Left(queryParams) else Right(namedQueryParamsReference),
+			requestBodyOptions = requestBodyOptions, statusCodes = statusCodes,
 			responseBody = responseBody, description = description,
 			responseHasBody = if (emptyResponse) false else if (responseBody.isDefined) true else UncertainBoolean,
 			requestBodyIsOptional = optionalRequestBody || requestBodyOptions.isEmpty)

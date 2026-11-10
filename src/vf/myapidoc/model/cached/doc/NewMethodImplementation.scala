@@ -19,7 +19,9 @@ import utopia.flow.util.{Mutate, UncertainBoolean}
  *               Each may contain more than one required entry.
  *               May contain descriptions.
  *               If empty, may be specified in the node, or in one of the parent nodes.
- * @param queryParams Accepted query parameters
+ * @param queryParams Accepted query parameters. Defined as either:
+ *                    - Left: A list of properties (may be empty)
+ *                    - Right: A reference to a named model type (may also be empty)
  * @param requestBodyOptions Accepted request body.
  *                           May contain multiple alternative options.
  * @param statusCodes Expected response status codes. Each entry may contain a description.
@@ -34,7 +36,7 @@ import utopia.flow.util.{Mutate, UncertainBoolean}
  */
 case class NewMethodImplementation(method: Method, tokenOptions: Seq[(String, String)] = Empty,
                                    scopes: Seq[(Seq[String], String)] = Empty,
-                                   queryParams: Seq[NewProperty] = Empty,
+                                   queryParams: Either[Seq[NewProperty], String] = Left(Empty),
                                    requestBodyOptions: Seq[NewBodyDefinition] = Empty,
                                    statusCodes: Seq[(Int, String)] = Empty,
                                    responseBody: Option[NewBodyDefinition] = None, description: String = "",
@@ -92,7 +94,11 @@ case class NewMethodImplementation(method: Method, tokenOptions: Seq[(String, St
 			"scope" -> scopes.map { case (parts, description) =>
 				Model.from("parts" -> parts, "description" -> description)
 			}),
-		"query" -> queryParams, "requiresRequestBody" -> !requestBodyIsOptional, "requestBody" -> requestBodyOptions,
+		"query" -> (queryParams match {
+			case Left(params) => params
+			case Right(ref) => ref
+		}),
+		"requiresRequestBody" -> !requestBodyIsOptional, "requestBody" -> requestBodyOptions,
 		"responses" -> responses.map { case (status, body, description, hasBody) =>
 			Model.from("status" -> status, "description" -> description, "hasBody" -> hasBody, "body" -> body)
 		})

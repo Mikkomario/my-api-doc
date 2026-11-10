@@ -9,6 +9,7 @@ import utopia.flow.collection.template.MapAccess
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Model
 import utopia.flow.parse.string.Regex
+import utopia.flow.util.EitherExtensions._
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.UncertainBoolean
 import utopia.scribe.core.controller.logging.Scribe
@@ -30,8 +31,7 @@ import vf.myapidoc.database.access.auth.token.AccessAuthTokenTypes
 import vf.myapidoc.database.access.schema.model.AccessModelSchemas
 import vf.myapidoc.database.storable.api._
 import vf.myapidoc.database.value.DocUpdateId
-import vf.myapidoc.model.cached._
-import vf.myapidoc.model.cached.doc.{NewApiNode, NewApiNodeGroup, NewBodyDefinition, NewMethodImplementation, NewNamedModel, NewProperty}
+import vf.myapidoc.model.cached.doc._
 import vf.myapidoc.model.combined.api._
 import vf.myapidoc.model.combined.schema.CompleteModelSchema
 import vf.myapidoc.model.partial.api._
@@ -556,30 +556,97 @@ object ApiDocDb
 	}
 	
 	private def updateQueryParams(implementationId: Int, existingParams: Option[CompleteModelSchema],
-	                              params: Iterable[NewProperty], modelNameToId: Map[String, Int])
+	                              params: Either[Iterable[NewProperty], String], modelNameToId: Map[String, Int])
 	                             (implicit connection: Connection, updateId: DocUpdateId): Unit =
+	{
+		val hasQueryParams = params.mapToSingle { _.nonEmpty } { _.nonEmpty }
 		existingParams match {
+			// Case: Updating, replacing or removing existing query params
 			case Some(existing) =>
-				// Case: Removed query params => Deprecates the existing entries
-				if (params.isEmpty) {
-					existing.access.deprecate()
+				def deprecateExistingLink() =
 					AccessQueryParameterSchemaLinks.active.ofImplementation(implementationId).deprecate()
+				def deprecateExisting() = {
+					existing.access.deprecate()
+					deprecateExistingLink()
 				}
-				// Case: Updated query params => Updates the existing entries
+				
+				// Case: Updated query params => Updates or replaces the existing entries
+				if (hasQueryParams)
+					params match {
+						// Case: New parameters are defined in nameless format
+						//       => Updates the existing nameless model, or replaces the existing link
+						//          with a nameless model reference
+						case Left(params) =>
+							// Case: Previous version was a named model reference
+							//       => Deprecates the link (only) and inserts a new model + link.
+							if (existing.hasName) {
+								deprecateExistingLink()
+								insertQueryParams(implementationId, params, modelNameToId)
+							}
+							// Case: Previous version was also a nameless model => Updates the properties
+							else
+								ModelSchemaDb.updateNameless(existing, params, modelNameToId)
+							
+						// Case: New parameters are defined as a named model reference => Resolves the reference
+						case Right(modelRef) =>
+							modelNameToId.get(standardizeRef(modelRef)) match {
+								case Some(referencedModelTypeId) =>
+									// Case: Referenced model changed
+									//       => Replaces the existing version with a new reference
+									if (existing.id != referencedModelTypeId) {
+										if (existing.hasName)
+											deprecateExistingLink()
+										else
+											deprecateExisting()
+										
+										insertQueryParamsLink(implementationId, referencedModelTypeId)
+									}
+								// Case: Failed to resolve the reference
+								//       => Logs an error and removes existing query parameters
+								case None =>
+									scribe.in("update.queryParams.resolveModelTypeRef").recoverable(
+										"Couldn't resolve the model type reference", Model.from(
+											"implementationId" -> implementationId, "type" -> modelRef))
+									deprecateExisting()
+							}
+					}
+				// Case: Removed query params => Deprecates the existing entries
 				else
-					ModelSchemaDb.updateNameless(existing, params, modelNameToId)
-			
+					deprecateExisting()
 			case None =>
 				// Case: Added query params => Inserts the new entries
-				if (params.nonEmpty)
+				if (hasQueryParams)
 					insertQueryParams(implementationId, params, modelNameToId)
 		}
-	private def insertQueryParams(implementationId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
-	                             (implicit connection: Connection, updateId: DocUpdateId) =
-		ModelSchemaDb.insertNamelessUseCase(params, modelNameToId) { modelId =>
-			QueryParametersSchemaLinkDbModel.insert(
-				QueryParametersSchemaLinkData(updateId.connectedValue, implementationId, modelId))
+	}
+	
+	private def insertQueryParams(implementationId: Int, params: Either[Iterable[NewProperty], String],
+	                              modelNameToId: Map[String, Int])
+	                             (implicit connection: Connection, updateId: DocUpdateId): Unit =
+		params match {
+			// Case: Query parameters defined as nameless model properties
+			//       => Inserts a new nameless model and links to it
+			case Left(params) => insertQueryParams(implementationId, params, modelNameToId)
+			// Case: Query parameters defined as a named model reference => Resolves the reference and links to it
+			case Right(modelTypeRef) =>
+				modelNameToId.get(standardizeRef(modelTypeRef)) match {
+					case Some(modelTypeId) => insertQueryParamsLink(implementationId, modelTypeId)
+					// Case: Failed to resolve the model type reference => Logs an error
+					case None =>
+						scribe.in("insert.queryParams.resolveReference").recoverable(
+							"Couldn't resolve the model type reference", Model.from(
+								"implementationId" -> implementationId, "ref" -> modelTypeRef))
+				}
 		}
+	private def insertQueryParams(implementationId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
+	                             (implicit connection: Connection, updateId: DocUpdateId): Option[ModelSchema] =
+		ModelSchemaDb.insertNamelessUseCase(params, modelNameToId) { modelId =>
+			insertQueryParamsLink(implementationId, modelId)
+		}
+	private def insertQueryParamsLink(implementationId: Int, modelTypeId: Int)
+	                                 (implicit connection: Connection, updateId: DocUpdateId) =
+		QueryParametersSchemaLinkDbModel.insert(
+			QueryParametersSchemaLinkData(updateId.connectedValue, implementationId, modelTypeId))
 	
 	private def updateRequestBodyOptions(implementationId: Int,
 	                                     existingOptions: IterableOnce[DetailedRequestBodySchema],
