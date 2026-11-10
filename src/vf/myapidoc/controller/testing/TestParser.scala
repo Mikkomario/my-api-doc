@@ -161,6 +161,8 @@ object TestParser
 					// The remaining part, if present, is included as a failure message
 					builder +=
 						(if (tokensIter.hasNext) FailTest(getMessage = parseEval(tokensIter, line)) else FailTest())
+				// Case: Print => Parses the code to print a value to the console
+				case "print" => builder += PrintValue(parseEval(tokensIter, line))
 				case other =>
 					// Checks whether the line starts with a method name
 					Method.values.find { _.name.toLowerCase == other } match {
@@ -429,30 +431,35 @@ object TestParser
 	 */
 	@throws[SyntaxException]("If parsing failed")
 	private def parseEvalElement(element: String, line: => String): TestEvaluation = {
-		// Handles .property -calls separately
-		val partsIter = element.splitIterator(Regex.dot)
-		def nextPart() = {
-			if (partsIter.hasNext)
-				partsIter.next()
-			else
-				throw new SyntaxException(line, s"Expected element on line `$line`")
+		// Case: Evaluation starts with ! => Inverts the result of the following expression
+		if (element.startsWith("!"))
+			InvertValue(parseEvalElement(element.tail, line))
+		else {
+			// Handles .property -calls separately
+			val partsIter = element.splitIterator(Regex.dot)
+			def nextPart() = {
+				if (partsIter.hasNext)
+					partsIter.next()
+				else
+					throw new SyntaxException(line, s"Expected element on line `$line`")
+			}
+			val primary: TestEvaluation = nextPart() match {
+				// Case: last => Reads a value from the last received response
+				case "last" => LastResponseValue(nextPart())
+					// Case: null => Hardcoded null value
+				case "null" => HardCodedValue.empty
+					// Case: true => Hardcoded true value
+				case "true" => HardCodedValue.trueValue
+					// Case: false => Hardcoded false value
+				case "false" => HardCodedValue.falseValue
+					// Case: now => Current timestamp (when first called)
+				case "now" => CurrentTimestamp
+					// Case: Another element => Treats it as a variable reference
+				case part => ReadValue(part)
+			}
+			// If property calls were involved, resolves them
+			partsIter.foldLeft(primary) { _ get _ }
 		}
-		val primary: TestEvaluation = nextPart() match {
-			// Case: last => Reads a value from the last received response
-			case "last" => LastResponseValue(nextPart())
-			// Case: null => Hardcoded null value
-			case "null" => HardCodedValue.empty
-			// Case: true => Hardcoded true value
-			case "true" => HardCodedValue.trueValue
-			// Case: false => Hardcoded false value
-			case "false" => HardCodedValue.falseValue
-			// Case: now => Current timestamp (when first called)
-			case "now" => CurrentTimestamp
-			// Case: Another element => Treats it as a variable reference
-			case part => ReadValue(part)
-		}
-		// If property calls were involved, resolves them
-		partsIter.foldLeft(primary) { _ get _ }
 	}
 	
 	/**

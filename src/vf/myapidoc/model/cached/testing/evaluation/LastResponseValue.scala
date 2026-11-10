@@ -56,6 +56,7 @@ case class LastResponseValue(key: String) extends TestEvaluation
 				case "succeeded" | "success" => context.lastResponseStatus.exists { _.isSuccess }
 				case "failed" | "failure" => context.lastResponseStatus.forall { _.isFailure }
 				case "isempty" | "empty" => context.lastResponseBody.isEmpty
+				case "nonempty" => context.lastResponseBody.nonEmpty
 				case "size" | "count" => context.lastResponseBody.getVector.size
 				// Case: No custom key => Yields an empty value
 				case _ => valueFromContext

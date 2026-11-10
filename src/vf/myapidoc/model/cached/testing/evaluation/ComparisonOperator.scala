@@ -2,6 +2,7 @@ package vf.myapidoc.model.cached.testing.evaluation
 
 import utopia.flow.collection.immutable.Pair
 import utopia.flow.generic.model.immutable.Value
+import utopia.flow.operator.Reversible
 import utopia.flow.operator.enumeration.End
 import utopia.flow.operator.enumeration.End.{First, Last}
 
@@ -35,7 +36,7 @@ object ComparisonOperator
 {
 	// ATTRIBUTES   ----------------------
 	
-	val values = Vector[ComparisonOperator](Equality, Smaller, SmallerOrEqual, Larger, LargerOrEqual)
+	val values = Vector[ComparisonOperator](Equality, Inequality, Smaller, SmallerOrEqual, Larger, LargerOrEqual)
 	
 	
 	// OTHER    --------------------------
@@ -64,6 +65,12 @@ object ComparisonOperator
 		override val code: String = "=="
 		
 		override def apply(values: Pair[Value]): Boolean = values.isSymmetricWith(Value.convertToEqual)
+	}
+	case object Inequality extends ComparisonOperator
+	{
+		override val code: String = "!="
+		
+		override def apply(values: Pair[Value]): Boolean = values.isAsymmetricWith(Value.convertToEqual)
 	}
 	
 	case object Smaller extends SmallerLike()
