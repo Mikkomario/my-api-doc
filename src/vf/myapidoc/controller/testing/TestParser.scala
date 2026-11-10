@@ -3,16 +3,20 @@ package vf.myapidoc.controller.testing
 import utopia.access.model.enumeration.Method
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{OptimizedIndexedSeq, Pair, Single}
+import utopia.flow.generic.model.immutable.Value
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.string.Regex
-import utopia.flow.time.Now
 import utopia.flow.util.StringExtensions._
+import utopia.flow.view.mutable.Pointer
+import utopia.scribe.core.controller.logging.Scribe
 import vf.myapidoc.controller.MdParser
 import vf.myapidoc.model.cached.testing.Test
+import vf.myapidoc.model.cached.testing.evaluation.ComparisonOperator.Equality
 import vf.myapidoc.model.cached.testing.evaluation._
 import vf.myapidoc.model.cached.testing.instruction._
 import vf.myapidoc.model.combined.api.DetailedApiNode
 import vf.myapidoc.model.error.SyntaxException
+import vf.myapidoc.util.Common._
 
 import java.nio.file.Path
 import scala.collection.mutable
@@ -27,6 +31,8 @@ object TestParser
 	import vf.myapidoc.controller.testing.TestParser.CodeRole._
 	
 	// ATTRIBUTES   --------------------
+	
+	private implicit val scribe: Scribe = newScribe("Parser.Test")
 	
 	private val quotationR = {
 		val q = Regex.escape('\"')
@@ -111,7 +117,7 @@ object TestParser
 			firstToken.toLowerCase.notEndingWith(":") match {
 				// Case: If statement => Parses the condition and the conditional code block
 				case "if" =>
-					val condition = parseEval(tokensIter, line)
+					val condition = parseEval(tokensIter, None, line)
 					val (code, terminator) = parseIndentedCodeBlock(linesIter, line)
 					terminator match {
 						// Case: Code continues after the if block => Checks whether an else block follows
@@ -133,12 +139,12 @@ object TestParser
 					}
 				// Case: While statement => Parses the condition and the repeated code block
 				case "while" =>
-					val condition = parseEval(tokensIter, line)
+					val condition = parseEval(tokensIter, None, line)
 					val (code, terminator) = parseIndentedCodeBlock(linesIter, line)
 					builder += ExecuteWhile(condition, code)
 					terminator.foreach(proceedAfter)
 				// Case: Assertion => Parses the asserted expression
-				case "assert" => builder += TestAssertion(parseEval(tokensIter, line))
+				case "assert" => builder += TestAssertion(parseEval(tokensIter, None, line))
 				// Case: Persist statement => Parses the persist target properties
 				case "persist" =>
 					val (secondToken, secondTokenType) = expectNextToken(tokensIter, line)
@@ -151,7 +157,7 @@ object TestParser
 								s"Expected code or array as a persist target, but got $secondTokenType")
 					}
 				// Case: Wait statement => Parses the wait duration
-				case "wait" => builder += ProceedAfterWait(parseEval(tokensIter, line))
+				case "wait" => builder += ProceedAfterWait(parseEval(tokensIter, None, line))
 				// Case: Use authorization statement => Parses an authorization change instruction
 				case "use" => builder += parseAuthInstruction(tokensIter, line)
 				// Case: Run statement => Parses the code to run another test
@@ -159,10 +165,14 @@ object TestParser
 				// Case: FAIL statement => Parses the code to fail the test
 				case "fail" =>
 					// The remaining part, if present, is included as a failure message
-					builder +=
-						(if (tokensIter.hasNext) FailTest(getMessage = parseEval(tokensIter, line)) else FailTest())
+					builder += {
+						if (tokensIter.hasNext)
+							FailTest(getMessage = parseEval(tokensIter, None, line))
+						else
+							FailTest()
+					}
 				// Case: Print => Parses the code to print a value to the console
-				case "print" => builder += PrintValue(parseEval(tokensIter, line))
+				case "print" => builder += PrintValue(parseEval(tokensIter, None, line))
 				case other =>
 					// Checks whether the line starts with a method name
 					Method.values.find { _.name.toLowerCase == other } match {
@@ -188,7 +198,7 @@ object TestParser
 							val secondToken = expectNextTokenOfType(tokensIter, Code, line)
 							// Case: Assignment found => Parses the assigned value and adds an assignment
 							if (secondToken == "=") {
-								val value = parseEval(tokensIter, line)
+								val value = parseEval(tokensIter, None, line)
 								builder += (firstToken.split(Regex.dot).oneOrMany match {
 									case Left(key) => Assign(key, value)
 									case Right(path) => AssignPropertyValue(path, value)
@@ -260,32 +270,37 @@ object TestParser
 		} match {
 			// Case: Basic auth parts found => Applies basic authorization
 			case Some(basicAuthParts) =>
-				UpdateBasicAuth(basicAuthParts.map { tokens => parseEval(tokens.iterator, line) })
+				UpdateBasicAuth(basicAuthParts.map { tokens => parseEval(tokens.iterator, None, line) })
 			// Case: No + token found => Applies bearer token authorization
-			case None => UpdateAuth(parseEval(tokensIter, line))
+			case None => UpdateAuth(parseEval(tokensIter, None, line))
 		}
 	}
 	
 	/**
 	 * Parses the line remainder into an evaluation / expression
 	 * @param tokensIter An iterator that yields the remaining tokens on this line
+	 * @param parameterReference Reference to an external parameter, if applicable. Call-by-name.
 	 * @param line Complete line. Used in error logging.
+	 * @param allowContinuation Whether to allow the line to continue afterwards. Default = false.
 	 * @return Parsed evaluation
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def parseEval(tokensIter: Iterator[(String, CodeRole)], line: => String): TestEvaluation = {
+	private def parseEval(tokensIter: Iterator[(String, CodeRole)], parameterReference: => Option[TestEvaluation],
+	                      line: => String, allowContinuation: Boolean = false): TestEvaluation =
+	{
 		// Parses the first token / element
 		val (firstToken, firstRole) = expectNextToken(tokensIter, line)
-		val primary = parseEvalElement(firstToken, firstRole, tokensIter, line)
+		val primary = parseEvalElement(firstToken, firstRole, parameterReference, tokensIter, line)
 		val result = {
 			// Case: Not the end of the line => Expects a comparison
+			// TODO: Also add support for + & -
 			if (tokensIter.hasNext) {
 				val secondToken = expectNextTokenOfType(tokensIter, Code, line)
 				ComparisonOperator(secondToken) match {
 					// Case: Comparison found => Parses the secondary element
 					case Some(operator) =>
 						val (thirdToken, thirdRole) = expectNextToken(tokensIter, line)
-						val secondary = parseEvalElement(thirdToken, thirdRole, tokensIter, line)
+						val secondary = parseEvalElement(thirdToken, thirdRole, parameterReference, tokensIter, line)
 						Compare(Pair(primary, secondary), operator)
 					
 					// Case: No comparison found => Fails compilation
@@ -298,7 +313,7 @@ object TestParser
 		}
 		// Makes sure the line's been exhausted
 		// Case: Line was not fully exhausted => Fails compilation
-		if (tokensIter.hasNext) {
+		if (!allowContinuation && tokensIter.hasNext) {
 			val (nextToken, nextRole) = tokensIter.next()
 			val nextPartStr = nextRole match {
 				case Quotation => nextToken.quoted
@@ -322,13 +337,13 @@ object TestParser
 	 */
 	@throws[SyntaxException]("If parsing failed")
 	// Expects an input of a single token.
-	private def parseEvalElement(element: String, role: CodeRole, moreTokensIter: Iterator[(String, CodeRole)],
-	                             line: => String): TestEvaluation =
+	private def parseEvalElement(element: String, role: CodeRole, parameterReference: => Option[TestEvaluation],
+	                             moreTokensIter: Iterator[(String, CodeRole)], line: => String): TestEvaluation =
 		role match {
 			// Case: Quotation => Yields a hard-coded string value
 			case Quotation => HardCodedValue.string(element)
 			// Case: Array => Yields an array of evaluations / expressions
-			case CodeArray => parseArray(element, line)
+			case CodeArray => parseArray(element, parameterReference, line)
 			// Case: Code token => Checks for custom commands
 			case _ =>
 				element.toLowerCase match {
@@ -350,11 +365,76 @@ object TestParser
 							case other => throw new IllegalArgumentException(s"Invalid prompt parameter type: $other")
 						}
 					// Case: CSV command => Reads CSV based on the following expression
-					case "csv:" => ReadCsv(parseEval(moreTokensIter, line))
-					// Case: No custom command => Parses the element as a normal evaluation
-					case _ => parseEvalElement(element, line)
+					case "csv:" => ReadCsv(parseEval(moreTokensIter, parameterReference, line))
+					// Case: No custom command => Looks for a function call
+					case other =>
+						// Case: Function call => Parses it
+						if (other.contains('(')) {
+							val parts = element.splitAtFirst("(")
+							val paramsPart = {
+								if (parts.second.contains(')'))
+									parts.second.untilLast(")")
+								else
+									s"${ parts.second } ${
+										moreTokensIter
+											.collectTo { case (code, role) => role == Code && code.contains(')') }
+											.mkString(" ").untilFirst(")") }"
+							}
+							parseFunction(parts.first, paramsPart, moreTokensIter, parameterReference, line)
+						}
+						// Case: No function call either => Parses the element as a normal evaluation
+						else
+							parseEvalElement(element, parameterReference, line)
 				}
 		}
+	
+	private def parseFunction(functionName: String, paramsPart: String, moreTokensIter: Iterator[(String, CodeRole)],
+	                          parameterReference: => Option[TestEvaluation], line: => String): TestEvaluation =
+	{
+		// Parses the parameters
+		lazy val paramsIter = paramsPart.splitIterator(Regex.comma).map { _.trim }
+			.map { parseEvalElement(_, parameterReference, line) }
+		def iterateCollection(createFunction: (TestEvaluation, TestEvaluation, Pointer[Value]) => TestEvaluation) = {
+			paramsIter.nextOption() match {
+				case Some(coll) =>
+					val itemP = Pointer(Value.empty)
+					val collectionItemReference = ReadPointer(itemP)
+					val predicate = parseEval(moreTokensIter, Some(collectionItemReference), line,
+						allowContinuation = true)
+					
+					createFunction(coll, predicate, itemP)
+				
+				case None => throw new SyntaxException(line, s"Expected collection parameter in $functionName")
+			}
+		}
+		
+		functionName match {
+			// Case: Find function => Iterates over the parameter to find a value
+			case "find" => iterateCollection { (coll, predicate, itemP) => FindFunction(coll, predicate, itemP) }
+			// Case: Exists function => Iterates over the parameter to see whether any value satisfies a predicate
+			case "exists" => iterateCollection { (coll, predicate, itemP) => ExistsFunction(coll, predicate, itemP) }
+			// Case: Contains function
+			//       => Iterates over the parameter to see whether any value is equal to the searched element
+			case "contains" =>
+				paramsIter.nextOption() match {
+					case Some(coll) =>
+						// The searched element is either the second parameter, or the following evaluation
+						val searched = paramsIter.nextOption().getOrElse {
+							parseEval(moreTokensIter, parameterReference, line, allowContinuation = true)
+						}
+						// Utilizes an ExistsFunction
+						val itemP = Pointer(Value.empty)
+						val collectionItemReference = ReadPointer(itemP)
+						val predicate = Compare(Pair(collectionItemReference, searched), Equality)
+						ExistsFunction(coll, predicate, itemP)
+					
+					case None => throw new SyntaxException(line, s"Expected collection parameter in $functionName")
+				}
+				
+			// Case: No function call either => Parses the element as a normal evaluation
+			case other => throw new SyntaxException(line, s"Unknown function $other")
+		}
+	}
 	
 	/**
 	 * Parses an array of evaluations / expressions from code
@@ -363,7 +443,8 @@ object TestParser
 	 * @return Parsed array code
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def parseArray(array: String, line: => String): EvaluateArray = {
+	private def parseArray(array: String, parameterReference: => Option[TestEvaluation], line: => String): EvaluateArray =
+	{
 		// Builds the array in parts
 		val partsBuilder = OptimizedIndexedSeq.newBuilder[TestEvaluation]
 		var openPart: Option[Either[String, TestEvaluation]] = None
@@ -372,7 +453,7 @@ object TestParser
 		def finishPart() = {
 			partsBuilder ++= openPart.map {
 				// Case: Custom code part => Parses the custom code as an evaluation
-				case Left(part) => parseEvalElement(part.trim, line)
+				case Left(part) => parseEvalElement(part.trim, parameterReference, line)
 				// Case: Preprocessed evaluation => Adds it to the array
 				case Right(value) => value
 			}
@@ -395,7 +476,7 @@ object TestParser
 				// Case: Nested array found => Parses it and adds it as the open part
 				case CodeArray =>
 					openPart = openPart match {
-						case None => Some(Right(parseArray(part, line)))
+						case None => Some(Right(parseArray(part, parameterReference, line)))
 						case Some(Left(custom)) => Some(Left(s"$custom[$part]"))
 						case Some(Right(value)) =>
 							throw new SyntaxException(line, s"Can't combine $value with an array")
@@ -426,14 +507,17 @@ object TestParser
 	/**
 	 * Converts a single code token into an evaluation / expression
 	 * @param element Element to parse
+	 * @param parameterReference Parameter reference, if applicable. Call-by-name.
 	 * @param line Line on which this element appears. Used in error logging.
 	 * @return Parsed evaluation / expression
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def parseEvalElement(element: String, line: => String): TestEvaluation = {
+	private def parseEvalElement(element: String, parameterReference: => Option[TestEvaluation],
+	                             line: => String): TestEvaluation =
+	{
 		// Case: Evaluation starts with ! => Inverts the result of the following expression
 		if (element.startsWith("!"))
-			InvertValue(parseEvalElement(element.tail, line))
+			InvertValue(parseEvalElement(element.tail, parameterReference, line))
 		else {
 			// Handles .property -calls separately
 			val partsIter = element.splitIterator(Regex.dot)
@@ -446,16 +530,37 @@ object TestParser
 			val primary: TestEvaluation = nextPart() match {
 				// Case: last => Reads a value from the last received response
 				case "last" => LastResponseValue(nextPart())
-					// Case: null => Hardcoded null value
+				// Case: null => Hardcoded null value
 				case "null" => HardCodedValue.empty
-					// Case: true => Hardcoded true value
+				// Case: true => Hardcoded true value
 				case "true" => HardCodedValue.trueValue
-					// Case: false => Hardcoded false value
+				// Case: false => Hardcoded false value
 				case "false" => HardCodedValue.falseValue
-					// Case: now => Current timestamp (when first called)
+				// Case: now => Current timestamp (when first called)
 				case "now" => CurrentTimestamp
-					// Case: Another element => Treats it as a variable reference
-				case part => ReadValue(part)
+				// Case: _ => Reference to a parameter
+				case "_" =>
+					parameterReference.getOrElse {
+						throw new SyntaxException(line, "Encountered a reference to a non-existing parameter")
+					}
+				case part =>
+					// Case: String literal => Treats it as a hard-coded value
+					if (part.startsWith("\"") && part.endsWith("\""))
+						HardCodedValue.string(part.substring(1, part.length - 1))
+					else {
+						import utopia.flow.generic.casting.ValueConversions._
+						part.toIntOption match {
+							// Case: Number literal => Treats it as a hard-coded value
+							case Some(number) => HardCodedValue(number)
+							case None =>
+								part.toDoubleOption match {
+									// Case: Double number literal => Treats it as a hard-coded value
+									case Some(number) => HardCodedValue(number)
+									// Case: Another element => Treats it as a variable reference
+									case None => ReadValue(part)
+								}
+						}
+					}
 			}
 			// If property calls were involved, resolves them
 			partsIter.foldLeft(primary) { _ get _ }
