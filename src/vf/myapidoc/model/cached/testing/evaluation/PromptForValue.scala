@@ -12,21 +12,27 @@ import scala.io.StdIn
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-case class PromptForValue(prompt: String, hide: Boolean = false) extends TestEvaluation
+case class PromptForValue(getPrompt: TestEvaluation, hide: Boolean = false) extends TestEvaluation
 {
 	// IMPLEMENTED  ----------------------
 	
-	override def toString = s"prompt: \"$prompt\""
+	override def toString = s"prompt: `$getPrompt`"
 	
-	override def sensitive(implicit context: TestContext): Boolean = hide
+	override def sensitive(implicit context: TestContext): Boolean = hide || getPrompt.sensitive
 	
-	override def run()(implicit context: TestContext): Value = StdIn.readNonEmptyLine(prompt) match {
-		case Some(input) =>
-			context.log(s"User passed `${ if (hide) input.map { _ => '*' } else input }`")
-			jsonParser.valueOf(input)
-			
+	override def run()(implicit context: TestContext): Value = getPrompt.run().string match {
+		case Some(prompt) =>
+			StdIn.readNonEmptyLine(prompt) match {
+				case Some(input) =>
+					context.log(s"User passed `${ if (hide) input.map { _ => '*' } else input }`")
+					jsonParser.valueOf(input)
+				
+				case None =>
+					context.log("User did not pass anything")
+					Value.empty
+			}
 		case None =>
-			context.log("User did not pass anything")
+			context.log(s"Prompt `$getPrompt` skipped")
 			Value.empty
 	}
 }
