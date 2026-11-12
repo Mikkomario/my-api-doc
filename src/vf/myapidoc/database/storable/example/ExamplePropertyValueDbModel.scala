@@ -25,21 +25,22 @@ object ExamplePropertyValueDbModel
 	// ATTRIBUTES	--------------------
 	
 	override val id = DbPropertyDeclaration("id", index)
-	
 	/**
 	  * Database property used for interacting with response ids
 	  */
 	lazy val responseId = property("responseId")
-	
 	/**
 	  * Database property used for interacting with prop ids
 	  */
 	lazy val propId = property("propId")
-	
 	/**
 	  * Database property used for interacting with values
 	  */
 	lazy val value = property("value")
+	/**
+	  * Database property used for interacting with matched documentation
+	  */
+	lazy val matchedDocumentation = property("matchedDocumentation")
 	
 	
 	// IMPLEMENTED	--------------------
@@ -47,14 +48,13 @@ object ExamplePropertyValueDbModel
 	override def table = MyApiDocTables.examplePropertyValue
 	
 	override def apply(data: ExamplePropertyValueData): ExamplePropertyValueDbModel = 
-		apply(None, Some(data.responseId), Some(data.propId), data.value)
+		apply(None, Some(data.responseId), Some(data.propId), data.value, Some(data.matchedDocumentation))
 	
 	override def withId(id: Int) = apply(id = Some(id))
-	
+	override def withMatchedDocumentation(matchedDocumentation: Boolean) = 
+		apply(matchedDocumentation = Some(matchedDocumentation))
 	override def withPropId(propId: Int) = apply(propId = Some(propId))
-	
 	override def withResponseId(responseId: Int) = apply(responseId = Some(responseId))
-	
 	override def withValue(value: Value) = apply(value = value)
 	
 	override protected def complete(id: Value, data: ExamplePropertyValueData) = 
@@ -67,8 +67,9 @@ object ExamplePropertyValueDbModel
   * @author Mikko Hilpinen
   * @since 30.10.2026, v0.1
   */
-case class ExamplePropertyValueDbModel(id: Option[Int] = None, responseId: Option[Int] = None, 
-	propId: Option[Int] = None, value: Value = Value.empty) 
+case class ExamplePropertyValueDbModel(id: Option[Int] = None, responseId: Option[Int] = None,
+                                       propId: Option[Int] = None, value: Value = Value.empty,
+                                       matchedDocumentation: Option[Boolean] = None)
 	extends Storable with HasId[Option[Int]] with FromIdFactory[Int, ExamplePropertyValueDbModel] 
 		with ExamplePropertyValueFactory[ExamplePropertyValueDbModel]
 {
@@ -78,7 +79,8 @@ case class ExamplePropertyValueDbModel(id: Option[Int] = None, responseId: Optio
 		Vector(ExamplePropertyValueDbModel.id.name -> id, 
 			ExamplePropertyValueDbModel.responseId.name -> responseId, 
 			ExamplePropertyValueDbModel.propId.name -> propId, 
-			ExamplePropertyValueDbModel.value.name -> value.mapIfNotEmpty { _.toJson })
+			ExamplePropertyValueDbModel.value.name -> value.mapIfNotEmpty { _.toJson }, 
+			ExamplePropertyValueDbModel.matchedDocumentation.name -> matchedDocumentation)
 	
 	
 	// IMPLEMENTED	--------------------
@@ -86,11 +88,10 @@ case class ExamplePropertyValueDbModel(id: Option[Int] = None, responseId: Optio
 	override def table = ExamplePropertyValueDbModel.table
 	
 	override def withId(id: Int) = copy(id = Some(id))
-	
+	override def withMatchedDocumentation(matchedDocumentation: Boolean) = 
+		copy(matchedDocumentation = Some(matchedDocumentation))
 	override def withPropId(propId: Int) = copy(propId = Some(propId))
-	
 	override def withResponseId(responseId: Int) = copy(responseId = Some(responseId))
-	
 	override def withValue(value: Value) = copy(value = value)
 }
 

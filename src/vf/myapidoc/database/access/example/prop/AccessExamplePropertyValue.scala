@@ -2,6 +2,8 @@ package vf.myapidoc.database.access.example.prop
 
 import utopia.vault.nosql.targeting.columns.HasValues
 import utopia.vault.nosql.targeting.one.{AccessOneRoot, AccessOneWrapper, TargetingOne}
+import vf.myapidoc.database.MyApiDocTables
+import vf.myapidoc.database.access.example.response.FilterByExampleResponse
 import vf.myapidoc.model.stored.example.ExamplePropertyValue
 
 object AccessExamplePropertyValue extends AccessOneRoot[AccessExamplePropertyValue[ExamplePropertyValue]]
@@ -24,6 +26,9 @@ case class AccessExamplePropertyValue[A](wrapped: TargetingOne[Option[A]])
 	// ATTRIBUTES	--------------------
 	
 	override lazy val values = AccessExamplePropertyValueValue(wrapped)
+	
+	lazy val joinResponses = join(MyApiDocTables.exampleResponse)
+	lazy val whereResponses = FilterByExampleResponse(joinResponses)
 	
 	
 	// IMPLEMENTED	--------------------

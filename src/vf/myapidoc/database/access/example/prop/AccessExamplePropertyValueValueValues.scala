@@ -36,18 +36,21 @@ case class AccessExamplePropertyValueValueValues(access: AccessManyColumns) exte
 	  * Received property value
 	  */
 	lazy val values = apply(model.value) { v => v.mapIfNotEmpty { v => jsonParser.valueOf(v.getString) } }
+	/**
+	  * Whether the received value matches the documented property
+	  */
+	lazy val matchedDocumentation = apply(model.matchedDocumentation) { v => v.getBoolean }
 	
 	
-	// COMPUTED ----------------------------
+	// COMPUTED	--------------------
 	
 	/**
-	 * @param connection Implicit DB connection
-	 * @return All accessible example values as a map where keys are property IDs and values are example values
-	 *         (many-to-one)
-	 */
+	  * All accessible example values as a map where keys are property IDs and values are example values (many-to-one)
+	  * @param connection Implicit DB connection
+	  */
 	def valuesPerProp(implicit connection: Connection) =
 		access.toMultiMap(model.propId, model.value, includeDefault = true) { _.getInt } {
-			_.map { _.mapIfNotEmpty { v => jsonParser.valueOf(v.getString) } }
+			_.view.map { _.mapIfNotEmpty { v => jsonParser.valueOf(v.getString) } }.toSet
 		}
 }
 

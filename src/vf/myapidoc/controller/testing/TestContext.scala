@@ -106,6 +106,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 */
 	implicit val scribe: Scribe = Scribe.lazily { new TestScribe(newScribe("testing.Context"), eventLog) }
 	
+	private val testsMapView = testsView.mapValue { _.iterator.map { t => standardizeRef(t.name) -> t }.toMap }
+	
 	private val gateway = Gateway(maxConnectionsPerRoute = 1, maximumTimeout = Timeout(30.seconds, 90.seconds),
 		connectionTimeout = 10.seconds)
 	private val config = AppConfig("myapidoc",
@@ -297,7 +299,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 			if (method == Get || method == Delete)
 				Value.empty
 			else
-				resolveBody(pathOrNode, method)
+				resolveRequestBody(pathOrNode, method)
 		}
 		log(s"Sending $method $path")
 		logBody(body)
@@ -339,12 +341,12 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 * Runs a named test (inside another test)
 	 * @param test Name of the test to run
 	 */
-	def run(test: String): Unit = testsView.value.find { _.name ~== test } match {
+	def run(test: String): Unit = testsMapView.value.get(standardizeRef(test)) match {
 		case Some(test) =>
 			log(s"Calling test ${ test.name }")
 			if (!test.run()(this))
 				throw new TestFailedException(s"Test ${ test.name } failed")
-			
+		
 		case None =>
 			val message = s"Attempted to run a non-existing test: $test"
 			log(s"Failure: $message")
@@ -383,7 +385,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 				}
 			}
 	}
-	private def resolveBody(pathOrNode: Either[String, DetailedApiNode], method: Method): Value = {
+	private def resolveRequestBody(pathOrNode: Either[String, DetailedApiNode], method: Method): Value = {
 		val customBody = apply("body")
 		pathOrNode.toOption match {
 			// Case: Targeting a documented API node
@@ -439,8 +441,13 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 				case Some(contentSchema) => constructModel(contentSchema)
 				case None => apply(prop.name)
 			}
-			if (value.isEmpty)
+			if (value.isEmpty) {
+				if (prop.isRequired)
+					scribe.in("construct.model.missingValue").warning("Required property value is missing",
+						Model.from("schemaId" -> modelSchema.id, "schemaName" -> modelSchema.name,
+							"propName" -> prop.name))
 				None
+			}
 			else
 				Some(prop.name -> (if (prop.isArray.isCertainlyTrue) value.getVector else value))
 		})
@@ -503,4 +510,6 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 			}
 		}
 	}
+	
+	private def standardizeRef(str: String) = str.toLowerCase.filter { _.isLetterOrDigit }
 }

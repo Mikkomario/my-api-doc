@@ -210,7 +210,7 @@ object TestCommands
 	{
 		// ATTRIBUTES   -----------------
 		
-		private val testsP = Pointer(initialTests)
+		private val testsP = Pointer.eventful(initialTests)
 		private implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP,
 			sensitiveApiPropertyNames = nodes.iterator.flatMap { _.sensitivePropertyNamesIterator }.toSet)
 		

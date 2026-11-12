@@ -125,6 +125,11 @@ object MyApiDocTables extends Tables(cPool)
 	 * Table that contains example responses (Represents a response received from a tested API)
 	 */
 	lazy val exampleResponse = apply("example_response")
+	/**
+	 * Table that contains undocumented properties (Documents a property received from a tested API
+	 * that didn't appear in the documentation)
+	 */
+	lazy val undocumentedProperty = apply("undocumented_property")
 	
 	/**
 	 * Table that contains test urls (Documents a targeted API's root URL)

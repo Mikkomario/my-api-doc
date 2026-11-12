@@ -72,6 +72,11 @@ case class PropertySchemaData(originalUpdateId: Int, modelTypeId: Int, removingU
 	// COMPUTED ------------------------
 	
 	/**
+	 * @return Whether this is a required or always present property
+	 */
+	def isRequired = !isOptional
+	
+	/**
 	 * @return Whether this property doesn't contain information marked as sensitive
 	 */
 	def isNotSensitive = !isSensitive

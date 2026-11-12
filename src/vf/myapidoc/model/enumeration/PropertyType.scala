@@ -1,12 +1,9 @@
 package vf.myapidoc.model.enumeration
 
-import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Value
 import utopia.flow.generic.model.template.ValueConvertible
 import utopia.flow.operator.equality.EqualsExtensions._
-
-import java.util.NoSuchElementException
 
 /**
   * An enumeration for different data types in input and output models
@@ -26,6 +23,15 @@ sealed trait PropertyType extends ValueConvertible
 	  * Name of this type
 	  */
 	def name: String
+	
+	/**
+	 * @param value A value
+	 * @return Whether this type accepts the specified value.
+	 *         I.e. whether the specified value is convertible to this type.
+	 *
+	 *         Note: Empty values are not necessarily accepted in this context.
+	 */
+	def accepts(value: Value): Boolean
 	
 	
 	// IMPLEMENTED	--------------------
@@ -90,6 +96,8 @@ object PropertyType
 		
 		override val id = 1
 		override val name: String = "Any"
+		
+		override def accepts(value: Value): Boolean = true
 	}
 	
 	/**
@@ -102,6 +110,8 @@ object PropertyType
 		
 		override val id = 6
 		override val name: String = "Boolean"
+		
+		override def accepts(value: Value): Boolean = value.boolean.isDefined
 	}
 	
 	/**
@@ -114,6 +124,8 @@ object PropertyType
 		
 		override val id = 4
 		override val name: String = "Double"
+		
+		override def accepts(value: Value): Boolean = value.double.isDefined
 	}
 	
 	/**
@@ -127,6 +139,8 @@ object PropertyType
 		
 		override val id = 8
 		override val name: String = "Duration"
+		
+		override def accepts(value: Value): Boolean = value.duration.isDefined
 	}
 	
 	/**
@@ -139,6 +153,8 @@ object PropertyType
 		
 		override val id = 7
 		override val name: String = "Instant"
+		
+		override def accepts(value: Value): Boolean = value.instant.isDefined
 	}
 	
 	case object IntProp extends PropertyType
@@ -147,6 +163,8 @@ object PropertyType
 		
 		override val id = 3
 		override val name: String = "Int"
+		
+		override def accepts(value: Value): Boolean = value.int.isDefined
 	}
 	
 	case object LongProp extends PropertyType
@@ -155,6 +173,8 @@ object PropertyType
 		
 		override val id = 5
 		override val name: String = "Long"
+
+		override def accepts(value: Value): Boolean = value.long.isDefined
 	}
 	
 	/**
@@ -167,6 +187,8 @@ object PropertyType
 		
 		override val id = 9
 		override val name: String = "Object"
+
+		override def accepts(value: Value): Boolean = value.model.isDefined
 	}
 	
 	case object StringProp extends PropertyType
@@ -175,6 +197,8 @@ object PropertyType
 		
 		override val id = 2
 		override val name: String = "String"
+		
+		override def accepts(value: Value): Boolean = value.string.isDefined
 	}
 }
 

@@ -31,10 +31,10 @@ object ExamplePropertyValueDbReader
 	
 	override def table = model.table
 	
-	override def fromValid(valid: Model) = 
-		Success(ExamplePropertyValue(valid(this.model.id.name).getInt, 
-			ExamplePropertyValueData(responseId = valid(this.model.responseId.name).getInt, 
-			propId = valid(this.model.propId.name).getInt, 
-			value = valid(this.model.value.name).mapIfNotEmpty { v => JsonBunny.sureMunch(v.getString) })))
+	override def fromValid(valid: Model) = Success(ExamplePropertyValue(valid(this.model.id.name).getInt,
+		ExamplePropertyValueData(responseId = valid(this.model.responseId.name).getInt,
+		propId = valid(this.model.propId.name).getInt,
+		value = valid(this.model.value.name).mapIfNotEmpty { v => JsonBunny.sureMunch(v.getString) },
+		matchedDocumentation = valid(this.model.matchedDocumentation.name).getBoolean)))
 }
 

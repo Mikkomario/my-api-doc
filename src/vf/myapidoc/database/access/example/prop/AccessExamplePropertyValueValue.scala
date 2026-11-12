@@ -39,5 +39,10 @@ case class AccessExamplePropertyValueValue(access: AccessColumn) extends AccessV
 	  * Received property value
 	  */
 	lazy val value = apply(model.value) { v => v.mapIfNotEmpty { v => JsonBunny.sureMunch(v.getString) } }
+	
+	/**
+	  * Whether the received value matches the documented property
+	  */
+	lazy val matchedDocumentation = apply(model.matchedDocumentation).optional { v => v.boolean }
 }
 

@@ -34,10 +34,7 @@ case class ExamplePropertyValue(id: Int, data: ExamplePropertyValueData)
 	
 	// IMPLEMENTED	--------------------
 	
-	override protected def wrappedFactory: ExamplePropertyValueData = data
-	
 	override def withId(id: Int) = copy(id = id)
-	
 	override def wrap(data: ExamplePropertyValueData) = copy(data = data)
 }
 

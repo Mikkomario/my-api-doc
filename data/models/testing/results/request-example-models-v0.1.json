@@ -49,6 +49,46 @@
         "name": "value",
         "type": "Value",
         "doc": "Received property value"
+      },
+      {
+        "name": "matchedDocumentation",
+        "name_plural": "matchedDocumentation",
+        "type": "Boolean",
+        "index": true,
+        "doc": "Whether the received value matches the documented property"
+      }
+    ]
+  },
+  {
+    "name": "UndocumentedProperty",
+    "name_plural": "UndocumentedProperties",
+    "access": "prop.undocumented",
+    "doc": "Documents a property received from a tested API that didn't appear in the documentation",
+    "props": [
+      {
+        "name": "responseId",
+        "ref": "example_response",
+        "with": "inResponse",
+        "doc": "ID of the response that contained this property"
+      },
+      {
+        "name": "modelTypeId",
+        "ref": "model_schema",
+        "with": "inModel",
+        "doc": "ID of the model schema that missed this property"
+      },
+      {
+        "name": "name",
+        "type": "NonEmptyString(24-255)",
+        "index": true,
+        "with": "named",
+        "in": "withNames",
+        "doc": "Name of the received property"
+      },
+      {
+        "name": "value",
+        "type": "Value",
+        "doc": "Received property value"
       }
     ]
   }

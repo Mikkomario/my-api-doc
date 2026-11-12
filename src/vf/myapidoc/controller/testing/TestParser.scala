@@ -86,7 +86,7 @@ object TestParser
 							parseCode(
 								lines.view.drop(codeBlockIndex + 1).iterator.takeWhile { !_.startsWith("```") }
 									// Ignores empty code lines
-									.filter { _.nonEmpty },
+									.filterNot { _.forall { c => c == ' ' || c == '\t' } },
 								codeBuilder)
 							codeBuilder.result().map { code =>
 								// Case: Compilation succeeded => Prepares the test
@@ -111,6 +111,7 @@ object TestParser
 	 *                  Must fulfill the following conditions:
 	 *                  - The first line is NOT indented
 	 *                  - No empty lines are included
+	 *                      - Lines containing only tabs or whitespaces are considered empty
 	 * @param builder A builder for the resulting code
 	 * @param doc Implicit API nodes documentation
 	 */

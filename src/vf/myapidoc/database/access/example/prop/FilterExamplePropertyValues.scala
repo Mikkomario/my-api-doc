@@ -19,6 +19,15 @@ trait FilterExamplePropertyValues[+Repr] extends Filterable[Repr]
 	  */
 	def model = ExamplePropertyValueDbModel
 	
+	/**
+	 * @return Access limited to values matching documentation
+	 */
+	def documented = withMatchedDocumentation(true)
+	/**
+	 * @return Access limited to values that didn't match documentation
+	 */
+	def undocumented = withMatchedDocumentation(false)
+	
 	
 	// OTHER	--------------------
 	
@@ -28,7 +37,6 @@ trait FilterExamplePropertyValues[+Repr] extends Filterable[Repr]
 	  * response id
 	  */
 	def inResponse(responseId: Int) = filter(model.responseId.column <=> responseId)
-	
 	/**
 	  * @param responseIds Targeted response ids
 	  * @return Copy of this access point that only includes example property values where response id is 
@@ -42,12 +50,26 @@ trait FilterExamplePropertyValues[+Repr] extends Filterable[Repr]
 	  * the specified value set
 	  */
 	def ofProperties(propIds: IterableOnce[Int]) = filter(Condition.indexIn(model.propId, propIds))
-	
 	/**
 	  * @param propId prop id to target
 	  * @return Copy of this access point that only includes example property values with the specified prop 
 	  * id
 	  */
 	def ofProperty(propId: Int) = filter(model.propId.column <=> propId)
+	
+	/**
+	  * @param matchedDocumentation Targeted matched documentation
+	  * @return Copy of this access point that only includes example property values where matched 
+	  * documentation is within the specified value set
+	  */
+	def withMatchedDocumentation(matchedDocumentation: Iterable[Boolean]) = 
+		filter(model.matchedDocumentation.column.in(matchedDocumentation))
+	/**
+	  * @param matchedDocumentation matched documentation to target
+	  * @return Copy of this access point that only includes example property values with the specified 
+	  * matched documentation
+	  */
+	def withMatchedDocumentation(matchedDocumentation: Boolean) = 
+		filter(model.matchedDocumentation.column <=> matchedDocumentation)
 }
 

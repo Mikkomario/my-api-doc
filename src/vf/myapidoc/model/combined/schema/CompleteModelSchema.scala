@@ -1,7 +1,6 @@
 package vf.myapidoc.model.combined.schema
 
 import vf.myapidoc.model.partial.schema.ModelSchemaData
-import vf.myapidoc.model.stored.api.StoredVersionedDocElementLike
 import vf.myapidoc.model.stored.schema.{ModelSchema, PropertySchema}
 
 object CompleteModelSchema
@@ -49,4 +48,3 @@ object CompleteModelSchema
   * @since 15.10.2026, v0.1
   */
 trait CompleteModelSchema extends CompleteModelSchemaLike[PropertySchema, CompleteModelSchema]
-

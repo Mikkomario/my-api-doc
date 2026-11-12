@@ -397,7 +397,7 @@ object DocParser
 	private def parseProps(linesIter: PollingIterator[String]): Seq[NewProperty] =
 		MdParser.list(linesIter).map(processProp)
 	private def processProp(propInput: ValueTree[String]): NewProperty = {
-		val propName = propInput.value
+		val (propName, typeAfterName) = propInput.value.filterNot { _ == '`' }.splitAtFirst(":").map { _.trim }.toTuple
 		
 		// Collects information from the nested details
 		val typesBuilder = OptimizedIndexedSeq.newBuilder[PropertyType]
@@ -409,70 +409,73 @@ object DocParser
 		var children: Seq[NewProperty] = Empty
 		var possibleValues: Seq[(String, String)] = Empty
 		
-		propInput.children.foreach { detail =>
-			// Checks for key-value syntax
-			val parts = detail.value.splitAtFirst(":").map { _.trim }
-			val value = parts.second
-			parts.first.filter { _.isLetter }.toLowerCase match {
-				case "type" =>
-					// Checks for multiple alternative types
-					val parts = value.split('|').iterator
-						.map { entry =>
-							val trimmed = entry.trim
-							val (content, isArray) = {
-								// Case: Array -prefix => Accepts an array of values.
-								//                        Suffix determines the accepted type.
-								if (trimmed.startsWithIgnoreCase("Array"))
-									trimmed.afterFirst(":").dropWhile { _ == ' ' } -> true
-								else
-									trimmed -> false
-							}
-							// Checks whether a basic type is referenced
-							PropertyType.findForName(content).toRight(content) -> isArray
-						}
-						.toOptimizedSeq
-					// Checks whether an array is expected, and whether that's true 100% of the time
-					val arrayElements = parts.count { _._2 }
-					if (arrayElements > 0) {
-						if (arrayElements == parts.size)
-							array = true
-						else
-							array = UncertainBoolean
-					}
-					// If a non-basic type was referenced, we'll store it as a referenced (model) type
-					if (referencedType.isEmpty)
-						parts.findMap { _._1.leftOption }.foreach { referencedType = _ }
-					// Remembers the referenced basic types
-					typesBuilder ++= parts.iterator.flatMap { _._1.rightOption }
-					
-				case "optional" => optional = value.booleanOr(true)
-				case "sensitive" => sensitive = value.booleanOr(true)
-				case "array" => value.boolean.foreach { array = _ }
-				case "description" => descriptionBuilder += detail.withValue(value)
-				case "possiblevalues" =>
-					if (possibleValues.nonEmpty)
-						scribe.in("process.prop.detail.possibleValues.duplicate").recoverable(
-							"Possible property values were defined multiple times", Model.from("prop" -> propName))
-					else
-						possibleValues = detail.children.iterator
-							.map { possibleValue =>
-								val parts = possibleValue.value.splitAtFirst(":").map { _.trim }
-								val description = Pair(parts.second, MdParser.listToString(possibleValue.children))
-									.filter { _.nonEmpty }.mkString("\n")
-								parts.first -> description
+		// If type was included in the property name, adds it as a simulated detail
+		(typeAfterName.ifNotEmpty.iterator.map { typeStr => ValueTree(s"Type: $typeStr").withoutChildren } ++
+			propInput.children)
+			.foreach { detail =>
+				// Checks for key-value syntax
+				val parts = detail.value.splitAtFirst(":").map { _.trim }
+				val value = parts.second
+				parts.first.filter { _.isLetter }.toLowerCase match {
+					case "type" =>
+						// Checks for multiple alternative types
+						val parts = value.split('|').iterator
+							.map { entry =>
+								val trimmed = entry.trim
+								val (content, isArray) = {
+									// Case: Array -prefix => Accepts an array of values.
+									//                        Suffix determines the accepted type.
+									if (trimmed.startsWithIgnoreCase("Array"))
+										trimmed.afterFirst(":").dropWhile { _ == ' ' } -> true
+									else
+										trimmed -> false
+								}
+								// Checks whether a basic type is referenced
+								PropertyType.findForName(content).toRight(content) -> isArray
 							}
 							.toOptimizedSeq
-					
-				case "properties" | "props" =>
-					if (children.nonEmpty)
-						scribe.in("process.prop.detail.properties.duplicate").recoverable(
-							"Properties were defined multiple times", Model.from("prop" -> propName))
-					else
-						children = detail.children.map(processProp)
-					
-				case _ => descriptionBuilder += detail
+						// Checks whether an array is expected, and whether that's true 100% of the time
+						val arrayElements = parts.count { _._2 }
+						if (arrayElements > 0) {
+							if (arrayElements == parts.size)
+								array = true
+							else
+								array = UncertainBoolean
+						}
+						// If a non-basic type was referenced, we'll store it as a referenced (model) type
+						if (referencedType.isEmpty)
+							parts.findMap { _._1.leftOption }.foreach { referencedType = _ }
+						// Remembers the referenced basic types
+						typesBuilder ++= parts.iterator.flatMap { _._1.rightOption }
+						
+					case "optional" => optional = value.booleanOr(true)
+					case "sensitive" => sensitive = value.booleanOr(true)
+					case "array" => value.boolean.foreach { array = _ }
+					case "description" => descriptionBuilder += detail.withValue(value)
+					case "possiblevalues" =>
+						if (possibleValues.nonEmpty)
+							scribe.in("process.prop.detail.possibleValues.duplicate").recoverable(
+								"Possible property values were defined multiple times", Model.from("prop" -> propName))
+						else
+							possibleValues = detail.children.iterator
+								.map { possibleValue =>
+									val parts = possibleValue.value.splitAtFirst(":").map { _.trim }
+									val description = Pair(parts.second, MdParser.listToString(possibleValue.children))
+										.filter { _.nonEmpty }.mkString("\n")
+									parts.first -> description
+								}
+								.toOptimizedSeq
+						
+					case "properties" | "props" =>
+						if (children.nonEmpty)
+							scribe.in("process.prop.detail.properties.duplicate").recoverable(
+								"Properties were defined multiple times", Model.from("prop" -> propName))
+						else
+							children = detail.children.map(processProp)
+						
+					case _ => descriptionBuilder += detail
+				}
 			}
-		}
 		
 		// Compiles the property
 		NewProperty(name = propName, dataTypes = typesBuilder.result(), referencedType = referencedType,
@@ -534,9 +537,18 @@ object DocParser
 	private def _parseScope(scope: String) = {
 		if (scope.startsWith("`")) {
 			val parts = scope.tail.splitAtFirst("`")
-			parts.first -> parts.second.trim.notStartingWith(", ")
+			parts.first -> parts.second.trim.notStartingWith(", ").notStartingWith(": ")
 		}
 		else
-			scope -> ""
+			scope.findIndexOf(":") match {
+				case Some(splitIndex) =>
+					val firstPart = scope.take(splitIndex).trim
+					if (firstPart.forall { c => c.isLetterOrDigit || c == '.' })
+						firstPart -> scope.drop(splitIndex + 1).trim
+					else
+						scope -> ""
+				
+				case None => scope -> ""
+			}
 	}
 }
