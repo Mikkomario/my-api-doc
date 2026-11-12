@@ -28,6 +28,13 @@ import scala.util.Success
  */
 object ExamplesDb
 {
+	// ATTRIBUTES    -----------------
+	
+	private val maxValueLength = 1024
+	
+	
+	// OTHER    ----------------------
+	
 	/**
 	 * Stores a response example to the DB, if needed
 	 * @param nodeName Name of the node which this request concerns. Used in the generated file path, if needed.
@@ -262,12 +269,16 @@ object ExamplesDb
 					
 					// Case: Basic value property => Links the read value to it
 					case None =>
-						// Case: May include multiple values => Links each one separately
-						if (prop.isArray.mayBeTrue)
-							value.getVector.iterator.filter { _.nonEmpty }.map { prop -> _ }
-						// Case: Only a single value may be received => Links it
-						else
-							Single(prop -> value)
+						val valuesIter = {
+							// Case: May include multiple values => Links each one separately
+							if (prop.isArray.mayBeTrue)
+								value.getVector.iterator.filter { _.nonEmpty }.map { prop -> _ }
+							// Case: Only a single value may be received => Links it
+							else
+								Iterator.single(prop -> value)
+						}
+						// Skips very long values
+						valuesIter.filter { _._2.toJson.length <= maxValueLength }
 				}
 		}
 	}
@@ -284,21 +295,30 @@ object ExamplesDb
 	 */
 	private def findUndocumentedValues(schema: DetailedModelSchema, body: Model): Iterator[(DetailedModelSchema, Option[DetailedPropertySchema], Constant)] =
 		body.propertiesIterator.flatMap { prop =>
+			// Finds the matching schema property
 			schema.properties.find { _.name ~== prop.name } match {
 				case Some(matchingSchema) =>
+					// Case: Received value is not within the accepted values
+					//       => Takes note of this property / value, but ignores too long values
 					if ((matchingSchema.isRequired && prop.isEmpty) ||
 						(prop.nonEmpty && !matchingSchema.dataType.accepts(prop.value)))
-						Single((schema, Some(matchingSchema), prop))
+						Single((schema, Some(matchingSchema), prop)).filter { _._3.toJson.length <= maxValueLength }
+					// Case: Received value is expected => Checks for nested model schemas
 					else
 						matchingSchema.contentType match {
 							case Some(contentSchema) =>
-								prop.value.model match {
-									case Some(model) => findUndocumentedValues(contentSchema, model)
-									case None => Empty
-								}
+								if (matchingSchema.isArray.isCertainlyTrue)
+									prop.value.getVector.iterator.flatMap { _.model }
+										.flatMap { findUndocumentedValues(contentSchema, _) }
+								else
+									prop.value.model match {
+										case Some(model) => findUndocumentedValues(contentSchema, model)
+										case None => Empty
+									}
 							case None => Empty
 						}
-				case None => Single((schema, None, prop))
+				// Case: No matching property => Takes note of this property, but ignores too long values
+				case None => Single((schema, None, prop)).filter { _._3.toJson.length <= maxValueLength }
 			}
 		}
 }

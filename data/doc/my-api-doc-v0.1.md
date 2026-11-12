@@ -1,6 +1,6 @@
 # My Api Doc
 Version: **v0.1**  
-Updated: 2026-10-28
+Updated: 2026-11-12
 
 ## Table of Contents
 - [Enumerations](#enumerations)
@@ -27,11 +27,18 @@ Updated: 2026-10-28
   - [Auth](#auth)
     - [Auth Token Type](#auth-token-type)
     - [Scope](#scope)
+  - [Example](#example)
+    - [Example Property Value](#example-property-value)
+    - [Example Response](#example-response)
+    - [Undocumented Property](#undocumented-property)
   - [Schema](#schema)
     - [Alternative Property Type](#alternative-property-type)
     - [Model Schema](#model-schema)
     - [Possible Property Value](#possible-property-value)
     - [Property Schema](#property-schema)
+  - [Test](#test)
+    - [Test Url](#test-url)
+    - [Tests File](#tests-file)
 
 ## Enumerations
 Below are listed all enumerations introduced in My Api Doc, in alphabetical order  
@@ -75,7 +82,7 @@ Utilized by the following 1 classes:
 
 ## Packages and Classes
 Below are listed all classes introduced in My Api Doc, grouped by package and in alphabetical order.  
-There are a total number of 3 packages and 22 classes
+There are a total number of 5 packages and 27 classes
 
 ### Api
 This package contains the following 16 classes: [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement), [Api](#api), [Api Node](#api-node), [Api Node Group](#api-node-group), [Api Node Method Implementation](#api-node-method-implementation), [Body Schema](#body-schema), [Doc Update](#doc-update), [Node Auth Link](#node-auth-link), [Node Auth Scope Link](#node-auth-scope-link), [Node Auth Type Link](#node-auth-type-link), [Path Parameters Schema Link](#path-parameters-schema-link), [Possible Response Status](#possible-response-status), [Query Parameters Schema Link](#query-parameters-schema-link), [Request Body Schema](#request-body-schema), [Response Body Schema](#response-body-schema), [Versioned Doc Element](#versioned-doc-element)
@@ -110,6 +117,8 @@ Api contains the following 2 properties:
 - [Doc Update](#doc-update).`apiId`
 - [Model Schema](#model-schema).`apiId`
 - [Scope](#scope).`apiId`
+- [Test Url](#test-url).`apiId`
+- [Tests File](#tests-file).`apiId`
 
 #### Api Node
 Represents an individual API node implementation
@@ -229,6 +238,7 @@ Doc Update contains the following 2 properties:
 - [Auth Token Type](#auth-token-type).`removingUpdateId`
 - [Body Schema](#body-schema).`originalUpdateId`
 - [Body Schema](#body-schema).`removingUpdateId`
+- [Example Response](#example-response).`testedApiVersionId`
 - [Model Schema](#model-schema).`originalUpdateId`
 - [Model Schema](#model-schema).`removingUpdateId`
 - [Node Auth Link](#node-auth-link).`originalUpdateId`
@@ -354,6 +364,7 @@ Possible Response Status contains the following 6 properties:
 - **Has Body** - `hasBody: UncertainBoolean` - Whether a response body is returned with this status. Uncertain if not specified in the documentation.
 
 ##### Referenced from
+- [Example Response](#example-response).`statusId`
 - [Response Body Schema](#response-body-schema).`statusId`
 
 #### Query Parameters Schema Link
@@ -469,6 +480,59 @@ Scope contains the following 4 properties:
 - [Additional Node Auth Scope Requirement](#additional-node-auth-scope-requirement).`scopeId`
 - [Node Auth Scope Link](#node-auth-scope-link).`scopeId`
 
+### Example
+This package contains the following 3 classes: [Example Property Value](#example-property-value), [Example Response](#example-response), [Undocumented Property](#undocumented-property)
+
+#### Example Property Value
+Documents a single property value received from a tested API
+
+##### Details
+- Uses **index**: `matched_documentation`
+
+##### Properties
+Example Property Value contains the following 4 properties:
+- **Response Id** - `responseId: Int` - ID of the response that contained this value
+  - Refers to [Example Response](#example-response)
+- **Prop Id** - `propId: Int` - ID of the property schema that matches the received property
+  - Refers to [Property Schema](#property-schema)
+- **Value** - `value: Value` - Received property value
+- **Matched Documentation** - `matchedDocumentation: Boolean` - Whether the received value matches the documented property
+
+#### Example Response
+Represents a response received from a tested API
+
+##### Details
+- **Chronologically** indexed
+- Uses **index**: `created`
+
+##### Properties
+Example Response contains the following 4 properties:
+- **Tested Api Version Id** - `testedApiVersionId: Int` - ID of the tested API (document) version
+  - Refers to [Doc Update](#doc-update)
+- **Status Id** - `statusId: Int` - ID of the response (status) documentation entry that matches the received response
+  - Refers to [Possible Response Status](#possible-response-status)
+- **Relative File Path** - `relativeFilePath: Path` - Path to the file where the response body is stored. Relative to the examples directory.
+- **Created** - `created: Instant` - Time when this example response was added to the database
+
+##### Referenced from
+- [Example Property Value](#example-property-value).`responseId`
+- [Undocumented Property](#undocumented-property).`responseId`
+
+#### Undocumented Property
+Documents a property received from a tested API that didn't appear in the documentation
+
+##### Details
+- Uses **index**: `name`
+
+##### Properties
+Undocumented Property contains the following 4 properties:
+- **Response Id** - `responseId: Int` - ID of the response that contained this property
+  - Refers to [Example Response](#example-response)
+- **Model Type Id** - `modelTypeId: Int` - ID of the model schema that missed this property
+  - Refers to [Model Schema](#model-schema)
+- **Name** - `name: String` - Name of the received property
+- **Value** - `value: Value` - Received property value
+
 ### Schema
 This package contains the following 4 classes: [Alternative Property Type](#alternative-property-type), [Model Schema](#model-schema), [Possible Property Value](#possible-property-value), [Property Schema](#property-schema)
 
@@ -513,6 +577,7 @@ Named model types are often referenced from multiple sources, while unnamed type
 - [Query Parameters Schema Link](#query-parameters-schema-link).`modelTypeId`
 - [Request Body Schema](#request-body-schema).`modelTypeId`
 - [Response Body Schema](#response-body-schema).`modelTypeId`
+- [Undocumented Property](#undocumented-property).`modelTypeId`
 
 #### Possible Property Value
 Defines a possible value for an enum property
@@ -537,7 +602,7 @@ Defines an individual property in a model schema.
 - Uses **index**: `name`
 
 ##### Properties
-Property Schema contains the following 9 properties:
+Property Schema contains the following 10 properties:
 - **Original Update Id** - `originalUpdateId: Int` - ID of the update that introduced this element (version)
   - Refers to [Doc Update](#doc-update)
 - **Model Type Id** - `modelTypeId: Int` - ID of the model type that this property belongs to.
@@ -553,7 +618,39 @@ None if this property uses some other data type.
 - **Is Array** - `isArray: UncertainBoolean`, `false` by default - Whether this property is an array of values. 
 False if this property contains a single value. Uncertain if both are possible.
 - **Is Optional** - `isOptional: Boolean`, `false` by default - Whether this property may be omitted from the input and/or output.
+- **Is Sensitive** - `isSensitive: Boolean`, `false` by default - Whether this property contains sensitive information.
 
 ##### Referenced from
 - [Alternative Property Type](#alternative-property-type).`propId`
+- [Example Property Value](#example-property-value).`propId`
 - [Possible Property Value](#possible-property-value).`propId`
+
+### Test
+This package contains the following 2 classes: [Test Url](#test-url), [Tests File](#tests-file)
+
+#### Test Url
+Documents a targeted API's root URL
+
+##### Details
+- Uses 2 database **indices**: `name`, `root_url`
+
+##### Properties
+Test Url contains the following 4 properties:
+- **Api Id** - `apiId: Int` - ID of the targeted API
+  - Refers to [Api](#api)
+- **Name** - `name: String` - Name given to this URL. May be empty.
+- **Root Url** - `rootUrl: String` - URL to the root API node. E.g. "https://domain/api/v1"
+- **Created** - `created: Instant` - Time when this test url was added to the database
+
+#### Tests File
+Documents the location of a single tests-file
+
+##### Details
+- Uses **index**: `path`
+
+##### Properties
+Tests File contains the following 3 properties:
+- **Api Id** - `apiId: Int` - ID of the tested API
+  - Refers to [Api](#api)
+- **Path** - `path: Path` - Path to the tests-file
+- **Created** - `created: Instant` - Time when this tests file was added to the database

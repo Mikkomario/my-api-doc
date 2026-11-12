@@ -47,7 +47,7 @@
       },
       {
         "name": "value",
-        "type": "Value",
+        "type": "Value(255-1024)",
         "doc": "Received property value"
       },
       {
@@ -87,7 +87,7 @@
       },
       {
         "name": "value",
-        "type": "Value",
+        "type": "Value(255-1024)",
         "doc": "Received property value"
       }
     ]
