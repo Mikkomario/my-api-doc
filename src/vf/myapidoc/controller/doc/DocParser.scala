@@ -15,8 +15,7 @@ import utopia.flow.util.StringExtensions._
 import utopia.flow.util.UncertainBoolean
 import utopia.scribe.core.controller.logging.Scribe
 import vf.myapidoc.controller.MdParser
-import vf.myapidoc.model.cached._
-import vf.myapidoc.model.cached.doc.{NewApiNode, NewApiNodeGroup, NewBodyDefinition, NewMethodImplementation, NewNamedModel, NewProperty}
+import vf.myapidoc.model.cached.doc._
 import vf.myapidoc.model.enumeration.PropertyType
 import vf.myapidoc.model.enumeration.PropertyType.ModelProp
 import vf.myapidoc.util.Common._
@@ -361,8 +360,26 @@ object DocParser
 			// Processes the body content type
 			val (dataType, properties, referencedType, details) = {
 				// Case: Unnamed object => Parses the listed properties
-				if (mainKeyPart.startsWithIgnoreCase("Object"))
-					(ModelProp, entry.children.map(processProp), "", "")
+				if (mainKeyPart.startsWithIgnoreCase("Object")) {
+					// A description may be appended after "Object: "
+					val remainder = mainKeyPart.drop(6).dropWhile { _ == ':' }.trim
+					// The object properties may be listed directly, or under "Properties"
+					val (propNodes, description) = entry.children
+						.find { _.value.startsWithIgnoreCase("Properties") } match
+					{
+						case Some(propsNode) =>
+							val description = entry.children.iterator.map { _.value }
+								.find { _.startsWithIgnoreCase("Description:") } match
+							{
+								case Some(description) => description.drop(12).trim
+								case None => remainder
+							}
+							propsNode.children -> description
+							
+						case None => entry.children -> remainder
+					}
+					(ModelProp, propNodes.map(processProp), "", description)
+				}
 				// Case: Basic type or named object reference
 				//       => Keeps the reference and includes possible list elements as details
 				else {

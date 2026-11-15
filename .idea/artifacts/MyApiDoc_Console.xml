@@ -1,0 +1,25 @@
+<component name="ArtifactManager">
+  <artifact name="MyApiDoc-Console">
+    <output-path>$PROJECT_DIR$/out/artifacts/MyApiDoc_Console</output-path>
+    <root id="root">
+      <element id="archive" name="my-api-doc-console.jar">
+        <element id="module-output" name="Flow" />
+        <element id="module-output" name="BunnyMunch" />
+        <element id="module-output" name="Vault-Disconnected" />
+        <element id="module-output" name="Vault" />
+        <element id="module-output" name="Access" />
+        <element id="module-output" name="Disciple" />
+        <element id="module-output" name="Scribe-Core" />
+        <element id="module-output" name="MyApiDoc" />
+      </element>
+      <element id="library" level="application" name="scala-sdk-2.13.18" />
+      <element id="library" level="project" name="mariadb-java-client" />
+      <element id="library" level="project" name="httpclient" />
+      <element id="directory" name="data">
+        <element id="directory" name="length-rules">
+          <element id="dir-copy" path="$PROJECT_DIR$/data/length-rules" />
+        </element>
+      </element>
+    </root>
+  </artifact>
+</component>

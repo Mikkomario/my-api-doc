@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Main-Class: vf.myapidoc.controller.console.MyApiDocConsole
+Class-Path: scala-library-2.13.18.jar scala-reflect-2.13.18.jar mariadb-
+ java-client-1.5.9.jar httpclient5-5.6.1.jar httpcore5-5.4.jar httpcore5
+ -h2-5.4.jar slf4j-api-1.7.36.jar
+
