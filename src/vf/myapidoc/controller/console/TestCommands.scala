@@ -2,12 +2,14 @@ package vf.myapidoc.controller.console
 
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair, Single}
+import utopia.flow.collection.mutable.iterator.OptionsIterator
 import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.StringExtensions._
+import utopia.flow.util.result.TryExtensions._
 import utopia.flow.util.StringUtils
 import utopia.flow.util.console.ConsoleExtensions._
 import utopia.flow.util.console.{ArgumentSchema, Command}
@@ -97,6 +99,41 @@ object TestCommands
 	}
 	private val reloadC = Command.withoutArguments("reload",
 		help = "Reloads the tests by reading the tests file again") { testsP.value.foreach { _.reload() } }
+	
+	private val evalC = Command("context:evaluate", "eval",
+		help = "Evaluates code in the current test context")(
+		ArgumentSchema("code", help = "Code to evaluate", defaultDescription = "Opens code terminal mode")) {
+		args =>
+			testsP.value.foreach { tests =>
+				args("code").string match {
+					// Case: Evaluating a specific expression
+					case Some(code) =>
+						Try
+							.apply {
+								TestParser.parseCode("Command", Single(code))(tests.nodes) match {
+									case Some(test) => tests.run(test)
+									case None => println("There was no code to run")
+								}
+							}
+							.failure
+							.foreach { error =>
+								println(s"Failed to compile the code: ${ error.getMessage }")
+								error.causesIterator.foreach { e => println(e.getMessage) }
+							}
+					// Case: No code parameter => Starts code terminal mode
+					case None =>
+						println("\nWrite test code to execute. An empty line terminates this mode.")
+						val source = OptionsIterator.continually { StdIn.readNonEmptyLine("Next instruction:") }
+						while (source.hasNext) {
+							Try { TestParser.parseAndExecute(source)(tests.context, tests.nodes) }.failure
+								.foreach { error =>
+									println(s"Failure: ${ error.getMessage }")
+									error.causesIterator.foreach { e => println(e.getMessage) }
+								}
+						}
+				}
+			}
+	}
 	private val clearC = Command.withoutArguments("context:clear",
 		help = "Clears the current test context, including persisted values") {
 		testsP.value.foreach { _.clearContext() } }
@@ -106,7 +143,7 @@ object TestCommands
 	 */
 	val pointer = testsP.map[Seq[Command]] { tests =>
 		if (tests.isDefined)
-			Vector(listC, runC, reloadC, clearC, testC)
+			Vector(listC, runC, evalC, reloadC, clearC, testC)
 		else
 			Single(testC)
 	}
@@ -213,12 +250,12 @@ object TestCommands
 	// NESTED   ------------------------
 	
 	private class Tests(apiId: Int, apiName: String, apiRootUrl: String, initialTests: Iterable[Test], path: Path)
-	                   (implicit nodes: Iterable[DetailedApiNode])
+	                   (implicit val nodes: Iterable[DetailedApiNode])
 	{
 		// ATTRIBUTES   -----------------
 		
 		private val testsP = Pointer.eventful(initialTests)
-		private implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP,
+		implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP,
 			sensitiveApiPropertyNames = nodes.iterator.flatMap { _.sensitivePropertyNamesIterator }.toSet)
 		
 		

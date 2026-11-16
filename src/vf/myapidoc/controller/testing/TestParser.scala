@@ -3,6 +3,7 @@ package vf.myapidoc.controller.testing
 import utopia.access.model.enumeration.Method
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Pair, Single}
+import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.model.enumeration.ValueOperation2
 import utopia.flow.generic.model.immutable.Value
 import utopia.flow.operator.enumeration.LogicalOperator
@@ -11,6 +12,7 @@ import utopia.flow.operator.sign.Sign
 import utopia.flow.operator.sign.Sign.{Negative, Positive}
 import utopia.flow.parse.string.Regex
 import utopia.flow.util.StringExtensions._
+import utopia.flow.util.result.TryExtensions._
 import utopia.flow.view.immutable.View
 import utopia.flow.view.mutable.Pointer
 import vf.myapidoc.controller.MdParser
@@ -124,6 +126,22 @@ object TestParser
 			codeBuilder)
 		// Case: Compilation succeeded => Prepares the test
 		codeBuilder.result().map { code => Test(testName, code, description = description) }
+	}
+	
+	/**
+	 * Parses code and executes each line immediately
+	 * @param lines Source for the code lines
+	 * @param context Implicit test context
+	 * @param doc Implicit API nodes documentation
+	 */
+	def parseAndExecute(lines: IterableOnce[String])
+	                   (implicit context: TestContext, doc: Iterable[DetailedApiNode]): Unit =
+	{
+		val linesIter = lines.iterator.filterNot { _.forall { c => c == ' ' || c == '\t' } }
+		val codeBuilder = new ExecuteCodeBuilder()
+		while (linesIter.hasNext) {
+			parseCode(linesIter, codeBuilder)
+		}
 	}
 	
 	/**
@@ -507,6 +525,19 @@ object TestParser
 	
 	
 	// NESTED   -----------------------
+	
+	private class ExecuteCodeBuilder()(implicit context: TestContext) extends mutable.Growable[TestInstruction]
+	{
+		override def addOne(elem: TestInstruction): ExecuteCodeBuilder.this.type = {
+			Try { elem.execute() }.failure.foreach { error =>
+				println(s"Failure: ${ error.getMessage }")
+				error.causesIterator.foreach { e => println(e.getMessage) }
+			}
+			this
+		}
+		
+		override def clear(): Unit = ()
+	}
 	
 	/**
 	 * An enumeration for different code tokens
