@@ -6,6 +6,7 @@ import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.util.NotEmpty
+import utopia.flow.util.StringExtensions._
 import vf.myapidoc.model.combined.schema.{DetailedModelSchema, DetailedPropertySchema}
 import vf.myapidoc.model.factory.api.ApiNodeFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeData
@@ -37,7 +38,7 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 	 * Absolute path from the API root to this node
 	 */
 	lazy val absolutePath: String = parent match {
-		case Some(parent) => s"${ parent.absolutePath }/${ data.relativePath }"
+		case Some(parent) => s"${ parent.absolutePath.notEndingWith("/") }${ data.relativePath.startingWith("/") }"
 		case None => data.relativePath
 	}
 	/**

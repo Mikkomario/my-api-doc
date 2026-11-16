@@ -12,6 +12,8 @@ import vf.myapidoc.controller.testing.TestContext
  */
 object CurrentTimestamp extends TestEvaluation
 {
+	override def toString: String = "now"
+	
 	override def sensitive(implicit context: TestContext): Boolean = false
 	
 	override def run()(implicit context: TestContext): Value = Now

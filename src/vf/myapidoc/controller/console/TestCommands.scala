@@ -1,12 +1,14 @@
 package vf.myapidoc.controller.console
 
+import utopia.flow.error.ErrorExtensions._
 import utopia.flow.collection.CollectionExtensions._
-import utopia.flow.collection.immutable.{Empty, Single}
+import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.StringExtensions._
+import utopia.flow.util.StringUtils
 import utopia.flow.util.console.ConsoleExtensions._
 import utopia.flow.util.console.{ArgumentSchema, Command}
 import utopia.flow.view.mutable.Pointer
@@ -26,7 +28,7 @@ import vf.myapidoc.util.Common._
 
 import java.nio.file.Path
 import scala.io.StdIn
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
  * Provides console commands for executing tests
@@ -115,24 +117,25 @@ object TestCommands
 		pathArg.string match {
 			case Some(input) =>
 				if (input.startsWithIgnoreCase("http"))
-					Some(TestsDb.storeUrl(api.id, input, name = StdIn.readLine("Name of this API (optional): ")))
+					Some(TestsDb.storeUrl(api.id, input, name = StdIn.readLine("Name of this API URL (optional): ")))
 				else
 					 AccessTestUrls.ofApi(api.id).containing(input).pull.bestMatch { _.name ~== input }.emptyOneOrMany
 						 .flatMap {
 							 case Left(only) => Some(only)
 							 case Right(options) =>
-								 println("Which one did you mean?")
+								 println("\nWhich URL did you mean?")
 								 StdIn.selectFrom(options.map { o => o -> o.rootUrl }, "URLs")
 						 }
 						 .map { StoreResult.existed(_) }
 			case None =>
+				println("\nSelect targeted API URL")
 				StdIn.selectFromOrAdd(
 					options = AccessTestUrls.ofApi(api.id).pull
 						.map { u => StoreResult.existed(u) -> s"${ u.name }: ${ u.rootUrl }" }, target = "URLs") {
 					StdIn.readNonEmptyLine("URL of the API root node (including protocol):").flatMap { input =>
 						if (input.startsWithIgnoreCase("http"))
 							Some(TestsDb.storeUrl(api.id, input,
-								name = StdIn.readLine("Name of this API (optional): ")))
+								name = StdIn.readLine("Name of this API URL (optional): ")))
 						else {
 							println(s"`$input` doesn't contain the HTTP protocol (\"http\" or \"https\")")
 							None
@@ -145,6 +148,7 @@ object TestCommands
 		pathArg.string match {
 			case Some(input) => storeTestsPath(apiId, input: Path)
 			case None =>
+				println("\nSelect targeted tests")
 				StdIn.selectFromOrAdd(
 					options = AccessTestFiles.forApi(apiId).pull.map { f => StoreResult.existed(f) -> f.path.toJson },
 					target = "tests") {
@@ -190,9 +194,10 @@ object TestCommands
                     scribe.in("parse.tests")(error, "Failed to parse the tests", Model.from("path" -> path.toJson))
                     error match {
                         case error: SyntaxException =>
-                            println(s"Parsing of ${ path.toJson } failed at line: ${
-                                error.line }\nPlease edit the file and make the necessary corrections.")
-                            if (StdIn.ask("Do you want to try again now?"))
+                            println(s"\nParsing of ${ path.fileName } failed at line: `${
+                                error.line }`\nCause: ${ error.getMessage }${
+	                            error.causesIterator.map { e => s"\n${ e.getMessage }" }.mkString }\nPlease edit the file and make the necessary corrections.")
+                            if (StdIn.ask("\nDo you want to try again now?"))
                                 parseTests(path)
                             else
                                 Empty
@@ -222,6 +227,7 @@ object TestCommands
 		
 		// OTHER    ---------------------
 		
+		// TODO: Ignore differences in whitespaces, etc.
 		def run(testName: String): Unit = testsP.value.find { _.name ~== testName } match {
 			case Some(test) => run(test)
 			case None =>
@@ -230,7 +236,14 @@ object TestCommands
 		}
 		def run(test: Test): Unit = {
 			println(s"Running ${ test.name }...")
-			if (test.run())
+			val succeeded = Try { test.run() } match {
+				case Success(_) => true
+				case Failure(error) =>
+					scribe.in("run").variant("test", test.name)(error, "Test failed")
+					// TODO: Print all messages involved
+					false
+			}
+			if (succeeded)
 				println(s"${ test.name } passed successfully")
 			else {
 				println(s"${ test.name } failed")
@@ -246,10 +259,12 @@ object TestCommands
 			}
 		}
 		
-		def list() = {
-			println("Available tests:")
-			testsP.value.foreach { test => println(s"- ${ test.name }${ test.description.prependIfNotEmpty(": ") }") }
-		}
+		def list() = println(StringUtils.asciiTableFrom[Test](testsP.value.toOptimizedSeq,
+			Pair(
+				"Test" -> { _.name },
+				"Description" -> { _.description.splitToLinesIterator(80).mkString("\n") }
+			),
+			"Available tests"))
 		
 		def reload() = TestParser(path) match {
 			case Success(tests) =>

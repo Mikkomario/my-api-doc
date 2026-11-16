@@ -10,6 +10,8 @@ import vf.myapidoc.controller.testing.TestContext
  */
 object LastResponseBody extends TestEvaluation
 {
+	override def toString: String = "last"
+	
 	override def sensitive(implicit context: TestContext): Boolean = false
 	
 	override def run()(implicit context: TestContext): Value = context.lastResponseBody

@@ -35,7 +35,7 @@ package object console
 					None
 				}
 				else {
-					println("Which API did you mean?")
+					println("\nWhich API did you mean?")
 					StdIn.selectFrom(options.map { api => api -> api.name })
 				}
 			}

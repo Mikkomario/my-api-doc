@@ -10,6 +10,8 @@ import vf.myapidoc.controller.testing.TestContext
  */
 case class ReverseValue(value: TestEvaluation) extends TestEvaluation
 {
+	override def toString: String = s"-$value"
+	
 	override def sensitive(implicit context: TestContext): Boolean = value.sensitive
 	
 	override def run()(implicit context: TestContext): Value = -value.run()

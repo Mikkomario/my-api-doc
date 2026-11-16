@@ -13,9 +13,9 @@ case class EvaluateArray(elements: Seq[TestEvaluation]) extends TestEvaluation
 {
 	// IMPLEMENTED  ----------------------
 	
-	override def sensitive(implicit context: TestContext): Boolean = elements.exists { _.sensitive }
-	
 	override def toString = s"[${ elements.iterator.map { e => s"`$e`" }.mkString(", ") }]"
+	
+	override def sensitive(implicit context: TestContext): Boolean = elements.exists { _.sensitive }
 	
 	override def run()(implicit context: TestContext): Value = elements.map { _.run() }
 }

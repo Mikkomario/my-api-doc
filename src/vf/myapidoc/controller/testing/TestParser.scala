@@ -5,6 +5,8 @@ import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Pair, Single}
 import utopia.flow.generic.model.enumeration.ValueOperation2
 import utopia.flow.generic.model.immutable.Value
+import utopia.flow.operator.enumeration.LogicalOperator
+import utopia.flow.operator.enumeration.LogicalOperator.{And, Nor, NotBoth, Or}
 import utopia.flow.operator.sign.Sign
 import utopia.flow.operator.sign.Sign.{Negative, Positive}
 import utopia.flow.parse.string.Regex
@@ -21,6 +23,7 @@ import vf.myapidoc.model.error.SyntaxException
 import java.nio.file.Path
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.util.Try
 
 /**
  * An interface for parsing tests from Markdown files
@@ -36,10 +39,10 @@ object TestParser
 		val firstPart = nextEvalElement(None)
 		tokensIter.nextOption() match {
 			// Case: No + token found => Applies bearer token authorization
-			case None => UpdateAuth(lineRemainderAsEval)
-				// Case: + found, signifying that basic authorization is used => Parses the password part, also
+			case None => UpdateAuth(firstPart)
+			// Case: + found, signifying that basic authorization is used => Parses the password part, also
 			case Some(SignOperator(Positive)) => UpdateBasicAuth(Pair(firstPart, lineRemainderAsEval))
-				// Case: Unexpected continuation => Fails compilation
+			// Case: Unexpected continuation => Fails compilation
 			case other =>
 				throw new SyntaxException(tokensIter.line, s"Unexpected authorization follow-up token: $other")
 		}
@@ -72,7 +75,9 @@ object TestParser
 	 * @return Parsed tests. Failure if file-reading failed or test-compilation failed (malformed syntax).
 	 */
 	// Parses the sections
-	def apply(path: Path)(implicit doc: Iterable[DetailedApiNode]) =
+	def apply(path: Path)(implicit doc: Iterable[DetailedApiNode]): Try[Seq[Test]] = {
+		import utopia.flow.parse.file.FileExtensions._
+		println(s"\nParsing: ${ path.fileName }")
 		MdParser.iterateSections(path) { sectionsIter =>
 			// Only targets the lowest level sections
 			sectionsIter.flatMap { _.leavesIterator }
@@ -82,28 +87,43 @@ object TestParser
 					lines.findIndexWhere { _.startsWith("```") }.flatMap { codeBlockIndex =>
 						try {
 							// Attempts to compile the code
-							val codeBuilder = TestInstruction.newBuilder
-							parseCode(
-								lines.view.drop(codeBlockIndex + 1).iterator.takeWhile { !_.startsWith("```") }
-									// Ignores empty code lines
-									.filterNot { _.forall { c => c == ' ' || c == '\t' } },
-								codeBuilder)
-							codeBuilder.result().map { code =>
-								// Case: Compilation succeeded => Prepares the test
-								Test(name, code,
-									description = lines.view.take(codeBlockIndex).dropRightWhile { _.isEmpty }
-										.mkString("\n"))
-							}
+							println(s"\tParsing: $name")
+							parseCode(name,
+								codeLines = lines.view.drop(codeBlockIndex + 1).iterator
+									.takeWhile { !_.startsWith("```") },
+								description = lines.view.take(codeBlockIndex).dropRightWhile { _.isEmpty }
+									.mkString("\n"))
 						}
 						catch {
 							// Case: Compilation failed => Throws, including the name of this test
 							case e: SyntaxException =>
-								throw new SyntaxException(e.line, s"Failed to compile test $name", e)
+								throw new SyntaxException(e.line, s"Failed to compile test `$name`", e)
 						}
 					}
 				}
 				.toOptimizedSeq
 		}
+	}
+	/**
+	 * Parses test from code
+	 * @param testName Name of this test. Call-by-name.
+	 * @param codeLines Lines of code that form this test.
+	 * @param description Description of this test. Call-by-name.
+	 * @param doc Implicit API nodes documentation
+	 * @return A new test. None if there was no code to parse.
+	 */
+	def parseCode(testName: => String, codeLines: IterableOnce[String], description: => String = "")
+	             (implicit doc: Iterable[DetailedApiNode]): Option[Test] =
+	{
+		val codeBuilder = TestInstruction.newBuilder
+		parseCode(
+			codeLines.iterator
+				// Ignores empty code lines
+				.filterNot { _.forall { c => c == ' ' || c == '\t' } },
+			codeBuilder)
+		// Case: Compilation succeeded => Prepares the test
+		codeBuilder.result().map { code => Test(testName, code, description = description) }
+	}
 	
 	/**
 	 * Parses a single code block
@@ -264,7 +284,8 @@ object TestParser
 	{
 		val conditionalCodeBuilder = TestInstruction.newBuilder
 		val indentedLinesIter = new IndentedLinesIter(linesIter)
-		parseCode(indentedLinesIter, conditionalCodeBuilder)
+		if (indentedLinesIter.hasNext)
+			parseCode(indentedLinesIter, conditionalCodeBuilder)
 		conditionalCodeBuilder.result() match {
 			case Some(code) => code -> indentedLinesIter.terminator
 			// Case: No code block found => Fails compilation
@@ -294,6 +315,7 @@ object TestParser
 				nextToken match {
 					case Comparison(operator) => Compare(Pair(primary, remainder), operator)
 					case SignOperator(sign) => Combine(Pair(primary, remainder), ValueOperation2(sign))
+					case LogicalOp(operator) => LogicalOperation(Pair(primary, remainder), operator)
 					case other =>
 						throw new SyntaxException(tokensIter.line, s"Expected a binary operator, got `$other`")
 				}
@@ -522,13 +544,24 @@ object TestParser
 	 */
 	private case class SignOperator(sign: Sign) extends CodeElement
 	{
-		override def toString: String = sign.toString
+		override def toString: String = sign match {
+			case Positive => "+"
+			case Negative => "-"
+		}
 	}
 	/**
 	 * Represents a comparison operator
 	 * @param operator The applied operator
 	 */
 	private case class Comparison(operator: ComparisonOperator) extends CodeElement
+	{
+		override def toString: String = operator.toString
+	}
+	/**
+	 * Represents a logical operator
+	 * @param operator The applied operator
+	 */
+	private case class LogicalOp(operator: LogicalOperator) extends CodeElement
 	{
 		override def toString: String = operator.toString
 	}
@@ -586,7 +619,7 @@ object TestParser
 		/**
 		 * Characters that terminate [[Code]] and function name elements (exclusive)
 		 */
-		private val stopChars = Set(' ', '[', '"', '<', '>', '=', '-', '+', '(')
+		private val stopChars = Set(' ', '[', '"', '<', '>', '=', '-', '+', '&', '|', '!', '(')
 		
 		
 		// OTHER   -------------------------
@@ -654,10 +687,15 @@ object TestParser
 				// Case: Comparison operator => Determines the exact operator
 				case '<' => readComparisonOperator('<')
 				case '>' => readComparisonOperator('>')
-				// Case: '!' => Expects an inequality, but also supports as an alias for negation (-)
+				case '&' => completeLogicalOperator('&', And)
+				case '|' => completeLogicalOperator('|', Or)
+				// Case: '!' => Expects an inequality or an inverted logical operator,
+				//              but also supports as an alias for negation (-)
 				case '!' =>
 					source.next() match {
 						case '=' => Comparison(Inequality)
+						case '&' => completeLogicalOperator('&', NotBoth)
+						case '|' => completeLogicalOperator('|', Nor)
 						case other =>
 							cache.setOne(other)
 							SignOperator(Negative)
@@ -688,7 +726,7 @@ object TestParser
 							if (stop.contains('(')) {
 								val result = FunctionCall(function = contentBuilder.result(),
 									parameters = new ListElementsIterator(
-										new ParenthesesContentIterator(source, '[', ']'), _line)
+										new ParenthesesContentIterator(source, '(', ')'), _line)
 										.toOptimizedSeq)
 								
 								// Skips whitespaces and : after function calls
@@ -719,6 +757,14 @@ object TestParser
 						case Some(operator) => Comparison(operator)
 						case None => throw new UnsupportedOperationException(s"Operator `$starter` is not supported")
 					}
+			}
+			
+			private def completeLogicalOperator(expected: Char, op: => LogicalOperator) = {
+				val next = source.next()
+				if (next == expected)
+					LogicalOp(op)
+				else
+					throw new SyntaxException(line, s"Expected `$expected`, got `$next`")
 			}
 		}
 	}
@@ -784,8 +830,8 @@ object TestParser
 	{
 		// ATTRIBUTES   ---------------------
 		
+		private val cache = Pointer.empty[String]
 		private var _terminator: Option[String] = None
-		private var cached: Option[String] = None
 		
 		
 		// COMPUTED -------------------------
@@ -800,27 +846,42 @@ object TestParser
 		// IMPLEMENTED  ---------------------
 		
 		override def hasNext: Boolean = {
+			// Case: Already terminated => No more lines
 			if (_terminator.isDefined)
 				false
-			else if (cached.isDefined)
+			// Case: Next line's been already cached => More lines
+			else if (cache.nonEmpty)
 				true
-			else {
-				val line = source.next()
-				if (line.startsWith("\t")) {
-					cached = Some(line.tail)
-					true
+			else
+				source.nextOption() match {
+					case Some(line) =>
+						// Case: Next line is intended using tabs => Prepares the next line
+						if (line.startsWith("\t")) {
+							cache.setOne(line.tail)
+							true
+						}
+						// Case: Next line is intended using spaces => Prepares the next line
+						else if (line.startsWith("  ")) {
+							cache.setOne(line.drop(2))
+							true
+						}
+						// Case: Next line is not intended => Terminates
+						else {
+							_terminator = Some(line)
+							false
+						}
+					// Case: End of source => No more lines
+					case None => false
 				}
-				else if (line.startsWith("  ")) {
-					cached = Some(line.drop(2))
-					true
-				}
-				else {
-					_terminator = Some(line)
-					false
-				}
-			}
 		}
-		// Assumes that hasNext has been called
-		override def next(): String = cached.get
+		override def next(): String = cache.pop().getOrElse {
+			val line = source.next()
+			if (line.startsWith("\t"))
+				line.tail
+			else if (line.startsWith("  "))
+				line.drop(2)
+			else
+				throw new IllegalStateException("next() called after no indented lines remain")
+		}
 	}
 }

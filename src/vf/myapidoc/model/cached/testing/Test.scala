@@ -5,7 +5,7 @@ import utopia.flow.generic.model.immutable.Model
 import utopia.flow.util.result.TryExtensions._
 import vf.myapidoc.controller.testing.TestContext
 import vf.myapidoc.model.cached.testing.instruction.TestInstruction
-import vf.myapidoc.model.error.SyntaxException
+import vf.myapidoc.model.error.{SyntaxException, TestFailedException}
 
 import scala.util.Try
 
@@ -37,7 +37,7 @@ case class Test(name: String, code: TestInstruction, description: String = "")
 				case e: SyntaxException =>
 					context.scribe(e, "Test failed", Model.from("test" -> name, "line" -> e.line))
 					false
-					
+				case e: TestFailedException => throw e
 				case e =>
 					context.scribe(e, "Unexpected failure while running a test", Model.from("test" -> name))
 					false

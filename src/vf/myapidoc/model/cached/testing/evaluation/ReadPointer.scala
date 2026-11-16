@@ -11,6 +11,8 @@ import vf.myapidoc.controller.testing.TestContext
  */
 case class ReadPointer(pointer: View[Value]) extends TestEvaluation
 {
+	override def toString: String = "pointer.value"
+	
 	override def sensitive(implicit context: TestContext): Boolean = false
 	
 	override def run()(implicit context: TestContext): Value = pointer.value

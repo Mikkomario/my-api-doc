@@ -15,6 +15,8 @@ case class Combine(values: Pair[TestEvaluation], operation: ValueOperation2) ext
 {
 	// IMPLEMENTED	--------------------
 	
+	override def toString: String = s"${values.first} $operation ${values.second}"
+	
 	override def sensitive(implicit context: TestContext): Boolean = values.exists { _.sensitive }
 	
 	override def run()(implicit context: TestContext): Value =

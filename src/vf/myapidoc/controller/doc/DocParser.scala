@@ -95,6 +95,7 @@ object DocParser
 						parentName = lines.head
 						true
 					case "path" =>
+						// TODO: Add support for alternative paths or node aliases
 						path = lines.head.notSurroundedWith("`").notStartingWith("#parent")
 						true
 					case "pathparameters" | "pathparams" =>
