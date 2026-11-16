@@ -1,7 +1,7 @@
 -- 
 -- Database structure for my api doc models
 -- Version: v0.1
--- Last generated: 2026-11-12
+-- Last generated: 2026-11-15
 --
 
 CREATE DATABASE IF NOT EXISTS `my_api_doc_db` 
@@ -56,8 +56,6 @@ CREATE TABLE `api_node_group`(
 -- group_id:           ID of the node group this node belongs to
 -- name:               Human-readable name of this node
 -- name_no_spaces:     A lowercase version of the node name, with no whitespace included. Used for indexing & search.
--- relative_path:      Path of this node, relative to the parent node (if defined) or the API root (if no parent is defined). 
--- 		May contain path parameters.
 -- removing_update_id: ID of the update that removed or replaced this element (version)
 -- parent_id:          ID of the node that appears directly above/before this node on the path. 
 -- 		None if no parent node appears between this node and the API root.
@@ -68,12 +66,10 @@ CREATE TABLE `api_node`(
 	`group_id` INT NOT NULL, 
 	`name` VARCHAR(48) NOT NULL, 
 	`name_no_spaces` VARCHAR(48) NOT NULL, 
-	`relative_path` VARCHAR(48) NOT NULL, 
 	`removing_update_id` INT, 
 	`parent_id` INT, 
 	`description` VARCHAR(255), 
 	INDEX an_name_no_spaces_idx (`name_no_spaces`), 
-	INDEX an_relative_path_idx (`relative_path`), 
 	CONSTRAINT an_du_original_update_ref_fk FOREIGN KEY an_du_original_update_ref_idx (original_update_id) REFERENCES `doc_update`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT an_ang_group_ref_fk FOREIGN KEY an_ang_group_ref_idx (group_id) REFERENCES `api_node_group`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT an_du_removing_update_ref_fk FOREIGN KEY an_du_removing_update_ref_idx (removing_update_id) REFERENCES `doc_update`(`id`) ON DELETE SET NULL, 
@@ -344,6 +340,27 @@ CREATE TABLE `scope`(
 
 --	Api	----------
 
+-- Represents a path leading to an API node. Relative to the parent node (if specified) or the API root.
+-- original_update_id:     ID of the update that introduced this element (version)
+-- node_id:                ID of the API node at the end of this path
+-- relative:               This path as a string; Relative to the parent node (if defined) or the API root. 
+-- 		May refer to path parameters.
+-- removing_update_id:     ID of the update that removed or replaced this element (version)
+-- params_model_schema_id: ID of the model type that describes the received path parameters. None if no path parameters are accepted.
+CREATE TABLE `api_node_path`(
+	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
+	`original_update_id` INT NOT NULL, 
+	`node_id` INT NOT NULL, 
+	`relative` VARCHAR(48) NOT NULL, 
+	`removing_update_id` INT, 
+	`params_model_schema_id` INT, 
+	INDEX anp_relative_idx (`relative`), 
+	CONSTRAINT anp_du_original_update_ref_fk FOREIGN KEY anp_du_original_update_ref_idx (original_update_id) REFERENCES `doc_update`(`id`) ON DELETE CASCADE, 
+	CONSTRAINT anp_an_node_ref_fk FOREIGN KEY anp_an_node_ref_idx (node_id) REFERENCES `api_node`(`id`) ON DELETE CASCADE, 
+	CONSTRAINT anp_du_removing_update_ref_fk FOREIGN KEY anp_du_removing_update_ref_idx (removing_update_id) REFERENCES `doc_update`(`id`) ON DELETE SET NULL, 
+	CONSTRAINT anp_ms_params_model_schema_ref_fk FOREIGN KEY anp_ms_params_model_schema_ref_idx (params_model_schema_id) REFERENCES `model_schema`(`id`) ON DELETE SET NULL
+)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
 -- Describes an authorization scope required by an API node. 
 -- 		If multiple scopes are linked, they typically represent alternative auth scopes, usually for different purposes.
 -- original_update_id: ID of the update that introduced this element (version)
@@ -391,23 +408,6 @@ CREATE TABLE `node_auth_type_link`(
 	CONSTRAINT natl_an_node_ref_fk FOREIGN KEY natl_an_node_ref_idx (node_id) REFERENCES `api_node`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT natl_att_auth_type_ref_fk FOREIGN KEY natl_att_auth_type_ref_idx (auth_type_id) REFERENCES `auth_token_type`(`id`) ON DELETE CASCADE, 
 	CONSTRAINT natl_du_removing_update_ref_fk FOREIGN KEY natl_du_removing_update_ref_idx (removing_update_id) REFERENCES `doc_update`(`id`) ON DELETE SET NULL
-)Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
-
--- Applies a specific schema to the path parameters received by an API node.
--- original_update_id: ID of the update that introduced this element (version)
--- node_id:            ID of the API node that accepts these parameters.
--- model_type_id:      ID of the model type that describes the received path parameters.
--- removing_update_id: ID of the update that removed or replaced this element (version)
-CREATE TABLE `path_parameters_schema_link`(
-	`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT, 
-	`original_update_id` INT NOT NULL, 
-	`node_id` INT NOT NULL, 
-	`model_type_id` INT NOT NULL, 
-	`removing_update_id` INT, 
-	CONSTRAINT ppsl_du_original_update_ref_fk FOREIGN KEY ppsl_du_original_update_ref_idx (original_update_id) REFERENCES `doc_update`(`id`) ON DELETE CASCADE, 
-	CONSTRAINT ppsl_an_node_ref_fk FOREIGN KEY ppsl_an_node_ref_idx (node_id) REFERENCES `api_node`(`id`) ON DELETE CASCADE, 
-	CONSTRAINT ppsl_ms_model_type_ref_fk FOREIGN KEY ppsl_ms_model_type_ref_idx (model_type_id) REFERENCES `model_schema`(`id`) ON DELETE CASCADE, 
-	CONSTRAINT ppsl_du_removing_update_ref_fk FOREIGN KEY ppsl_du_removing_update_ref_idx (removing_update_id) REFERENCES `doc_update`(`id`) ON DELETE SET NULL
 )Engine=InnoDB DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
 
 -- Applies a specific schema to the query parameters accepted by an API node.

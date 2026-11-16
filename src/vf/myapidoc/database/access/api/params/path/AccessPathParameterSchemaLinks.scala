@@ -10,6 +10,7 @@ import vf.myapidoc.database.reader.api.PathParametersSchemaLinkDbReader
 import vf.myapidoc.database.storable.api.{ApiNodeDbModel, ApiNodeGroupDbModel, PathParametersSchemaLinkDbModel}
 import vf.myapidoc.model.stored.api.PathParametersSchemaLink
 
+@deprecated("Replaced with AccessApiNodePaths", "v0.1")
 object AccessPathParameterSchemaLinks 
 	extends DeprecatingWrapRowAccess[AccessPathParametersSchemaLinkRows](PathParametersSchemaLinkDbModel) 
 		with WrapOneToManyAccess[AccessCombinedPathParameterSchemaLinks] 
@@ -32,6 +33,7 @@ object AccessPathParameterSchemaLinks
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Replaced with AccessApiNodePaths", "v0.1")
 abstract class AccessPathParameterSchemaLinks[A, +Repr <: TargetingManyLike[_, Repr, _]](wrapped: AccessManyColumns)
 	extends TargetingManyLike[A, Repr, AccessPathParametersSchemaLink[A]]
 		with HasValues[AccessPathParametersSchemaLinkValues] with FilterPathParameterSchemaLinks[Repr]
@@ -61,6 +63,7 @@ abstract class AccessPathParameterSchemaLinks[A, +Repr <: TargetingManyLike[_, R
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Replaced with AccessApiNodePathRows", "v0.1")
 case class AccessPathParametersSchemaLinkRows[A](wrapped: TargetingManyRows[A]) 
 	extends AccessPathParameterSchemaLinks[A, AccessPathParametersSchemaLinkRows[A]](wrapped) 
 		with AccessRowsWrapper[A, AccessPathParametersSchemaLinkRows[A], AccessPathParametersSchemaLink[A]]
@@ -80,6 +83,7 @@ case class AccessPathParametersSchemaLinkRows[A](wrapped: TargetingManyRows[A])
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Replaced with AccessCombinedApiNodePaths", "v0.1")
 case class AccessCombinedPathParameterSchemaLinks[A](wrapped: TargetingMany[A]) 
 	extends AccessPathParameterSchemaLinks[A, AccessCombinedPathParameterSchemaLinks[A]](wrapped) 
 		with AccessWrapper[A, AccessCombinedPathParameterSchemaLinks[A], AccessPathParametersSchemaLink[A]]

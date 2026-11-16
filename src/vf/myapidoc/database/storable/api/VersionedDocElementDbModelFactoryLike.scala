@@ -12,7 +12,7 @@ import vf.myapidoc.model.factory.api.VersionedDocElementFactory
   * @tparam A Type of read instances
   * @tparam Data Supported data-part type
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait VersionedDocElementDbModelFactoryLike[+DbModel <: Storable, +A, -Data] 
 	extends StorableFactory[DbModel, A, Data] with FromIdFactory[Int, DbModel] with HasIdProperty 

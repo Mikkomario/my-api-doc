@@ -2,7 +2,7 @@ package vf.myapidoc.database.access.api.params.path
 
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.database.Connection
-import utopia.vault.nosql.targeting.columns.{AccessManyColumns, AccessValues}
+import utopia.vault.nosql.targeting.columns.AccessManyColumns
 import vf.myapidoc.database.access.api.update.AccessVersionedDocElementValues
 import vf.myapidoc.database.storable.api.PathParametersSchemaLinkDbModel
 
@@ -11,7 +11,9 @@ import vf.myapidoc.database.storable.api.PathParametersSchemaLinkDbModel
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-case class AccessPathParametersSchemaLinkValues(access: AccessManyColumns) extends AccessVersionedDocElementValues
+@deprecated("Replaced with AccessApiNodePathValues", "v0.1")
+case class AccessPathParametersSchemaLinkValues(access: AccessManyColumns) 
+	extends AccessVersionedDocElementValues
 {
 	// ATTRIBUTES	--------------------
 	
@@ -21,9 +23,9 @@ case class AccessPathParametersSchemaLinkValues(access: AccessManyColumns) exten
 	override val model = PathParametersSchemaLinkDbModel
 	
 	/**
-	  * ID of the API node that accepts these parameters.
+	  * ID of the API node path where these parameters are placed.
 	  */
-	lazy val nodeIds = apply(model.nodeId) { v => v.getInt }
+	lazy val pathIds = apply(model.pathId) { v => v.getInt }
 	/**
 	  * ID of the model type that describes the received path parameters.
 	  */
@@ -33,11 +35,11 @@ case class AccessPathParametersSchemaLinkValues(access: AccessManyColumns) exten
 	// COMPUTED	--------------------
 	
 	/**
-	  * Pulls accessible node-to-model links.
-	  * Assumes that only 0-1 links are available for each node.
+	  * Pulls accessible path-to-model links.
+	  * Assumes that only 0-1 links are available for each path.
 	  * @param connection Implicit DB connection
 	  */
-	def modelIdPerNodeId(implicit connection: Connection) = 
-		access.toMap(model.nodeId, model.modelTypeId) { _.getInt } { _.getInt }
+	def modelIdPerPathId(implicit connection: Connection) =
+		access.toMap(model.pathId, model.modelTypeId) { _.getInt } { _.getInt }
 }
 

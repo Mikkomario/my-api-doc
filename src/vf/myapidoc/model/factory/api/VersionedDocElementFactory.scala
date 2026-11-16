@@ -5,7 +5,7 @@ package vf.myapidoc.model.factory.api
   * individual properties
   * @tparam A Type of constructed instances
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait VersionedDocElementFactory[+A]
 {

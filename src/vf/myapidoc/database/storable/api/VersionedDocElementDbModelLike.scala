@@ -8,20 +8,17 @@ import vf.myapidoc.database.props.api.VersionedDocElementDbProps
 import vf.myapidoc.model.factory.api.VersionedDocElementFactory
 
 /**
-  * Common trait for database models used for interacting with versioned doc element data in the 
-  * database
+  * Common trait for database models used for interacting with versioned doc element data in the database
   * @tparam Repr Type of this DB model
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait VersionedDocElementDbModelLike[+Repr] 
-	extends Storable with HasId[Option[Int]] with FromIdFactory[Int, Repr] 
-		with VersionedDocElementFactory[Repr]
+	extends Storable with HasId[Option[Int]] with FromIdFactory[Int, Repr] with VersionedDocElementFactory[Repr]
 {
 	// ABSTRACT	--------------------
 	
 	def originalUpdateId: Option[Int]
-	
 	def removingUpdateId: Option[Int]
 	
 	/**
@@ -44,15 +41,15 @@ trait VersionedDocElementDbModelLike[+Repr]
 	
 	// IMPLEMENTED	--------------------
 	
-	override def valueProperties: Seq[(String, Value)] = 
+	override def table = dbProps.table
+	
+	override def valueProperties: Seq[(String, Value)] =
 		Vector(dbProps.id.name -> id, dbProps.originalUpdateId.name -> originalUpdateId, 
 			dbProps.removingUpdateId.name -> removingUpdateId)
 	
 	override def withId(id: Int) = copyVersionedDocElement(id = Some(id))
-	
 	override def withOriginalUpdateId(originalUpdateId: Int) = 
 		copyVersionedDocElement(originalUpdateId = Some(originalUpdateId))
-	
 	override def withRemovingUpdateId(removingUpdateId: Int) = 
 		copyVersionedDocElement(removingUpdateId = Some(removingUpdateId))
 }

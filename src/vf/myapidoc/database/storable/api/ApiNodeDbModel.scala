@@ -2,17 +2,12 @@ package vf.myapidoc.database.storable.api
 
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Value
-import utopia.vault.model.immutable.{DbPropertyDeclaration, Storable}
-import utopia.vault.model.template.{DeprecatesAfterDefined, HasIdProperty}
-import utopia.vault.nosql.storable.StorableFactory
-import utopia.vault.store.{FromIdFactory, HasId}
+import utopia.vault.model.immutable.DbPropertyDeclaration
 import vf.myapidoc.database.MyApiDocTables
 import vf.myapidoc.database.props.api.VersionedDocElementDbProps
 import vf.myapidoc.model.factory.api.ApiNodeFactory
 import vf.myapidoc.model.partial.api.ApiNodeData
 import vf.myapidoc.model.stored.api.ApiNode
-
-import java.time.Instant
 
 /**
   * Used for constructing ApiNodeDbModel instances and for inserting api nodes to the database
@@ -43,10 +38,6 @@ object ApiNodeDbModel
 	  */
 	lazy val nameNoSpaces = property("nameNoSpaces")
 	/**
-	  * Database property used for interacting with relative paths
-	  */
-	lazy val relativePath = property("relativePath")
-	/**
 	  * Database property used for interacting with removing update ids
 	  */
 	override lazy val removingUpdateId = property("removingUpdateId")
@@ -66,7 +57,7 @@ object ApiNodeDbModel
 	
 	override def apply(data: ApiNodeData): ApiNodeDbModel = 
 		apply(None, Some(data.originalUpdateId), Some(data.groupId), data.name, data.nameNoSpaces, 
-			data.relativePath, data.removingUpdateId, data.parentId, data.description)
+			data.removingUpdateId, data.parentId, data.description)
 	
 	override def withDescription(description: String) = apply(description = description)
 	override def withGroupId(groupId: Int) = apply(groupId = Some(groupId))
@@ -76,7 +67,6 @@ object ApiNodeDbModel
 	override def withOriginalUpdateId(originalUpdateId: Int) = apply(originalUpdateId =
 		Some(originalUpdateId))
 	override def withParentId(parentId: Int) = apply(parentId = Some(parentId))
-	override def withRelativePath(relativePath: String) = apply(relativePath = relativePath)
 	override def withRemovingUpdateId(removingUpdateId: Int) = apply(removingUpdateId = 
 		Some(removingUpdateId))
 	
@@ -90,8 +80,8 @@ object ApiNodeDbModel
   * @since 15.10.2026, v0.1
   */
 case class ApiNodeDbModel(id: Option[Int] = None, originalUpdateId: Option[Int] = None, groupId: Option[Int] = None,
-                          name: String = "", nameNoSpaces: String = "", relativePath: String = "",
-                          removingUpdateId: Option[Int] = None, parentId: Option[Int] = None, description: String = "")
+                          name: String = "", nameNoSpaces: String = "", removingUpdateId: Option[Int] = None,
+                          parentId: Option[Int] = None, description: String = "")
 	extends VersionedDocElementDbModel with VersionedDocElementDbModelLike[ApiNodeDbModel] 
 		with ApiNodeFactory[ApiNodeDbModel]
 {
@@ -99,16 +89,13 @@ case class ApiNodeDbModel(id: Option[Int] = None, originalUpdateId: Option[Int] 
 	
 	override lazy val valueProperties: Seq[(String, Value)] = 
 		super[VersionedDocElementDbModelLike].valueProperties ++ Vector(ApiNodeDbModel.groupId.name -> groupId, 
-			ApiNodeDbModel.name.name -> name, ApiNodeDbModel.nameNoSpaces.name -> nameNoSpaces, 
-			ApiNodeDbModel.relativePath.name -> relativePath, ApiNodeDbModel.parentId.name -> parentId, 
-			ApiNodeDbModel.description.name -> description)
+			ApiNodeDbModel.name.name -> name, ApiNodeDbModel.nameNoSpaces.name -> nameNoSpaces,
+			ApiNodeDbModel.parentId.name -> parentId, ApiNodeDbModel.description.name -> description)
 	
 	
 	// IMPLEMENTED	--------------------
 	
 	override def dbProps = ApiNodeDbModel
-	
-	override def table = ApiNodeDbModel.table
 	
 	/**
 	  * @param id               ID to assign to the new model (default = currently assigned id)
@@ -127,6 +114,5 @@ case class ApiNodeDbModel(id: Option[Int] = None, originalUpdateId: Option[Int] 
 	override def withName(name: String) = copy(name = name)
 	override def withNameNoSpaces(nameNoSpaces: String) = copy(nameNoSpaces = nameNoSpaces)
 	override def withParentId(parentId: Int) = copy(parentId = Some(parentId))
-	override def withRelativePath(relativePath: String) = copy(relativePath = relativePath)
 }
 

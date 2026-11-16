@@ -1,7 +1,5 @@
 package vf.myapidoc.model.factory.api
 
-import java.time.Instant
-
 /**
   * Common trait for api node-related factories that allow construction with individual properties
   * @tparam A Type of constructed instances
@@ -37,10 +35,5 @@ trait ApiNodeFactory[+A] extends VersionedDocElementFactory[A]
 	  * @return Copy of this item with the specified parent id
 	  */
 	def withParentId(parentId: Int): A
-	/**
-	  * @param relativePath New relative path to assign
-	  * @return Copy of this item with the specified relative path
-	  */
-	def withRelativePath(relativePath: String): A
 }
 

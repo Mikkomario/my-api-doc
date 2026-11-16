@@ -17,6 +17,5 @@ trait ApiNodeFactoryWrapper[A <: ApiNodeFactory[A], +Repr]
 	override def withName(name: String) = mapData { _.withName(name) }
 	override def withNameNoSpaces(nameNoSpaces: String) = mapData { _.withNameNoSpaces(nameNoSpaces) }
 	override def withParentId(parentId: Int) = mapData { _.withParentId(parentId) }
-	override def withRelativePath(relativePath: String) = mapData { _.withRelativePath(relativePath) }
 }
 

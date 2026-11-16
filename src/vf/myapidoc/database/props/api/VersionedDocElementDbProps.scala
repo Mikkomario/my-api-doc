@@ -44,7 +44,7 @@ object VersionedDocElementDbProps
 /**
   * Common trait for classes that provide access to versioned doc element database properties
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait VersionedDocElementDbProps extends HasIdProperty with DeprecatesAfterDefined
 {
@@ -60,7 +60,7 @@ trait VersionedDocElementDbProps extends HasIdProperty with DeprecatesAfterDefin
 	def removingUpdateId: DbPropertyDeclaration
 	
 	
-	// IMPLEMENTED	--------------------
+	// IMPLEMENTED	-----------------
 	
 	override def deprecationColumn: TableColumn = removingUpdateId.column
 }

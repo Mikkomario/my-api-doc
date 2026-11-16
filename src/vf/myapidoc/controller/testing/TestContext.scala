@@ -7,7 +7,7 @@ import utopia.disciple.controller.Gateway
 import utopia.disciple.controller.parse.ResponseParser
 import utopia.disciple.model.request.{Request, StringBody, Timeout}
 import utopia.flow.collection.CollectionExtensions._
-import utopia.flow.collection.immutable.{Empty, Pair}
+import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.generic.model.mutable.MutableModel
@@ -36,7 +36,7 @@ import vf.myapidoc.model.error.TestFailedException
 import vf.myapidoc.util.Common._
 
 import java.nio.file.Paths
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object TestContext
 {
@@ -144,6 +144,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	
 	private var _lastResponseStatus: Option[Status] = None
 	private var _lastResponseBody = Value.empty
+	
+	private var preferredPathElements: Seq[String] = Empty
 	
 	
 	// INITIAL CODE -----------------------
@@ -269,6 +271,21 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	}
 	
 	/**
+	 * Marks a request path element as preferred.
+	 * This affects which request path is selected in situations where multiple are available.
+	 * @param pathElement Path element to prefer
+	 */
+	def preferPathElement(pathElement: String) = {
+		preferredPathElements.headOption match {
+			case Some(preferred) =>
+				if (preferred != pathElement)
+					preferredPathElements = pathElement +: preferredPathElements.filterNot { _ == pathElement }
+			
+			case None => preferredPathElements = Single(pathElement)
+		}
+	}
+	
+	/**
 	 * Updates the authorization method used in future requests to use basic authorization
 	 * @param user User
 	 * @param password Password
@@ -375,14 +392,49 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 				.mkString
 		// Case: Targeting an API node => Resolves the documented path parameters
 		case Right(node) =>
-			node.pathParams.foldLeft(node.absolutePath) { (path, param) =>
-				apply(param.name).tryString match {
-					case Success(value) => path.replace(s"{${ param.name }", value)
-					case Failure(error) =>
-						val message = s"Couldn't resolve ${ node.name }'s path parameter $param"
-						log(s"Failure: $message")
-						throw new TestFailedException(message, error)
+			// Checks whether multiple alternative paths are available.
+			// Orders the paths, if so.
+			val pathOptions = node.absolutePaths.oneOrMany match {
+				case Left(only) => Single(only)
+				case Right(options) =>
+					val prefCount = preferredPathElements.size
+					options.sortBy { case (path, _) =>
+						val pathElems = path.splitIterator(Regex.forwardSlash).toSet
+						preferredPathElements.findIndexWhere(pathElems.contains).getOrElse(prefCount)
+					}
+			}
+			// Attempts to resolve the path parameters.
+			pathOptions.tryMapAny { case (path, params) =>
+				params.foldLeft[Try[String]](Success(path)) { (path, param) =>
+					path.flatMap { path =>
+						apply(param.name).tryString match {
+							case Success(value) => Success(path.replace(s"{${ param.name }", value))
+							case Failure(error) =>
+								Failure(new IllegalStateException(s"Couldn't resolve path parameter: ${ param.name }",
+									error))
+						}
+					}
 				}
+			} match {
+				// Case: Path acquired
+				case Right(path) =>
+					// Logs if multiple paths were available
+					if (pathOptions.hasSize > 1)
+						log(s"Uses path $path")
+					path
+				
+				// Case: Failed to resolve the path => Throws
+				case Left(failures) =>
+					failures.emptyOneOrMany match {
+						case None => throw new TestFailedException(s"${ node.name } doesn't specify a request path")
+						case Some(Left(failure)) =>
+							throw new TestFailedException(s"Couldn't resolve ${ node.name }'s path parameters", failure)
+						case Some(Right(failures)) =>
+							failures.logWith("Failed to resolve path parameters", Model.from("node" -> node.name),
+								subContext = "resolve.path.multipleOptions.failed")
+							throw new TestFailedException(s"Failed to resolve ${ node.name }'s path parameters",
+								failures.head)
+					}
 			}
 	}
 	private def resolveRequestBody(pathOrNode: Either[String, DetailedApiNode], method: Method): Value = {

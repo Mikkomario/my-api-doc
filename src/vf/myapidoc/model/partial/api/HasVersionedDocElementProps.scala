@@ -8,7 +8,7 @@ import utopia.flow.generic.model.template.ModelConvertible
 /**
   * Common trait for classes that provide access to versioned doc element properties
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait HasVersionedDocElementProps extends ModelConvertible
 {
@@ -18,6 +18,7 @@ trait HasVersionedDocElementProps extends ModelConvertible
 	  * ID of the update that introduced this element (version)
 	  */
 	def originalUpdateId: Int
+	
 	/**
 	  * ID of the update that removed or replaced this element (version)
 	  */

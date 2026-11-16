@@ -113,13 +113,6 @@
         "doc": "A lowercase version of the node name, with no whitespace included. Used for indexing & search."
       },
       {
-        "name": "relativePath",
-        "type": "NonEmptyString(48-255)",
-        "index": true,
-        "with": "withRelativePath",
-        "doc": "Path of this node, relative to the parent node (if defined) or the API root (if no parent is defined). \nMay contain path parameters."
-      },
-      {
         "name": "parentId",
         "ref": "api_node",
         "type": "Option[Int]",
@@ -134,24 +127,32 @@
     ]
   },
   {
-    "name": "PathParametersSchemaLink",
-    "name_plural": "PathParameterSchemaLinks",
+    "name": "ApiNodePath",
     "parent": "VersionedDocElement",
-    "access": "params.path",
+    "access": "node.path",
     "has_combos": true,
-    "doc": "Applies a specific schema to the path parameters received by an API node.",
+    "doc": "Represents a path leading to an API node. Relative to the parent node (if specified) or the API root.",
     "props": [
       {
         "name": "nodeId",
         "ref": "api_node",
         "with": "ofNode",
-        "doc": "ID of the API node that accepts these parameters."
+        "doc": "ID of the API node at the end of this path"
       },
       {
-        "name": "modelTypeId",
+        "name": "relative",
+        "type": "NonEmptyString(48-255)",
+        "index": true,
+        "with": "withRelative",
+        "doc": "This path as a string; Relative to the parent node (if defined) or the API root. \nMay refer to path parameters."
+      },
+      {
+        "name": "paramsModelSchemaId",
         "ref": "model_schema",
-        "with": "ofModelType",
-        "doc": "ID of the model type that describes the received path parameters."
+        "type": "Option[Int]",
+        "with": "acceptingParams",
+        "in": "acceptingAnyOfParams",
+        "doc": "ID of the model type that describes the received path parameters. None if no path parameters are accepted."
       }
     ]
   },

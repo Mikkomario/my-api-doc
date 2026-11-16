@@ -1,6 +1,5 @@
 package vf.myapidoc.database.storable.api
 
-import utopia.vault.model.immutable.Table
 import vf.myapidoc.database.props.api.BodySchemaDbProps
 
 object BodySchemaDbModel
@@ -8,11 +7,10 @@ object BodySchemaDbModel
 	// OTHER	--------------------
 	
 	/**
-	  * @param table The primarily targeted table
 	  * @param props Targeted database properties
 	  * @return A factory used for constructing body schema models using the specified configuration
 	  */
-	def factory(table: Table, props: BodySchemaDbProps) = BodySchemaDbModelFactory(table, props)
+	def factory(props: BodySchemaDbProps) = BodySchemaDbModelFactory(props)
 }
 
 /**

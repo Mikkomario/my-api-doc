@@ -33,7 +33,8 @@ object DocParser
 	
 	private val scribe: Scribe = newScribe("DocParser")
 	
-	private val andR = Regex("AND") || Regex.escape('&').times(2)
+	private val andR = Regex(" AND ") || Regex.escape('&').times(2)
+	private val orR = Regex(" or ") || Regex.escape('|').times(2)
 	
 	
 	// OTHER    ------------------------
@@ -83,7 +84,7 @@ object DocParser
 		
 		// Extracts and processes the listed definitions
 		var parentName = ""
-		var path = ""
+		var paths: Seq[String] = Empty
 		var pathParams: Seq[NewProperty] = Empty
 		val (description, tokenOptions, scope) = processDefinitions(methodLineIndex match {
 			case Some(i) => lines.view.take(i)
@@ -95,8 +96,9 @@ object DocParser
 						parentName = lines.head
 						true
 					case "path" =>
-						// TODO: Add support for alternative paths or node aliases
-						path = lines.head.notSurroundedWith("`").notStartingWith("#parent")
+						// Multiple alternative paths may be listed using " or "
+						paths ++= lines.head.splitIterator(orR)
+							.map { _.trim.notSurroundedWith("`").notStartingWith("#parent") }
 						true
 					case "pathparameters" | "pathparams" =>
 						pathParams = parseProps(lines.iterator.pollable)
@@ -105,6 +107,10 @@ object DocParser
 				}
 		}
 		
+		val appliedPaths = paths.oneOrMany match {
+			case Left(only) => Single(only -> pathParams)
+			case Right(many) => many.map { path => path -> pathParams.filter { p => path.containsIgnoreCase(p.name) } }
+		}
 		val methodImplementations = methodLineIndex match {
 			// Case: The method section is started using a "Method:" -line
 			//       => Parses the remaining lines as part of that method's implementation
@@ -130,7 +136,7 @@ object DocParser
 		}
 		
 		// Combines collected information into a single model
-		NewApiNode(name, path, parentName, pathParams, tokenOptions, scope, methodImplementations, description)
+		NewApiNode(name, appliedPaths, parentName, tokenOptions, scope, methodImplementations, description)
 	}
 	
 	private def parseMethodImplementation(nodeName: => String, header: String, lines: Seq[String]) = {

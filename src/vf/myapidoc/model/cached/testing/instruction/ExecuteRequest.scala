@@ -12,7 +12,12 @@ import vf.myapidoc.model.combined.api.DetailedApiNode
  */
 case class ExecuteRequest(method: Method, pathOrNode: Either[String, DetailedApiNode]) extends TestInstruction
 {
-	override def toString = s"$method ${ pathOrNode.leftOrMap { _.absolutePath } }"
+	override def toString = s"$method ${ pathOrNode.leftOrMap {
+		_.absolutePaths.headOption match {
+			case Some((path, _)) => path
+			case None => "???"
+		}
+	} }"
 	
 	override def execute()(implicit context: TestContext) =
 		context.request(method, pathOrNode)

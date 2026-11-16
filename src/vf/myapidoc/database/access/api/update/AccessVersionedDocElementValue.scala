@@ -9,7 +9,7 @@ import vf.myapidoc.database.value.DocUpdateId
 /**
   * Used for accessing individual versioned doc element values from the DB
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait AccessVersionedDocElementValue extends AccessValue
 {

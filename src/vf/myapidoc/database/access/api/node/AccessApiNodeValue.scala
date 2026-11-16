@@ -33,12 +33,6 @@ case class AccessApiNodeValue(access: AccessColumn) extends AccessVersionedDocEl
 	  */
 	lazy val nameNoSpaces = apply(model.nameNoSpaces) { v => v.getString }
 	/**
-	  * Path of this node, relative to the parent node (if defined) or the API root (if no parent is 
-	  * defined). 
-	  * May contain path parameters.
-	  */
-	lazy val relativePath = apply(model.relativePath) { v => v.getString }
-	/**
 	  * ID of the node that appears directly above/before this node on the path. 
 	  * None if no parent node appears between this node and the API root.
 	  */

@@ -17,20 +17,18 @@ object NodeAuthLinkDbModelFactory
 	/**
 	  * @return A factory for constructing node auth link database models
 	  */
-	def apply(table: Table, dbProps: NodeAuthLinkDbProps) = NodeAuthLinkDbModelFactoryImpl(table, dbProps)
+	def apply(dbProps: NodeAuthLinkDbProps) = NodeAuthLinkDbModelFactoryImpl(dbProps)
 	
 	
 	// NESTED	--------------------
 	
 	/**
-	  * Used for constructing NodeAuthLinkDbModel instances and for inserting node auth links to the 
-	  * database
-	  * @param table               Table targeted by these models
+	  * Used for constructing NodeAuthLinkDbModel instances and for inserting node auth links to the database
 	  * @param nodeAuthLinkDbProps Properties that specify how the database interactions are performed
 	  * @author Mikko Hilpinen
 	  * @since 22.10.2026, v0.1
 	  */
-	case class NodeAuthLinkDbModelFactoryImpl(table: Table, nodeAuthLinkDbProps: NodeAuthLinkDbProps) 
+	case class NodeAuthLinkDbModelFactoryImpl(nodeAuthLinkDbProps: NodeAuthLinkDbProps)
 		extends NodeAuthLinkDbModelFactory with NodeAuthLinkDbPropsWrapper with DeprecatesAfterDefined
 	{
 		// ATTRIBUTES	--------------------
@@ -40,7 +38,9 @@ object NodeAuthLinkDbModelFactory
 		
 		// IMPLEMENTED	--------------------
 		
-		override def apply(data: NodeAuthLinkData): NodeAuthLinkDbModel = 
+		override def table: Table = nodeAuthLinkDbProps.table
+		
+		override def apply(data: NodeAuthLinkData): NodeAuthLinkDbModel =
 			apply(None, Some(data.originalUpdateId), Some(data.nodeId), Some(data.authId), 
 				data.removingUpdateId, data.method, data.description)
 		
@@ -64,19 +64,18 @@ object NodeAuthLinkDbModelFactory
 		def apply(id: Option[Int] = None, originalUpdateId: Option[Int] = None, nodeId: Option[Int] = None,
 		          authId: Option[Int] = None, removingUpdateId: Option[Int] = None, method: Option[Method] = None,
 		          description: String = ""): NodeAuthLinkDbModel =
-			_NodeAuthLinkDbModel(table, nodeAuthLinkDbProps, id, originalUpdateId, nodeId, authId, 
+			_NodeAuthLinkDbModel(nodeAuthLinkDbProps, id, originalUpdateId, nodeId, authId,
 				removingUpdateId, method, description)
 	}
 	
 	/**
 	  * Used for interacting with NodeAuthLinks in the database
-	  * @param table   Table interacted with when using this model
 	  * @param dbProps Configurations of the interacted database properties
 	  * @param id      node auth link database id
 	  * @author Mikko Hilpinen
 	  * @since 22.10.2026, v0.1
 	  */
-	private case class _NodeAuthLinkDbModel(table: Table, dbProps: NodeAuthLinkDbProps, id: Option[Int] = None,
+	private case class _NodeAuthLinkDbModel(dbProps: NodeAuthLinkDbProps, id: Option[Int] = None,
 	                                        originalUpdateId: Option[Int] = None, nodeId: Option[Int] = None,
 	                                        authId: Option[Int] = None, removingUpdateId: Option[Int] = None,
 	                                        method: Option[Method] = None, description: String = "")

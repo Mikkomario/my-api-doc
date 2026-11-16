@@ -1,6 +1,5 @@
 package vf.myapidoc.database.storable.api
 
-import utopia.vault.model.immutable.Table
 import vf.myapidoc.database.props.api.NodeAuthLinkDbProps
 
 object NodeAuthLinkDbModel
@@ -8,11 +7,10 @@ object NodeAuthLinkDbModel
 	// OTHER	--------------------
 	
 	/**
-	  * @param table The primarily targeted table
 	  * @param props Targeted database properties
 	  * @return A factory used for constructing node auth link models using the specified configuration
 	  */
-	def factory(table: Table, props: NodeAuthLinkDbProps) = NodeAuthLinkDbModelFactory(table, props)
+	def factory(props: NodeAuthLinkDbProps) = NodeAuthLinkDbModelFactory(props)
 }
 
 /**

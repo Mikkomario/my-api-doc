@@ -10,10 +10,9 @@ import utopia.flow.util.StringExtensions._
 /**
  * Represents an API node documentation that's not yet been stored.
  * @param name Name of this node
- * @param path This node's path, relative to the parent node or the root node if no parent exists.
- *             May contain path parameters.
+ * @param paths This node's alternative paths, relative to the parent node or the root node if no parent exists.
+ *              Each entry is coupled with the applied path parameters (on this level).
  * @param parentName Name of this node's parent. Empty if not applicable.
- * @param pathParams Accepted path parameters (on this level)
  * @param tokenOptions List of accepted authorization methods. If empty, options may be inherited from the parent.
  *                     May also be overridden by individual method implementations.
  * @param scope Authorization scopes that grant access to this node.
@@ -24,7 +23,7 @@ import utopia.flow.util.StringExtensions._
  * @author Mikko Hilpinen
  * @since 21.10.2026, v0.1
  */
-case class NewApiNode(name: String, path: String, parentName: String = "", pathParams: Seq[NewProperty] = Empty,
+case class NewApiNode(name: String, paths: Seq[(String, Seq[NewProperty])], parentName: String = "",
                       tokenOptions: Seq[(String, String)] = Empty, scope: Seq[(Seq[String], String)] = Empty,
                       methodImplementations: Seq[NewMethodImplementation] = Empty, description: String = "")
 	extends ModelConvertible
@@ -52,7 +51,7 @@ case class NewApiNode(name: String, path: String, parentName: String = "", pathP
 	// IMPLEMENTED  ---------------------
 	
 	override def toModel: Model = Model.from("name" -> name, "parent" -> parentName,
-		"path" -> Model.from("relative" -> path, "params" -> pathParams),
+		"paths" -> paths.map { case (path, params) => Model.from("relative" -> path, "params" -> params) },
 		"description" -> description,
 		"auth" -> Model.from(
 			"tokens" -> tokenOptions.map { case (tokenType, description) =>
@@ -67,8 +66,13 @@ case class NewApiNode(name: String, path: String, parentName: String = "", pathP
 	
 	// OTHER    -------------------------
 			
-	def fullPathUsing(nodeByName: MapAccess[String, NewApiNode]): String = parentName.ifNotEmpty match {
-		case Some(parentName) => s"${ nodeByName(parentName).fullPathUsing(nodeByName) }/$path"
-		case None => path
-	}
+	def fullPathsIteratorUsing(nodeByName: MapAccess[String, NewApiNode]): Iterator[String] =
+		parentName.ifNotEmpty match {
+			case Some(parentName) =>
+				nodeByName(parentName).fullPathsIteratorUsing(nodeByName).flatMap { parentPath =>
+					val _parent = parentPath.notEndingWith("/")
+					paths.iterator.map { case (path, _) => s"${ _parent }${ path.startingWith("/") }" }
+				}
+			case None => paths.iterator.map { case (path, _) => path }
+		}
 }

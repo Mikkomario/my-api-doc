@@ -4,6 +4,7 @@ import utopia.vault.nosql.targeting.columns.HasValues
 import utopia.vault.nosql.targeting.one.{AccessOneDeprecatingRoot, AccessOneWrapper, TargetingOne}
 import vf.myapidoc.model.stored.api.PathParametersSchemaLink
 
+@deprecated("Replaced with AccessApiNodePath", "v0.1")
 object AccessPathParametersSchemaLink 
 	extends AccessOneDeprecatingRoot[AccessPathParametersSchemaLink[PathParametersSchemaLink]]
 {
@@ -17,6 +18,7 @@ object AccessPathParametersSchemaLink
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Replaced with AccessApiNodePath", "v0.1")
 case class AccessPathParametersSchemaLink[A](wrapped: TargetingOne[Option[A]]) 
 	extends AccessOneWrapper[Option[A], AccessPathParametersSchemaLink[A]] 
 		with HasValues[AccessPathParametersSchemaLinkValue] 

@@ -8,7 +8,7 @@ import vf.myapidoc.database.props.api.VersionedDocElementDbProps
 /**
   * Common trait for access points that may be filtered based on versioned doc element properties
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait FilterVersionedDocElements[+Repr] extends DeprecatableView[Repr]
 {

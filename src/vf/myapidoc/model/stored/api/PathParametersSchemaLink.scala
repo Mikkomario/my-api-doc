@@ -5,7 +5,8 @@ import vf.myapidoc.database.access.api.params.path.AccessPathParametersSchemaLin
 import vf.myapidoc.model.factory.api.PathParametersSchemaLinkFactoryWrapper
 import vf.myapidoc.model.partial.api.{PathParametersSchemaLinkData, VersionedDocElementData}
 
-object PathParametersSchemaLink 
+@deprecated("Replaced with ApiNodePath", "v0.1")
+object PathParametersSchemaLink
 	extends StandardStoredFactory[PathParametersSchemaLinkData, PathParametersSchemaLink]
 {
 	// ATTRIBUTES	--------------------
@@ -50,16 +51,5 @@ object PathParametersSchemaLink
   * @author Mikko Hilpinen
   * @since 23.10.2026, v0.1
   */
-trait PathParametersSchemaLink 
-	extends PathParametersSchemaLinkFactoryWrapper[PathParametersSchemaLinkData, PathParametersSchemaLink] 
-		with VersionedDocElementData 
-		with StoredVersionedDocElementLike[PathParametersSchemaLinkData, PathParametersSchemaLink]
-{
-	// COMPUTED	--------------------
-	
-	/**
-	  * An access point to this path parameters schema link in the database
-	  */
-	def access = AccessPathParametersSchemaLink(id)
-}
-
+@deprecated("Replaced with ApiNodePath", "v0.1")
+trait PathParametersSchemaLink extends PathParametersSchemaLinkLike[PathParametersSchemaLink]

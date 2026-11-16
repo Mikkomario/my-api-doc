@@ -7,7 +7,7 @@ import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.util.NotEmpty
 import utopia.flow.util.StringExtensions._
-import vf.myapidoc.model.combined.schema.{DetailedModelSchema, DetailedPropertySchema}
+import vf.myapidoc.model.combined.schema.DetailedPropertySchema
 import vf.myapidoc.model.factory.api.ApiNodeFactoryWrapper
 import vf.myapidoc.model.partial.api.ApiNodeData
 import vf.myapidoc.model.stored.api.{ApiNode, StoredVersionedDocElementLike}
@@ -17,43 +17,48 @@ import vf.myapidoc.model.template.ClientModelConvertible
  * Includes full API node documentation
  * @param id ID of this node
  * @param data Wrapped node data
+ * @param relativePaths Direct path definitions that apply to this node
  * @param implementations Method implementations in this node
  * @param definedTokenTypes Accepted token types, if defined on this level (parents may have defined some token types)
  * @param definedScopes Accepted auth scopes, if defined on this level (parents may have defined some scopes)
- * @param directPathParams Accepted path parameters on this level
  * @param parents Nodes that appear before this one in the path. Ordered from bottom to top.
  * @author Mikko Hilpinen
  * @since 23.10.2026, v0.1
  */
-case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[DetailedApiNodeMethodImplementation],
+case class DetailedApiNode(id: Int, data: ApiNodeData, relativePaths: Seq[DetailedApiNodePath],
+                           implementations: Seq[DetailedApiNodeMethodImplementation],
                            definedTokenTypes: Seq[DetailedNodeAuthTypeLink],
-                           definedScopes: Seq[DetailedNodeAuthScopeLink], directPathParams: Option[DetailedModelSchema],
-                           parents: Seq[DetailedApiNode])
+                           definedScopes: Seq[DetailedNodeAuthScopeLink], parents: Seq[DetailedApiNode])
 	extends ApiNode with ApiNodeFactoryWrapper[ApiNodeData, DetailedApiNode] with ClientModelConvertible
 		with StoredVersionedDocElementLike[ApiNodeData, DetailedApiNode]
 {
 	// ATTRIBUTES   -----------------------
 	
 	/**
-	 * Absolute path from the API root to this node
+	 * Absolute paths from the API root to this node.
+	 * Each entry contains two values:
+	 *      1. The path as a string
+	 *      1. Accepted path parameters
 	 */
-	lazy val absolutePath: String = parent match {
-		case Some(parent) => s"${ parent.absolutePath.notEndingWith("/") }${ data.relativePath.startingWith("/") }"
-		case None => data.relativePath
-	}
-	/**
-	 * All path parameters accepted by this node
-	 */
-	lazy val pathParams: Seq[DetailedPropertySchema] = directPathParams match {
-		case Some(direct) =>
-			parent match {
-				case Some(parent) => parent.pathParams ++ direct.properties
-				case None => direct.properties
+	lazy val absolutePaths: Seq[(String, Seq[DetailedPropertySchema])] = parent match {
+		case Some(parent) =>
+			parent.absolutePaths.flatMap { case (parentPath, parentParams) =>
+				relativePaths.iterator.map { path =>
+					val pathStr = s"${ parentPath.notEndingWith("/") }${ path.relative.startingWith("/") }"
+					val params = path.params match {
+						case Some(params) => parentParams ++ params.properties
+						case None => parentParams
+					}
+					pathStr -> params
+				}
 			}
 		case None =>
-			parent match {
-				case Some(parent) => parent.pathParams
-				case None => Empty
+			relativePaths.map { path =>
+				val params = path.params match {
+					case Some(params) => params.properties
+					case None => Empty
+				}
+				path.relative -> params
 			}
 	}
 	/**
@@ -74,11 +79,12 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 	def parent = parents.headOption
 	
 	/**
-	 * @return An iterator that yields names of all sensitive properties listed in this node's documentation
+	 * @return An iterator that yields names of all sensitive properties listed in this node's documentation.
+	 *         Doesn't include properties defined in parent nodes.
 	 */
 	def sensitivePropertyNamesIterator =
 		implementations.iterator.flatMap { _.sensitivePropertyNamesIterator } ++
-			directPathParams.iterator.flatMap { _.sensitivePropertyNamesIterator }
+			relativePaths.iterator.flatMap { _.params }.flatMap { _.sensitivePropertyNamesIterator }
 	
 	private def definitionsIter = Iterator.single(this) ++ parents.iterator
 	
@@ -86,14 +92,25 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 	// IMPLEMENTED  -----------------------
 	
 	override def toModel = super.toModel ++ Model.from(
-		"parent" -> parent.map { p => Model.from("id" -> p.id, "name" -> p.name) },
-		"absolutePath" -> absolutePath, "directPathParams" -> directPathParams,
+		"parent" -> parent.map { p => Model.from("id" -> p.id, "name" -> p.name) }, "paths" -> relativePaths,
 		"directAuth" -> Model.from("tokens" -> definedTokenTypes, "scopes" -> definedScopes),
 		"implementations" -> implementations)
 	override def toClientModel: Model = Model
 		.apply(Vector.concat[(String, Value)](
-			Vector("id" -> id, "name" -> data.name, "description" -> data.description, "path" -> absolutePath),
-			if (pathParams.isEmpty) Empty else Single("pathParams" -> pathParams.map { _.toClientModel }),
+			Vector("id" -> id, "name" -> data.name, "description" -> data.description),
+			// Path and path parameters are represented either with two separate properties,
+			// if there's only one variant.
+			// Alternatively, includes a "paths" property that lists all alternative path versions.
+			absolutePaths.oneOrMany match {
+				case Left((path, params)) =>
+					if (params.isEmpty)
+						Single("path" -> path)
+					else
+						Pair("path" -> path, "pathParams" -> params)
+				case Right(paths) =>
+					Single("paths" ->
+						paths.map { case (path, params) => Model.from("path" -> path, "params" -> params) })
+			},
 			Single("actions" -> implementations.map { impl =>
 				// Request body optionality is only included if it couldn't be inferred from the body entry
 				// The body is represented using either "requestBody" or "requestBodyOptions",
@@ -109,7 +126,7 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, implementations: Seq[Deta
 							Single("requestBody" -> body.toClientModel)
 						else
 							Pair("requestBody" -> body.toClientModel, "requiresRequestBody" -> false)
-							
+					
 					case Some(Right(options)) =>
 						if (impl.requiresRequestBody)
 							Single("requestBodyOptions" -> options.map { _.toClientModel })

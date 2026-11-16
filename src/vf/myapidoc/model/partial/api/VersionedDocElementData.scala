@@ -17,8 +17,9 @@ object VersionedDocElementData extends FromModelFactoryWithSchema[VersionedDocEl
 	
 	// IMPLEMENTED	--------------------
 	
-	override protected def fromValidatedModel(valid: Model) = 
-		VersionedDocElementData(valid("originalUpdateId").getInt, valid("removingUpdateId").int)
+	override protected def fromValidatedModel(model: Model) = 
+		VersionedDocElementData(originalUpdateId = model("originalUpdateId").getInt, 
+			removingUpdateId = model("removingUpdateId").int)
 	
 	
 	// OTHER	--------------------
@@ -40,7 +41,7 @@ object VersionedDocElementData extends FromModelFactoryWithSchema[VersionedDocEl
 	  * @param originalUpdateId ID of the update that introduced this element (version)
 	  * @param removingUpdateId ID of the update that removed or replaced this element (version)
 	  * @author Mikko Hilpinen
-	  * @since 28.10.2026
+	  * @since 15.11.2026
 	  */
 	private case class _VersionedDocElementData(originalUpdateId: Int, removingUpdateId: Option[Int] = None) 
 		extends VersionedDocElementData
@@ -59,7 +60,7 @@ object VersionedDocElementData extends FromModelFactoryWithSchema[VersionedDocEl
 /**
   * Common trait for documentation elements which have current and historical versions.
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait VersionedDocElementData extends VersionedDocElementDataLike[VersionedDocElementData]
 

@@ -10,7 +10,7 @@ import vf.myapidoc.database.props.api.VersionedDocElementDbProps
   * @param model   A model used for accessing versioned doc element database properties
   * @tparam A Type of the wrapped access class
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 case class FilterByVersionedDocElement[+A <: FilterableView[A]](wrapped: A, 
 	model: VersionedDocElementDbProps) 

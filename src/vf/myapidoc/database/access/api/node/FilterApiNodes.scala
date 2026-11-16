@@ -3,7 +3,6 @@ package vf.myapidoc.database.access.api.node
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.vault.model.immutable.Column
 import utopia.vault.nosql.template.IntIndexFilterable
-import utopia.vault.nosql.view.{NullDeprecatableView, TimelineView}
 import utopia.vault.sql.Condition
 import vf.myapidoc.database.access.api.update.FilterVersionedDocElements
 import vf.myapidoc.database.storable.api.ApiNodeDbModel
@@ -66,18 +65,5 @@ trait FilterApiNodes[+Repr] extends FilterVersionedDocElements[Repr] with IntInd
 	  */
 	def withNameMatchingAnyOf(namesNoSpaces: Iterable[String]) = 
 		filter(model.nameNoSpaces.column.in(namesNoSpaces))
-	
-	/**
-	  * @param relativePath relative path to target
-	  * @return Copy of this access point that only includes api nodes with the specified relative path
-	  */
-	def withRelativePath(relativePath: String) = filter(model.relativePath.column <=> relativePath)
-	/**
-	  * @param relativePaths Targeted relative paths
-	  * @return Copy of this access point that only includes api nodes where relative path is within the 
-	  * specified value set
-	  */
-	def withRelativePaths(relativePaths: Iterable[String]) = 
-		filter(model.relativePath.column.in(relativePaths))
 }
 

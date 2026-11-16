@@ -1,7 +1,5 @@
 package vf.myapidoc.model.factory.api
 
-import java.time.Instant
-
 /**
   * Common trait for path parameters schema link-related factories that allow construction with 
   * individual properties
@@ -9,6 +7,7 @@ import java.time.Instant
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Replaced with ApiNodePathFactory", "v0.1")
 trait PathParametersSchemaLinkFactory[+A] extends VersionedDocElementFactory[A]
 {
 	// ABSTRACT	--------------------
@@ -19,9 +18,9 @@ trait PathParametersSchemaLinkFactory[+A] extends VersionedDocElementFactory[A]
 	  */
 	def withModelTypeId(modelTypeId: Int): A
 	/**
-	  * @param nodeId New node id to assign
-	  * @return Copy of this item with the specified node id
+	  * @param pathId New path id to assign
+	  * @return Copy of this item with the specified path id
 	  */
-	def withNodeId(nodeId: Int): A
+	def withPathId(pathId: Int): A
 }
 

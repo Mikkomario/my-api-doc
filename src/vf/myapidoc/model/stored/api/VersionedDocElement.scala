@@ -28,13 +28,15 @@ object VersionedDocElement extends StandardStoredFactory[VersionedDocElementData
 	  * @param id   ID of this versioned doc element in the database
 	  * @param data Wrapped versioned doc element data
 	  * @author Mikko Hilpinen
-	  * @since 28.10.2026
+	  * @since 15.11.2026
 	  */
-	private case class _VersionedDocElement(id: Int, data: VersionedDocElementData) extends VersionedDocElement
+	private case class _VersionedDocElement(id: Int, 
+		data: VersionedDocElementData) extends VersionedDocElement
 	{
 		// IMPLEMENTED	--------------------
 		
 		override def withId(id: Int) = copy(id = id)
+		
 		override def wrap(data: VersionedDocElementData) = copy(data = data)
 	}
 }
@@ -43,7 +45,7 @@ object VersionedDocElement extends StandardStoredFactory[VersionedDocElementData
   * Represents a versioned doc element that has already been stored in the database. 
   * Common trait for documentation elements which have current and historical versions.
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait VersionedDocElement 
 	extends StoredVersionedDocElementLike[VersionedDocElementData, VersionedDocElement] 

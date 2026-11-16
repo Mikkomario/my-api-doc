@@ -22,6 +22,7 @@ import vf.myapidoc.database.access.api.node.auth.AccessNodeAuthTypeLinks
 import vf.myapidoc.database.access.api.node.auth.scope.{AccessAdditionalNodeAuthScopeRequirements, AccessNodeAuthScopeLinks}
 import vf.myapidoc.database.access.api.node.group.AccessApiNodeGroups
 import vf.myapidoc.database.access.api.node.impl.AccessApiNodeMethodImplementations
+import vf.myapidoc.database.access.api.node.path.AccessApiNodePaths
 import vf.myapidoc.database.access.api.params.path.AccessPathParameterSchemaLinks
 import vf.myapidoc.database.access.api.params.query.AccessQueryParameterSchemaLinks
 import vf.myapidoc.database.access.api.response.body.AccessResponseBodySchemas
@@ -81,8 +82,7 @@ object ApiDocDb
 			.whereActiveNodeGroups.inApi(apiId)
 			.pullAndGroupBy { _.nodeId }
 		
-		val pathParamRefs = AccessPathParameterSchemaLinks.active.whereActiveNodeGroups.inApi(apiId)
-			.modelIdPerNodeId
+		val pathsPerNode = AccessApiNodePaths.active.whereActiveNodeGroups.inApi(apiId).pullAndGroupBy { _.nodeId }
 		val tokenTypeLinksPerNode = AccessNodeAuthTypeLinks.active.whereActiveNodeGroups.inApi(apiId).stream {
 			_.map { link => link + tokenTypeById(link.authTypeId) }
 				.groupToSeqsBy { _.nodeId }.withDefaultValue(Empty)
@@ -132,6 +132,9 @@ object ApiDocDb
 				// Forms the detailed API nodes
 				val nodes = rawNodesPerGroup(group.id).map { node =>
 					DetailedApiNode(node.id, node.data,
+						relativePaths = pathsPerNode(node.id).map { p =>
+							DetailedApiNodePath(p, p.paramsModelSchemaId.flatMap(modelById.get))
+						},
 						implementations = rawImplementationsPerNode(node.id).map { impl =>
 							DetailedApiNodeMethodImplementation(impl.id, impl.data,
 								queryParams = queryParamRefs.get(impl.id).flatMap(modelById.get),
@@ -140,7 +143,6 @@ object ApiDocDb
 						},
 						definedTokenTypes = tokenTypeLinksPerNode(node.id),
 						definedScopes = scopeLinksPerNode(node.id),
-						directPathParams = pathParamRefs.get(node.id).flatMap(modelById.get),
 						// Because the parents involve cyclic references, we resolve them lazily
 						parents = node.parentId match {
 							case Some(firstParentId) =>
@@ -260,7 +262,6 @@ object ApiDocDb
 	 * @param connection Implicit DB connection
 	 * @param updateId Update that introduces these changes
 	 */
-	// TODO: Accept modelNameToId instead of the models
 	def storeApiNodes(existing: DetailedApi, nodeGroups: Iterable[NewApiNodeGroup], namedModels: Iterable[ModelSchema])
 	                 (implicit connection: Connection, updateId: DocUpdateId): Unit =
 	{
@@ -294,7 +295,9 @@ object ApiDocDb
 		
 		// Updates the API nodes next
 		// Checks for matches with existing nodes
-		val existingNodeByPath = existing.nodesIterator.map { n => standardizePath(n.absolutePath) -> n }.toMap
+		val existingNodeByPath = existing.nodesIterator
+			.flatMap { node => node.absolutePaths.iterator.map { case (path, _) => standardizePath(path) -> node } }
+			.toMap
 		val newNodeByName = nodeGroups.iterator.flatMap { _.nodes }.map { n => standardizeRef(n.name) -> n }.toMap
 			.mapInputView(standardizeRef)
 		// Maps nodes as they get stored.
@@ -304,8 +307,9 @@ object ApiDocDb
 			.flatMap { case (groupId, nodes) => nodes.iterator.map { groupId -> _ } }
 			.flatMap { case (groupId, node) =>
 				// Matches the nodes by their absolute path
-				val path = standardizePath(node.fullPathUsing(newNodeByName))
-				existingNodeByPath.get(path) match {
+				node.fullPathsIteratorUsing(newNodeByName)
+					.findMap { p => existingNodeByPath.get(standardizePath(p)) } match
+				{
 					// Case: Match with an existing node => Checks whether to replace or to update the existing version
 					case Some(existingNode) =>
 						val shouldReplace = existingNode.groupId != groupId || (existingNode.name !~== node.name) ||
@@ -341,15 +345,13 @@ object ApiDocDb
 	                       tokenTypes: MapAccess[String, StoreResult[AuthTokenType]],
 	                       scopes: MapAccess[String, StoreResult[Scope]]) =
 	{
-		// Updates the name, description and/or relative path, if necessary
-		if (existing.relativePath != node.path)
-			existing.access.relativePath.set(node.path)
+		// Updates the name and description, if necessary
 		if (existing.name != node.name)
 			existing.access.name.set(node.name)
 		if (existing.data.description != node.description)
 			existing.access.description.set(node.description)
 		
-		updatePathParams(existing.id, existing.directPathParams, node.pathParams, modelNameToId)
+		updatePaths(existing.id, existing.relativePaths, node.paths, modelNameToId)
 		updateTokenTypeLinks(existing.id, existing.definedTokenTypes, node.allTokenOptions)
 		updateScopeLinks(existing.id, existing.definedScopes, node.allScopes)
 		
@@ -390,7 +392,7 @@ object ApiDocDb
 	{
 		// Inserts the API node entry
 		val stored = ApiNodeDbModel.insert(ApiNodeData(updateId.connectedValue, groupId, node.name,
-			standardizeRef(node.name), node.path,
+			standardizeRef(node.name),
 			parentId = node.parentName.ifNotEmpty.flatMap { parentName =>
 				val parentId = nodeNameToId.get(standardizeRef(parentName))
 				if (parentId.isEmpty)
@@ -403,7 +405,7 @@ object ApiDocDb
 		nodeNameToId += (standardizeRef(node.name) -> stored.id)
 		
 		// Inserts the rest of the node data
-		insertPathParams(stored.id, node.pathParams, modelNameToId)
+		node.paths.foreach { case (path, params) => insertPath(stored.id, path, params, modelNameToId) }
 		insertTokenTypeLinks(stored.id, node.allTokenOptions)
 		insertScopeLinks(stored.id, node.allScopes.toOptimizedSeq)
 		node.methodImplementations.foreach { insertMethodImplementation(stored.id, _, modelNameToId) }
@@ -411,30 +413,48 @@ object ApiDocDb
 		StoreResult.inserted(stored)
 	}
 	
-	private def updatePathParams(nodeId: Int, existingParams: Option[CompleteModelSchema],
-	                             params: Seq[NewProperty], modelNameToId: Map[String, Int])
-	                            (implicit connection: Connection, updateId: DocUpdateId): Unit =
+	private def updatePaths(nodeId: Int, existing: Iterable[DetailedApiNodePath],
+	                        paths: Iterable[(String, Iterable[NewProperty])], modelNameToId: Map[String, Int])
+	                       (implicit connection: Connection, updateId: DocUpdateId) =
+		updateExclusiveMatches(existing, paths) { p => standardizePath(p.relative) } {
+			case (path, _) => standardizePath(path) } {
+			case (existing, (path, params)) =>
+				// Case: No path parameters present => Deprecates any previous path parameters, where applicable
+				if (params.isEmpty)
+					existing.params match {
+						// Case: Previous version had path params => Deprecates them
+						case Some(existingParams) =>
+							existing.access.deprecate()
+							if (existingParams.isNameless)
+								existingParams.access.deprecate()
+							insertPath(nodeId, path, params, modelNameToId)
+						
+						// Case: No change
+						case None => existing
+					}
+				else
+					existing.params.filter { _.isNameless } match {
+						// Case: Updating existing path params => Updates
+						case Some(existingParams) =>
+							ModelSchemaDb.updateNameless(existingParams, params, modelNameToId)
+							existing
+						// Case: Adding new path params or replacing named path params => Inserts
+						// NB: Current version doesn't fully support named path params.
+						//     Update if that feature is needed.
+						case None =>
+							existing.access.deprecate()
+							insertPath(nodeId, path, params, modelNameToId)
+					}
+		} {
+			AccessApiNodePaths(_).deprecate() } {
+			newPaths => newPaths.map { case (path, params) => insertPath(nodeId, path, params, modelNameToId) } }
+	private def insertPath(nodeId: Int, path: String, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
+	                      (implicit connection: Connection, updateId: DocUpdateId) =
 	{
-		// Case: No path parameters present => Deprecates any previous path parameters, where applicable
-		if (params.isEmpty)
-			existingParams.foreach { params =>
-				params.access.deprecate()
-				AccessPathParameterSchemaLinks.active.ofNode(nodeId).deprecate()
-			}
-		else
-			existingParams match {
-				// Case: Updating existing path params => Updates
-				case Some(existingParams) => ModelSchemaDb.updateNameless(existingParams, params, modelNameToId)
-				// Case: Adding new path params => Inserts
-				case None => insertPathParams(nodeId, params, modelNameToId)
-			}
+		val storedParams = ModelSchemaDb.insertNamelessCompletelyIfNecessary(params, modelNameToId)
+		ApiNodePathDbModel.insert(ApiNodePathData(nodeId = nodeId, relative = path,
+			paramsModelSchemaId = storedParams.map { _.id }, originalUpdateId = updateId.connectedValue))
 	}
-	private def insertPathParams(nodeId: Int, params: Iterable[NewProperty], modelNameToId: Map[String, Int])
-	                            (implicit connection: Connection, updateId: DocUpdateId) =
-		ModelSchemaDb.insertNamelessUseCase(params, modelNameToId) { modelId =>
-			PathParametersSchemaLinkDbModel.insert(
-				PathParametersSchemaLinkData(updateId.connectedValue, nodeId, modelId))
-		}
 	
 	private def updateTokenTypeLinks(nodeId: Int, existingTokenLinks: Iterable[NodeAuthTypeLink],
 	                                 tokenTypes: Iterable[(Option[Method], String, String)])

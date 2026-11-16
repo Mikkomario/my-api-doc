@@ -9,7 +9,7 @@ import vf.myapidoc.database.value.DocUpdateId
 /**
   * Used for accessing versioned doc element values from the DB
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
 trait AccessVersionedDocElementValues extends AccessValues
 {
@@ -40,9 +40,9 @@ trait AccessVersionedDocElementValues extends AccessValues
 	// OTHER    --------------------
 	
 	/**
-	 * Deprecates all accessible elements
+	 * Marks all accessible entries as deprecated
 	 * @param connection Implicit DB connection
-	 * @param updateId Implicit doc update ID
+	 * @param updateId ID of this update
 	 * @return Whether any row was targeted
 	 */
 	def deprecate()(implicit connection: Connection, updateId: DocUpdateId) =

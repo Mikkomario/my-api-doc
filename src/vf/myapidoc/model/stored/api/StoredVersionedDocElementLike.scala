@@ -1,7 +1,7 @@
 package vf.myapidoc.model.stored.api
 
 import utopia.vault.store.{FromIdFactory, Stored, StoredModelConvertible}
-import vf.myapidoc.model.factory.api.{VersionedDocElementFactory, VersionedDocElementFactoryWrapper}
+import vf.myapidoc.model.factory.api.VersionedDocElementFactoryWrapper
 import vf.myapidoc.model.partial.api.VersionedDocElementDataLike
 
 /**
@@ -9,19 +9,19 @@ import vf.myapidoc.model.partial.api.VersionedDocElementDataLike
   * @tparam Data Type of the wrapped data
   * @tparam Repr Implementing type
   * @author Mikko Hilpinen
-  * @since 28.10.2026, v0.1
+  * @since 15.11.2026, v0.1
   */
-trait StoredVersionedDocElementLike[Data <: VersionedDocElementDataLike[Data], +Repr]
+trait StoredVersionedDocElementLike[Data <: VersionedDocElementDataLike[Data], +Repr] 
 	extends Stored[Data, Int] with StoredModelConvertible[Data] with FromIdFactory[Int, Repr] 
-		with VersionedDocElementFactory[Repr] with VersionedDocElementDataLike[Repr]
-		with VersionedDocElementFactoryWrapper[Data, Repr]
+		with VersionedDocElementFactoryWrapper[Data, Repr] with VersionedDocElementDataLike[Repr]
 {
 	// IMPLEMENTED	--------------------
 	
 	override def originalUpdateId = data.originalUpdateId
+	
 	override def removingUpdateId = data.removingUpdateId
 	
-	override def copyVersionedDocElement(originalUpdateId: Int, removingUpdateId: Option[Int]) =
+	override def copyVersionedDocElement(originalUpdateId: Int, removingUpdateId: Option[Int]) = 
 		wrap(data.copyVersionedDocElement(originalUpdateId, removingUpdateId))
 }
 

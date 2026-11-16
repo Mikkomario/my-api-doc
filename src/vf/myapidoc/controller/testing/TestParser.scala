@@ -206,6 +206,8 @@ object TestParser
 						case other =>
 							throw new SyntaxException(line, s"Expected code or array as a persist target, but got `$other`")
 					}
+				// Case: Prefer statement => Marks a request path element as preferred
+				case "prefer" => builder += PreferPathElement(lineRemainderAsEval)
 				// Case: Wait statement => Parses the wait duration
 				case "wait" => builder += ProceedAfterWait(lineRemainderAsEval)
 				// Case: Use authorization statement => Parses an authorization change instruction

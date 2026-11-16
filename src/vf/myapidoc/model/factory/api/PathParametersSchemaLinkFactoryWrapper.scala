@@ -1,19 +1,19 @@
 package vf.myapidoc.model.factory.api
 
 /**
-  * Common trait for classes that implement PathParametersSchemaLinkFactory by wrapping a 
-  * PathParametersSchemaLinkFactory instance
-  * @tparam A Type of constructed instances
-  * @tparam Repr Implementing type of this factory
+  * Common trait for classes that implement PathParametersSchemaLinkFactory by wrapping another such instance
+  * @tparam Data Type of the wrapped data
+  * @tparam Repr Type of the implementing class
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
-trait PathParametersSchemaLinkFactoryWrapper[A <: PathParametersSchemaLinkFactory[A], +Repr] 
-	extends PathParametersSchemaLinkFactory[Repr] with VersionedDocElementFactoryWrapper[A, Repr]
+@deprecated("Replaced with ApiNodePathFactoryWrapper", "v0.1")
+trait PathParametersSchemaLinkFactoryWrapper[Data <: PathParametersSchemaLinkFactory[Data], +Repr]
+	extends PathParametersSchemaLinkFactory[Repr] with VersionedDocElementFactoryWrapper[Data, Repr]
 {
 	// IMPLEMENTED	--------------------
 	
 	override def withModelTypeId(modelTypeId: Int) = mapData { _.withModelTypeId(modelTypeId) }
-	override def withNodeId(nodeId: Int) = mapData { _.withNodeId(nodeId) }
+	override def withPathId(pathId: Int) = mapData { _.withPathId(pathId) }
 }
 

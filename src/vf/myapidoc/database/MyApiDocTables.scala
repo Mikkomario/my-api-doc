@@ -77,9 +77,15 @@ object MyApiDocTables extends Tables(cPool)
 	lazy val nodeAuthTypeLink = apply("node_auth_type_link")
 	
 	/**
+	 * Table that contains api node paths (Represents a path leading to an API node. Relative to the
+	 * parent node (if specified) or the API root.)
+	 */
+	lazy val apiNodePath = apply("api_node_path")
+	/**
 	  * Table that contains path parameter schema links (Applies a specific schema to the the path 
 	  * parameters received by an API node.)
 	  */
+	@deprecated("Deprecated for removal", "v0.1")
 	lazy val pathParametersSchemaLink = apply("path_parameters_schema_link")
 	
 	/**

@@ -10,6 +10,7 @@ import utopia.vault.nosql.view.{FilterableView, FilterableViewWrapper}
   * @author Mikko Hilpinen
   * @since 15.10.2026, v0.1
   */
+@deprecated("Replaced with FilterByApiNodePath", "v0.1")
 case class FilterByPathParametersSchemaLink[+A <: FilterableView[A]](wrapped: A) 
 	extends FilterPathParameterSchemaLinks[A] with FilterableViewWrapper[A]
 {

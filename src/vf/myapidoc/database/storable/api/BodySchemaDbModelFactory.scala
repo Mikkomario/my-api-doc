@@ -15,20 +15,18 @@ object BodySchemaDbModelFactory
 	/**
 	  * @return A factory for constructing body schema database models
 	  */
-	def apply(table: Table, dbProps: BodySchemaDbProps) = BodySchemaDbModelFactoryImpl(table, dbProps)
+	def apply(dbProps: BodySchemaDbProps) = BodySchemaDbModelFactoryImpl(dbProps)
 	
 	
 	// NESTED	--------------------
 	
 	/**
-	  * Used for constructing BodySchemaDbModel instances and for inserting body schemas to the 
-	  * database
-	  * @param table             Table targeted by these models
+	  * Used for constructing BodySchemaDbModel instances and for inserting body schemas to the database
 	  * @param bodySchemaDbProps Properties that specify how the database interactions are performed
 	  * @author Mikko Hilpinen
 	  * @since 27.10.2026, v0.1
 	  */
-	case class BodySchemaDbModelFactoryImpl(table: Table, bodySchemaDbProps: BodySchemaDbProps) 
+	case class BodySchemaDbModelFactoryImpl(bodySchemaDbProps: BodySchemaDbProps)
 		extends BodySchemaDbModelFactory with BodySchemaDbPropsWrapper with DeprecatesAfterDefined
 	{
 		// ATTRIBUTES	--------------------
@@ -38,7 +36,9 @@ object BodySchemaDbModelFactory
 		
 		// IMPLEMENTED	--------------------
 		
-		override def apply(data: BodySchemaData): BodySchemaDbModel = 
+		override def table: Table = bodySchemaDbProps.table
+		
+		override def apply(data: BodySchemaData): BodySchemaDbModel =
 			apply(None, Some(data.originalUpdateId), Some(data.parentId), data.removingUpdateId, 
 				Some(data.dataType), data.modelTypeId, Some(data.isArray))
 		
@@ -64,19 +64,18 @@ object BodySchemaDbModelFactory
 		def apply(id: Option[Int] = None, originalUpdateId: Option[Int] = None, parentId: Option[Int] = None,
 		          removingUpdateId: Option[Int] = None, dataType: Option[PropertyType] = None,
 		          modelTypeId: Option[Int] = None, isArray: Option[Boolean] = None): BodySchemaDbModel =
-			_BodySchemaDbModel(table, bodySchemaDbProps, id, originalUpdateId, parentId, removingUpdateId, 
-				dataType, modelTypeId, isArray)
+			_BodySchemaDbModel(bodySchemaDbProps, id, originalUpdateId, parentId, removingUpdateId, dataType,
+				modelTypeId, isArray)
 	}
 	
 	/**
 	  * Used for interacting with BodySchemas in the database
-	  * @param table   Table interacted with when using this model
 	  * @param dbProps Configurations of the interacted database properties
 	  * @param id      body schema database id
 	  * @author Mikko Hilpinen
 	  * @since 27.10.2026, v0.1
 	  */
-	private case class _BodySchemaDbModel(table: Table, dbProps: BodySchemaDbProps, id: Option[Int] = None,
+	private case class _BodySchemaDbModel(dbProps: BodySchemaDbProps, id: Option[Int] = None,
 	                                      originalUpdateId: Option[Int] = None, parentId: Option[Int] = None,
 	                                      removingUpdateId: Option[Int] = None, dataType: Option[PropertyType] = None,
 	                                      modelTypeId: Option[Int] = None, isArray: Option[Boolean] = None)
