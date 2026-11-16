@@ -13,7 +13,7 @@ case class EvaluateArray(elements: Seq[TestEvaluation]) extends TestEvaluation
 {
 	// IMPLEMENTED  ----------------------
 	
-	override def toString = s"[${ elements.iterator.map { e => s"`$e`" }.mkString(", ") }]"
+	override def toString = s"[${ elements.iterator.mkString(", ") }]"
 	
 	override def sensitive(implicit context: TestContext): Boolean = elements.exists { _.sensitive }
 	

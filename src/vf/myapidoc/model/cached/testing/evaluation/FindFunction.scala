@@ -12,7 +12,7 @@ import vf.myapidoc.controller.testing.TestContext
 case class FindFunction(getColl: TestEvaluation, predicate: TestEvaluation, evaluatedItemPointer: Pointer[Value])
 	extends TestEvaluation
 {
-	override def toString: String = s"find(`$getColl`) { `$predicate` }"
+	override def toString: String = s"find($getColl) { $predicate }"
 	
 	override def sensitive(implicit context: TestContext): Boolean = getColl.sensitive || predicate.sensitive
 	

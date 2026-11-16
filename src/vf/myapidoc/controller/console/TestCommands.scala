@@ -1,8 +1,8 @@
 package vf.myapidoc.controller.console
 
-import utopia.flow.error.ErrorExtensions._
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair, Single}
+import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.operator.equality.EqualsExtensions._
@@ -82,22 +82,24 @@ object TestCommands
 	private val listC = Command.withoutArguments("list", "ls", help = "Lists all tests") {
 		testsP.value.foreach { _.list() }
 	}
-	private val runC = Command("run", help = "Runs a tests or all tests")(
+	private val runC = Command("run", help = "Runs a test")(
 		ArgumentSchema("test-name", "test", help = "Name of the test to run", defaultDescription = "Select")) { args =>
 		testsP.value.foreach { tests =>
 			args("test-name").string match {
 				case Some(testName) => tests.run(testName)
 				case None =>
-					println("Which test do you want to run?")
+					println("\nWhich test do you want to run?")
 					StdIn.selectFrom(tests.all.view.map { t => t -> t.name }.toVector, "Tests").foreach { test =>
 						tests.run(test)
 					}
 			}
 		}
 	}
-	private val reloadC = Command.withoutArguments("reload", help = "Reloads the tests by reading the tests file again") {
-		testsP.value.foreach { _.reload() }
-	}
+	private val reloadC = Command.withoutArguments("reload",
+		help = "Reloads the tests by reading the tests file again") { testsP.value.foreach { _.reload() } }
+	private val clearC = Command.withoutArguments("context:clear",
+		help = "Clears the current test context, including persisted values") {
+		testsP.value.foreach { _.clearContext() } }
 	
 	/**
 	 * A pointer that contains the currently available test commands
@@ -275,6 +277,10 @@ object TestCommands
 				scribe.in("Tests.reload").recoverable(error, "Failed to reload tests",
 					Model.from("path" -> path.toJson))
 				false
+		}
+		def clearContext() = {
+			context.clear()
+			println("Context cleared")
 		}
 	}
 }

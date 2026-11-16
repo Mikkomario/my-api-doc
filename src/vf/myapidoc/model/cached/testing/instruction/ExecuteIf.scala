@@ -18,15 +18,15 @@ case class ExecuteIf(condition: TestEvaluation, code: TestInstruction, alternati
 	
 	override def execute()(implicit context: TestContext) = {
 		if (condition.run().getBoolean) {
-			context.log(s"Entered `$condition`")
+			context.log(s"Entered case: $condition")
 			code.execute()
 		}
 		else
 			alternative match {
 				case Some(alt) =>
-					context.log(s"Skipped `$condition` => Running else")
+					context.log(s"Skipped case `$condition` => Running else")
 					alt.execute()
-				case None => context.log(s"Skipped `$condition`")
+				case None => context.log(s"Skipped case: $condition")
 			}
 	}
 }

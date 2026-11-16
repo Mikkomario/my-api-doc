@@ -14,6 +14,6 @@ case class UpdateAuth(getAuth: TestEvaluation) extends TestInstruction
 	
 	override def execute()(implicit context: TestContext) = {
 		context.setAuth(getAuth.run().getString)
-		context.log(s"Specified authorization using `$getAuth`")
+		context.log(s"Specified authorization using: $getAuth")
 	}
 }

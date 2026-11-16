@@ -6,6 +6,7 @@ import utopia.access.model.enumeration.{Method, Status}
 import utopia.disciple.controller.Gateway
 import utopia.disciple.controller.parse.ResponseParser
 import utopia.disciple.model.request.{Request, StringBody, Timeout}
+import utopia.flow.error.ErrorExtensions._
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
@@ -50,7 +51,7 @@ object TestContext
 	
 	// NESTED   ------------------------------
 	
-	private class TestScribe(wrapped: Scribe, eventLog: KeptOpenWriter) extends Scribe
+	private class TestScribe(wrapped: Scribe, eventLogView: View[KeptOpenWriter]) extends Scribe
 	{
 		// IMPLEMENTED  ----------------------
 		
@@ -62,8 +63,12 @@ object TestContext
 		
 		override def apply(error: Option[Throwable], message: String, details: Model): Unit = {
 			wrapped(error, message, details)
-			eventLog { writer =>
-				error.foreach { error => writer.println(s"FAILURE: ${ error.getMessage }") }
+			eventLogView.value { writer =>
+				writer.println()
+				error.foreach { error =>
+					writer.println(s"FAILURE: ${ error.getMessage }")
+					error.causesIterator.foreach { cause => println(s"\t${ cause.getMessage }") }
+				}
 				if (message.nonEmpty)
 					writer.println(message)
 				if (details.nonEmpty) {
@@ -72,13 +77,14 @@ object TestContext
 						writer.println(s"- ${ detail.name }: ${ detail.value }")
 					}
 				}
+				writer.println()
 			}
 		}
 		
 		
 		// OTHER    ---------------------------
 		
-		private def map(f: Mutate[Scribe]) = new TestScribe(f(wrapped), eventLog)
+		private def map(f: Mutate[Scribe]) = new TestScribe(f(wrapped), eventLogView)
 	}
 }
 
@@ -97,14 +103,19 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 {
 	// ATTRIBUTES   --------------------------
 	
-	private val altScribe = newScribe("testing.Context")
-	private val eventLog = altScribe.in("writer").use { implicit scribe =>
-		KeptOpenWriter(30.seconds).logging.to(Paths.get(s"log/test-runs/$Today-run-1.txt").unique)
+	private val lastTestP = Pointer.eventful("")
+	
+	private val altScribe = newScribe("testing.Context").variant("api", apiName)
+	private val eventLogP = altScribe.in("writer").use { implicit scribe =>
+		lastTestP.map { test =>
+			KeptOpenWriter(30.seconds).logging.to(Paths.get(
+				s"log/test-runs/$Today${ test.toLowerCase.replace(' ', '-').prependIfNotEmpty("-") }-run-1.txt").unique)
+		}
 	}
 	/**
 	 * Logging interface to use during testing
 	 */
-	implicit val scribe: Scribe = Scribe.lazily { new TestScribe(newScribe("testing.Context"), eventLog) }
+	implicit val scribe: Scribe = Scribe.lazily { new TestScribe(newScribe("testing.Context"), eventLogP) }
 	
 	private val testsMapView = testsView.mapValue { _.iterator.map { t => standardizeRef(t.name) -> t }.toMap }
 	
@@ -318,7 +329,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 			else
 				resolveRequestBody(pathOrNode, method)
 		}
-		log(s"Sending $method $path")
+		log(s"\nSending $method $path")
 		logBody(body)
 		val startTime = Now.toInstant
 		// Executes the request
@@ -355,26 +366,46 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	}
 	
 	/**
+	 * Marks a test as started. Affects logging.
+	 * @param test The test that's about to start.
+	 */
+	def markStarted(test: String) = lastTestP.value = test
+	/**
 	 * Runs a named test (inside another test)
 	 * @param test Name of the test to run
 	 */
 	def run(test: String): Unit = testsMapView.value.get(standardizeRef(test)) match {
 		case Some(test) =>
-			log(s"Calling test ${ test.name }")
+			log(s"Calling test \"${ test.name }\"")
 			if (!test.run()(this))
-				throw new TestFailedException(s"Test ${ test.name } failed")
+				throw new TestFailedException(s"Test \"${ test.name }\" failed")
 		
 		case None =>
-			val message = s"Attempted to run a non-existing test: $test"
+			val message = s"Attempted to run a non-existing test: \"$test\""
 			log(s"Failure: $message")
 			throw new TestFailedException(message)
+	}
+	
+	/**
+	 * Fully clears / resets this test context, including all persisted values.
+	 */
+	def clear() = {
+		lastTestP.value = ""
+		config.foreach { _.clear() }
+		state.propertiesIterator.foreach { _.value = Value.empty }
+		persistedKeys = Set()
+		sensitiveKeys = Set()
+		authP.value = Right("")
+		_lastResponseStatus = None
+		_lastResponseBody = Value.empty
+		preferredPathElements = Empty
 	}
 	
 	/**
 	 * Writes a new test log entry
 	 * @param line Line to add to the test event log
 	 */
-	def log(line: String): Unit = eventLog { _.println(line) }
+	def log(line: String): Unit = eventLogP.value { _.println(line) }
 	
 	private def resolvePath(pathOrNode: Either[String, DetailedApiNode]) = pathOrNode match {
 		// Case: Targeting a custom path => Resolves path parameters using a regular expression

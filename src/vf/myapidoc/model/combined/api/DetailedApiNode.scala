@@ -106,10 +106,11 @@ case class DetailedApiNode(id: Int, data: ApiNodeData, relativePaths: Seq[Detail
 					if (params.isEmpty)
 						Single("path" -> path)
 					else
-						Pair("path" -> path, "pathParams" -> params)
+						Pair("path" -> path, "pathParams" -> params.map { _.toClientModel })
 				case Right(paths) =>
-					Single("paths" ->
-						paths.map { case (path, params) => Model.from("path" -> path, "params" -> params) })
+					Single("paths" -> paths.map { case (path, params) =>
+						Model.from("path" -> path, "pathParams" -> params.map { _.toClientModel })
+					})
 			},
 			Single("actions" -> implementations.map { impl =>
 				// Request body optionality is only included if it couldn't be inferred from the body entry

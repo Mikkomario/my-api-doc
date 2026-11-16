@@ -16,7 +16,7 @@ case class PromptForValue(getPrompt: TestEvaluation, hide: Boolean = false) exte
 {
 	// IMPLEMENTED  ----------------------
 	
-	override def toString = s"prompt: `$getPrompt`"
+	override def toString = s"prompt: $getPrompt"
 	
 	override def sensitive(implicit context: TestContext): Boolean = hide || getPrompt.sensitive
 	

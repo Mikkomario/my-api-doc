@@ -1,6 +1,5 @@
 package vf.myapidoc.model.cached.testing.evaluation
 
-import utopia.flow.collection.immutable.Empty
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.parse.file.CsvRows
@@ -22,7 +21,7 @@ case class ReadCsv(getPath: TestEvaluation) extends TestEvaluation
 {
 	// IMPLEMENTED  ----------------------
 	
-	override def toString = s"Read CSV from `$getPath`"
+	override def toString = s"Read CSV from $getPath"
 	
 	override def sensitive(implicit context: TestContext): Boolean = false
 	

@@ -3,28 +3,28 @@ package vf.myapidoc.controller.console
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair}
 import utopia.flow.collection.template.tree.ValueTree
-import utopia.flow.generic.model.immutable.Model
 import utopia.flow.generic.casting.ValueConversions._
+import utopia.flow.generic.model.immutable.Model
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.NotEmpty
-import utopia.flow.util.StringExtensions._
 import utopia.flow.util.console.ConsoleExtensions._
 import utopia.flow.util.console.{ArgumentSchema, Command}
 import utopia.flow.util.result.TryCatch
+import utopia.flow.util.result.TryExtensions._
 import utopia.flow.view.template.Extender
 import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.model.enumeration.Severity.Recoverable
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
 import vf.myapidoc.controller.doc.DocParser
-import vf.myapidoc.database.access.api.AccessApis
 import vf.myapidoc.database.store.ApiDocDb
 import vf.myapidoc.model.cached.doc.{NewApiNodeGroup, NewNamedModel}
 import vf.myapidoc.model.combined.api.{DetailedApi, DetailedApiNode}
 import vf.myapidoc.util.Common._
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 import scala.io.StdIn
+import scala.util.{Failure, Success}
 
 /**
  * Introduces console commands for interacting with API documentation
@@ -37,9 +37,9 @@ object DocCommands extends Extender[(String, Seq[Command])]
 	
 	private implicit val scribe: Scribe = newScribe("console.Commands.Doc")
 	
-	private val printC = Command("print", help = "Prints API documentation as JSON")(
+	private val writeC = Command("write", help = "Writes API documentation to NDJSON files")(
 		ArgumentSchema("api-name", "name", help = "Name of the targeted API", defaultDescription = "Select")) { args =>
-		cPool.logging { implicit c => resolveApi(args("api-name")) }.flatten.foreach(printApiDoc)
+		cPool.logging { implicit c => resolveApi(args("api-name")) }.flatten.foreach(writeApiDoc)
 	}
 	/**
 	 * A console command for updating API documentation from md files.
@@ -104,9 +104,9 @@ object DocCommands extends Extender[(String, Seq[Command])]
 													println("Updated the API")
 												
 												// Optionally prints the current API doc JSON
-												if (StdIn.ask("Do you want to print the current API doc JSON?",
+												if (StdIn.ask("Do you want to write the current API JSON documentation?",
 													default = true))
-													printApiDoc(ApiDocDb.pullDetailsFor(api))
+													writeApiDoc(ApiDocDb.pullDetailsFor(api))
 											}
 										}
 							}
@@ -118,24 +118,44 @@ object DocCommands extends Extender[(String, Seq[Command])]
 	
 	// IMPLEMENTED  ---------------------
 	
-	override def wrapped: (String, Seq[Command]) = "doc" -> Pair(printC, update)
+	override def wrapped: (String, Seq[Command]) = "doc" -> Pair(writeC, update)
 	
 	
 	// OTHER    -------------------------
 	
-	private def printApiDoc(api: DetailedApi) = {
-		println(s"${ api.name } documentation:")
-		
-		// Prints the API structure
-		api.nodeGroups.foreach { group =>
-			group.rootNodes.foreach { node => println(nodeTreeToModel(node).toJson) }
-		}
-		
-		// Prints full information about each node
-		api.nodeGroups.foreach { group =>
-			println(s"\n${ group.name }${ group.data.description.prependIfNotEmpty(": ") }")
-			group.nodesIterator.foreach { n => println(n.toClientModel.toJson) }
-		}
+	private def writeApiDoc(api: DetailedApi): Unit = Paths.get("out/docs").createDirectories() match {
+		case Success(directory) =>
+			val apiName = api.name.toLowerCase.replace(' ', '-')
+			api.nodeGroups.iterator
+				.flatMap { group =>
+					// Prints the API structure
+					val groupName = group.name.toLowerCase.replace(' ', '-')
+					val structResult = (directory/s"$apiName-structure-$groupName.ndjson").writeUsing { writer =>
+						group.rootNodes.foreach { node => writer.println(nodeTreeToModel(node).toJson) }
+					}
+					
+					// Prints full information about each node
+					val nodesResult = (directory/s"$apiName-nodes-$groupName.ndjson").writeUsing { writer =>
+						group.nodesIterator.foreach { n => writer.println(n.toClientModel.toJson) }
+					}
+					
+					Pair(structResult, nodesResult)
+				}
+				.toTryCatch match
+			{
+				case TryCatch.Success(_, failures) =>
+					failures.logWith("Failed to write some of the API doc files",
+						subContext = "write.apiDoc.partialFailures", severity = Recoverable,
+						variantDetails = Model.from("api" -> api.name))
+					directory.openInDesktop().failure.foreach { error =>
+						scribe.in("write.apiDoc.openDirectory").recoverable(error, "Failed to open the doc directory")
+						println(s"The API documentation is available at ${ directory.absolute }")
+					}
+				case TryCatch.Failure(error) =>
+					scribe.in("write.apiDoc").variant("api", api.name)(error, "Failed to write the API documentation")
+			}
+		case Failure(error) =>
+			scribe.in("write.apiDoc.createDirectory")(error, "Failed to create the API documentation directory")
 	}
 	
 	private def nodeTreeToModel(node: ValueTree[DetailedApiNode]): Model =
