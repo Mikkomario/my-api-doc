@@ -43,7 +43,7 @@ case class DetailedApiNodeMethodImplementation(id: Int, data: ApiNodeMethodImple
 	def sensitivePropertyNamesIterator =
 		queryParams.iterator.flatMap { _.sensitivePropertyNamesIterator } ++
 			requestBodyOptions.iterator.flatMap { _.modelType }.flatMap { _.sensitivePropertyNamesIterator } ++
-			responses.iterator.flatMap { _.body }.flatMap { _.modelType }.flatMap { _.sensitivePropertyNamesIterator }
+			responses.iterator.flatMap { _.sensitivePropertyNamesIterator }
 	
 	
 	// IMPLEMENTED  ------------------------

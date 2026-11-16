@@ -11,8 +11,10 @@ import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
+import utopia.flow.generic.model.mutable.DataType.{PairType, VectorType}
 import utopia.flow.generic.model.mutable.MutableModel
 import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
+import utopia.flow.parse.BufferedPrintWriter
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.parse.file.KeptOpenWriter
 import utopia.flow.parse.string.Regex
@@ -21,7 +23,7 @@ import utopia.flow.time.{Now, Today}
 import utopia.flow.util.EitherExtensions._
 import utopia.flow.util.StringExtensions._
 import utopia.flow.util.result.TryExtensions._
-import utopia.flow.util.{AppConfig, Mutate}
+import utopia.flow.util.{AppConfig, Mutate, NotEmpty}
 import utopia.flow.view.immutable.View
 import utopia.flow.view.mutable.Pointer
 import utopia.scribe.core.controller.logging.Scribe
@@ -31,7 +33,7 @@ import vf.myapidoc.controller.testing.TestContext.{TestScribe, pathParamR}
 import vf.myapidoc.database.store.ExamplesDb
 import vf.myapidoc.database.value.DocUpdateId
 import vf.myapidoc.model.cached.testing.Test
-import vf.myapidoc.model.combined.api.DetailedApiNode
+import vf.myapidoc.model.combined.api.{DetailedApiNode, DetailedPossibleResponse}
 import vf.myapidoc.model.combined.schema.DetailedModelSchema
 import vf.myapidoc.model.error.TestFailedException
 import vf.myapidoc.util.Common._
@@ -103,9 +105,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 {
 	// ATTRIBUTES   --------------------------
 	
-	private val lastTestP = Pointer.eventful("")
-	
 	private val altScribe = newScribe("testing.Context").variant("api", apiName)
+	private val lastTestP = Pointer.eventful("")(altScribe)
 	private val eventLogP = altScribe.in("writer").use { implicit scribe =>
 		lastTestP.map { test =>
 			KeptOpenWriter(30.seconds).logging.to(Paths.get(
@@ -330,7 +331,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 				resolveRequestBody(pathOrNode, method)
 		}
 		log(s"\nSending $method $path")
-		logBody(body)
+		logBody(body, sensitiveKeys)
 		val startTime = Now.toInstant
 		// Executes the request
 		gateway
@@ -348,8 +349,34 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 							else {
 								val bodyValue = jsonParser.valueOf(bodyStr)
 								_lastResponseBody = bodyValue
-								logBody(bodyValue)
-								recordResponse(method, pathOrNode, response.status, bodyStr, bodyValue)
+								
+								// Checks whether the expected response has been documented
+								// Logs if not
+								val statusDoc = pathOrNode.toOption.flatMap { node =>
+									node.get(method) match {
+										case Some(impl) =>
+											val result = impl.responseWithStatus(response.status)
+											if (result.isEmpty)
+												altScribe.in("undocumented.response.status").info
+													.variant(Model.from("apiId" -> apiId, "node" -> node.name,
+														"method" -> method.name, "status" -> response.status.code))
+													.apply("Received a response status not found from the documentation")
+											result
+										case None =>
+											altScribe.in("undocumented.response").info
+												.variant(Model.from("apiId" -> apiId, "node" -> node.name,
+													"method" -> method.name))
+												.apply("Received a response for an undocumented method implementation")
+											None
+									}
+								}
+								
+								logBody(bodyValue, sensitivePropNames = statusDoc.iterator
+									.flatMap { _.sensitivePropertyNamesIterator.map { _.toLowerCase } })
+								pathOrNode.toOption.foreach { node =>
+									recordResponse(node.name, method, response.status.code, statusDoc, bodyStr,
+										bodyValue)
+								}
 							}
 						case Failure(error) =>
 							scribe(error, "Failed to parse a response body",
@@ -405,7 +432,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 * Writes a new test log entry
 	 * @param line Line to add to the test event log
 	 */
-	def log(line: String): Unit = eventLogP.value { _.println(line) }
+	def log(line: String): Unit = useLog { _.println(line) }
+	def useLog[A](f: BufferedPrintWriter => A) = eventLogP.value(f)
 	
 	private def resolvePath(pathOrNode: Either[String, DetailedApiNode]) = pathOrNode match {
 		// Case: Targeting a custom path => Resolves path parameters using a regular expression
@@ -537,62 +565,77 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		result.notEmpty
 	}
 	
-	private def logBody(body: Value) = {
+	// Expects sensitivePropNames to be in lower case
+	private def logBody(body: Value, sensitivePropNames: => IterableOnce[String]) = {
 		if (body.nonEmpty)
 			body.model match {
 				case Some(body) =>
-					body.nonEmptyPropertiesIterator.foreach { prop =>
-						log(s"- ${ prop.name }: ${ prop.value.toJson }")
-					}
+					if (body.nonEmpty)
+						useLog { writer => logBodyValue(writer, body, Set.from(sensitivePropNames), 0) }
 				case None =>
-					body.getVector.iterator.zipWithIndex.foreach { case (bodyElement, index) =>
-						log(s"${ index + 1 }. ${ bodyElement.toJson }")
+					NotEmpty(body.getVector).foreach { bodyElements =>
+						useLog { writer =>
+							val sensitive = Set.from(sensitivePropNames)
+							bodyElements.iterator.zipWithIndex.foreach { case (elem, index) =>
+								writer.print(s"${ index + 1 }. ")
+								logBodyValue(writer, elem, sensitive, 0)
+							}
+						}
 					}
 			}
 	}
+	private def logBodyValue(writer: BufferedPrintWriter, value: Value, sensitivePropNames: Set[String],
+	                         indentation: Int): Unit =
+		value.model match {
+			// Case: Model value => Lists all its properties
+			case Some(model) =>
+				val indent = "\t" * (indentation + 1)
+				writer.println()
+				model.nonEmptyPropertiesIterator.foreach { prop =>
+					// Case: Sensitive property => Omit its value
+					if (prop.value.nonEmpty && sensitivePropNames.contains(prop.name.toLowerCase))
+						writer.println(s"$indent${ prop.name }: <omitted>")
+					else {
+						writer.print(indent)
+						writer.print(prop.name)
+						writer.print(": ")
+						// Writes the value recursively
+						logBodyValue(writer, prop.value, sensitivePropNames, indentation + 1)
+						writer.println()
+					}
+				}
+			case None =>
+				// Case: Vector type value => Lists all its elements using recursion
+				if (value.isOfType(VectorType) || value.isOfType(PairType))
+					value.getVector.iterator.zipWithIndex.foreach { case (elem, index) =>
+						writer.print(s"\n${ "\t" * (indentation + 1) }${ index + 1 }. ")
+						logBodyValue(writer, elem, sensitivePropNames, indentation + 1)
+						writer.println()
+					}
+				// Case: Basic value => Prints it as a JSON value
+				else
+					writer.println(value.toJson)
+		}
 	
-	private def recordResponse(method: Method, pathOrNode: Either[String, DetailedApiNode], responseStatus: Status,
-	                           responseBodyStr: String, responseBodyValue: Value) =
-	{
-		// Documents the response body, if received for a documented API node
-		pathOrNode.foreach { node =>
-			def recordFile() = {
-				val standardizedName = node.name.toLowerCase.replace(" ", "-")
+	private def recordResponse(nodeName: String, method: Method, statusCode: Int,
+	                           responseDoc: Option[DetailedPossibleResponse], responseBodyStr: String,
+	                           responseBodyValue: Value): Unit =
+		responseDoc match {
+			// Case: Documentation exists => Records the response to the DB
+			case Some(doc) =>
+				cPool.logging { implicit c =>
+					implicit val updateId: DocUpdateId = DocUpdateId.latest(apiId)
+					ExamplesDb.storeResponseExample(nodeName, method, doc, responseBodyValue, responseBodyStr)
+				}
+			// Case: No documentation => Records a local file containing the received response
+			case None =>
 				Paths
-					.get(s"examples/unimplemented/$standardizedName-$method-${ responseStatus.code }-$Today-1.json")
+					.get(s"examples/unimplemented/${
+						nodeName.toLowerCase.replace(" ", "-") }-$method-$statusCode-$Today-1.json")
 					.createParentDirectories()
 					.flatMap { path => path.unique.write(responseBodyStr) }
 					.logWith("Failed to write a response body example")
-			}
-			// Finds the matching documentation entry
-			// If no documentation is found, records the response into a file and logs
-			node.get(method) match {
-				case Some(impl) =>
-					impl.responseWithStatus(responseStatus) match {
-						// Case: Documentation entry found => Records a response example, if needed
-						case Some(responseDoc) =>
-							cPool.logging { implicit c =>
-								implicit val updateId: DocUpdateId = DocUpdateId.latest(apiId)
-								ExamplesDb.storeResponseExample(node.name, method, responseDoc, responseBodyValue,
-									responseBodyStr)
-							}
-						case None =>
-							val filePath = recordFile()
-							altScribe.in("undocumented.response.status").info
-								.variant(Model.from("apiId" -> apiId, "node" -> node.name, "method" -> method.name,
-									"status" -> responseStatus.code))
-								.apply("Received a response status not found from the documentation",
-									Model.from("file" -> filePath.map { _.toJson }))
-					}
-				case None =>
-					val filePath = recordFile()
-					altScribe.in("undocumented.response").info
-						.variant(Model.from("apiId" -> apiId, "node" -> node.name, "method" -> method.name))
-						.apply("Received a response for an undocumented method implementation",
-							Model.from("file" -> filePath.map { _.toJson }))
-			}
 		}
-	}
 	
 	private def standardizeRef(str: String) = str.toLowerCase.filter { _.isLetterOrDigit }
 }

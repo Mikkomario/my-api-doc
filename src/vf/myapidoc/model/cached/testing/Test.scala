@@ -27,6 +27,7 @@ case class Test(name: String, code: TestInstruction, description: String = "")
 	def run()(implicit context: TestContext) =
 		Try
 			.apply {
+				context.markStarted(name)
 				val descPart = if (description.isEmpty) "" else s": $description"
 				context.log(s"\nRunning \"$name\"$descPart")
 				code.execute()

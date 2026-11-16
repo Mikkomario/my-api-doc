@@ -11,6 +11,7 @@ import utopia.flow.operator.sign.Sign
 import utopia.flow.operator.sign.Sign.{Negative, Positive}
 import utopia.flow.parse.string.Regex
 import utopia.flow.util.StringExtensions._
+import utopia.flow.view.immutable.View
 import utopia.flow.view.mutable.Pointer
 import vf.myapidoc.controller.MdParser
 import vf.myapidoc.model.cached.testing.Test
@@ -35,8 +36,8 @@ object TestParser
 	// COMPUTED ------------------------
 	
 	// Expects the line to end afterwards
-	private def nextAuthInstruction(implicit tokensIter: TokensIterator): TestInstruction = {
-		val firstPart = nextEvalElement(None)
+	private def nextAuthInstruction(implicit tokensIter: TokensIterator, paramRef: ParamRef): TestInstruction = {
+		val firstPart = nextEvalElement()
 		tokensIter.nextOption() match {
 			// Case: No + token found => Applies bearer token authorization
 			case None => UpdateAuth(firstPart)
@@ -48,8 +49,8 @@ object TestParser
 		}
 	}
 	
-	private def lineRemainderAsEval(implicit tokensIter: TokensIterator): TestEvaluation =
-		nextEval(None, expectLineEnd = true)
+	private def lineRemainderAsEval(implicit tokensIter: TokensIterator, paramRef: ParamRef): TestEvaluation =
+		nextEval(expectLineEnd = true)
 	
 	@throws[SyntaxException]("If out of tokens")
 	private def nextToken(implicit tokensIter: TokensIterator) = {
@@ -139,6 +140,8 @@ object TestParser
 	private def parseCode(linesIter: Iterator[String], builder: mutable.Growable[TestInstruction])
 	                     (implicit doc: Iterable[DetailedApiNode]): Unit =
 	{
+		implicit val paramRef: ParamRef = ParamRef.NoParams
+		
 		// Attempts to parse the next code line
 		val line = linesIter.next()
 		def proceedAfter(line: String) = parseCode(Iterator.single(line) ++ linesIter, builder)
@@ -299,22 +302,22 @@ object TestParser
 	
 	/**
 	 * Parses the line remainder into an evaluation / expression
-	 * @param parameterReference Reference to an external parameter, if applicable. Call-by-name.
 	 * @param expectLineEnd Whether to expect the line to end afterwards. Default = false.
 	 * @param tokensIter An iterator that yields the remaining tokens / elements on this line
 	 * @return Parsed evaluation
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def nextEval(parameterReference: => Option[TestEvaluation], expectLineEnd: Boolean = false)
-	                    (implicit tokensIter: TokensIterator): TestEvaluation =
+	private def nextEval(expectLineEnd: Boolean = false)
+	                    (implicit tokensIter: TokensIterator, paramRef: ParamRef): TestEvaluation =
 	{
 		// Parses the first token / element
-		val primary = nextEvalElement(parameterReference)
+		val primary = nextEvalElement()
 		val result = {
 			// Case: Not the end of the line => Expects a binary operator
 			if (tokensIter.hasNext) {
-				lazy val remainder = nextEval(parameterReference, expectLineEnd)
+				lazy val remainder = nextEval(expectLineEnd)
 				nextToken match {
+					case ParsedEval(eval) => eval
 					case Comparison(operator) => Compare(Pair(primary, remainder), operator)
 					case SignOperator(sign) => Combine(Pair(primary, remainder), ValueOperation2(sign))
 					case LogicalOp(operator) => LogicalOperation(Pair(primary, remainder), operator)
@@ -336,53 +339,51 @@ object TestParser
 	/**
 	 * Extracts the next evaluation / expression element that appears on the line.
 	 * Does not expect a binary operator here.
-	 * @param parameterReference A parameter reference. Call-by-name.
 	 * @param tokensIter An iterator that yields additional tokens.
 	 * @return Parsed evaluation (element).
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def nextEvalElement(parameterReference: => Option[TestEvaluation])
-	                           (implicit tokensIter: TokensIterator): TestEvaluation =
+	private def nextEvalElement()(implicit tokensIter: TokensIterator, paramRef: ParamRef): TestEvaluation =
 		nextToken match {
+			case ParsedEval(eval) => eval
 			// Case: Quotation => Yields a hard-coded string value
 			case Quotation(text) => HardCodedValue.string(text)
 			// Case: Array => Yields an array of evaluations / expressions
 			case CodeArray(elements) =>
-				EvaluateArray(elements.map { evalFrom(_, parameterReference, tokensIter.line) })
+				EvaluateArray(elements.map { evalFrom(_, tokensIter.line) })
 			// Case: + or - => Potentially inverts the next element (assumes that this is a unary operator)
 			case SignOperator(sign) =>
-				val next = nextEvalElement(parameterReference)
+				val next = nextEvalElement()
 				sign match {
 					case Positive => next
 					case Negative => ReverseValue(next)
 				}
 			// Case: Function call => Parses it
-			case FunctionCall(function, params) => parseFunction(function, params, parameterReference)
+			case FunctionCall(function, params) => parseFunction(function, params)
 			// Case: Code token => Checks for custom commands
 			case Code(code) =>
 				code.toLowerCase match {
 					// Case: Prompt command => Requests a value from the user when executed
-					case "prompt:" => parsePrompt(parameterReference)
+					case "prompt:" => parsePrompt()
 					// Case: CSV command => Reads CSV based on the following expression
-					case "csv:" => ReadCsv(nextEval(parameterReference))
+					case "csv:" => ReadCsv(nextEval())
 					// Case: No custom command => Parses the element as a normal (code) evaluation
-					case _ => parseCodeReference(code, parameterReference, tokensIter.line)
+					case _ => parseCodeReference(code, tokensIter.line)
 				}
 			case other => throw new SyntaxException(tokensIter.line, s"Invalid element: `$other`")
 		}
 	
-	private def parseFunction(function: String, params: Seq[Seq[CodeElement]],
-	                          parameterReference: => Option[TestEvaluation])
-	                         (implicit tokensIter: TokensIterator): TestEvaluation =
+	private def parseFunction(function: String, params: Seq[Seq[CodeElement]])
+	                         (implicit tokensIter: TokensIterator, paramRef: ParamRef): TestEvaluation =
 	{
 		// Parses the parameters
-		lazy val paramsIter = params.iterator.map { evalFrom(_, parameterReference, tokensIter.line) }
+		lazy val paramsIter = params.iterator.map { evalFrom(_, tokensIter.line) }
 		def iterateCollection(createFunction: (TestEvaluation, TestEvaluation, Pointer[Value]) => TestEvaluation) = {
 			paramsIter.nextOption() match {
 				case Some(coll) =>
 					val itemP = Pointer(Value.empty)
-					val collectionItemReference = ReadPointer(itemP)
-					val predicate = nextEval(Some(collectionItemReference))
+					val collectionItemReference = ParamRef(ReadPointer(itemP))
+					val predicate = nextEval()(tokensIter, collectionItemReference)
 					
 					createFunction(coll, predicate, itemP)
 				
@@ -402,7 +403,7 @@ object TestParser
 				paramsIter.nextOption() match {
 					case Some(coll) =>
 						// The searched element is either the second parameter, or the following evaluation
-						val searched = paramsIter.nextOption().getOrElse { nextEval(parameterReference) }
+						val searched = paramsIter.nextOption().getOrElse { nextEval() }
 						// Utilizes an ExistsFunction
 						val itemP = Pointer(Value.empty)
 						val collectionItemReference = ReadPointer(itemP)
@@ -418,28 +419,28 @@ object TestParser
 		}
 	}
 	
-	private def evalFrom(elements: Seq[CodeElement], parameterReference: => Option[TestEvaluation],
-	                     line: => String): TestEvaluation =
-		nextEval(parameterReference, expectLineEnd = true)(TokensIterator.from(elements, line))
+	private def evalFrom(elements: Seq[CodeElement], line: => String)(implicit paramRef: ParamRef): TestEvaluation =
+		nextEval(expectLineEnd = true)(TokensIterator.from(elements, line), paramRef)
 	
 	@tailrec
-	private def parsePrompt(parameterReference: => Option[TestEvaluation], sensitive: Boolean = false)
-	                       (implicit tokensIter: TokensIterator): PromptForValue =
+	private def parsePrompt(sensitive: Boolean = false)
+	                       (implicit tokensIter: TokensIterator, paramRef: ParamRef): PromptForValue =
 	{
 		// Next expects either "sensitive:" or a prompt expression
 		nextToken match {
 			case Code(code) =>
 				// Case: Sensitive parameter found => Expects the prompt to follow
 				if (!sensitive && code.startsWithIgnoreCase("sensitive:"))
-					parsePrompt(parameterReference, sensitive = true)
+					parsePrompt(sensitive = true)
 				else
-					PromptForValue(nextEval(parameterReference), sensitive)
+					PromptForValue(nextEval(), sensitive)
 				
 			// Case: Prompt as a quotation
 			case Quotation(prompt) => PromptForValue(HardCodedValue.string(prompt), sensitive)
+			case ParsedEval(eval) => PromptForValue(eval, sensitive)
 			// Case: Function as a prompt => Parses the function and passes it to the prompt function
 			case FunctionCall(function, params) =>
-				PromptForValue(parseFunction(function, params, parameterReference), sensitive)
+				PromptForValue(parseFunction(function, params), sensitive)
 			case other =>
 				throw new SyntaxException(tokensIter.line, s"Unexpected prompt parameter: `$other`")
 		}
@@ -448,14 +449,11 @@ object TestParser
 	/**
 	 * Converts a single code token into an evaluation / expression
 	 * @param code Code element to parse. Should represent a simple value or a chain of property calls.
-	 * @param parameterReference Parameter reference, if applicable. Call-by-name.
 	 * @param line Line on which this element appears. Used in error logging.
 	 * @return Parsed evaluation / expression
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def parseCodeReference(code: String, parameterReference: => Option[TestEvaluation],
-	                               line: => String): TestEvaluation =
-	{
+	private def parseCodeReference(code: String, line: => String)(implicit paramRef: ParamRef): TestEvaluation = {
 		// Handles .property -calls separately
 		val partsIter = code.splitIterator(Regex.dot)
 		def nextPart() = {
@@ -481,7 +479,7 @@ object TestParser
 			case "now" => CurrentTimestamp
 			// Case: _ => Reference to a parameter
 			case "_" =>
-				parameterReference.getOrElse {
+				paramRef.value.getOrElse {
 					throw new SyntaxException(line, "Encountered a reference to a non-existing parameter")
 				}
 			case part =>
@@ -541,7 +539,7 @@ object TestParser
 		override def toString: String = "="
 	}
 	/**
-	 * Represents an unary or binary + or - operator
+	 * Represents a unary or binary + or - operator
 	 * @param sign Sign of this operator
 	 */
 	private case class SignOperator(sign: Sign) extends CodeElement
@@ -586,6 +584,14 @@ object TestParser
 	{
 		override def toString: String = text
 	}
+	/**
+	 * Represents a pre-parsed test evaluation code
+	 * @param eval Wrapped evaluation
+	 */
+	private case class ParsedEval(eval: TestEvaluation) extends CodeElement
+	{
+		override def toString: String = eval.toString
+	}
 	
 	/**
 	 * Iterates over list elements, such as array elements or function parameters.
@@ -594,7 +600,8 @@ object TestParser
 	 *               Expects trimmed content that only and fully spans the list area.
 	 * @param line A line from which the parsed list is found. Used in debug logging.
 	 */
-	private class ListElementsIterator(source: Iterator[Char], line: => String) extends Iterator[Seq[CodeElement]]
+	private class ListElementsIterator(source: Iterator[Char], line: => String)(implicit paramRef: ParamRef)
+		extends Iterator[Seq[CodeElement]]
 	{
 		// ATTRIBUTES   --------------------
 		
@@ -630,7 +637,8 @@ object TestParser
 		 * @param line A complete line of code
 		 * @return An iterator that yields all tokens / elements that appear on that line
 		 */
-		def fromLine(line: String): TokensIterator = new _TokensIterator(line.trim.iterator, line)
+		def fromLine(line: String)(implicit paramRef: ParamRef): TokensIterator =
+			new _TokensIterator(line.trim.iterator, line)
 		/**
 		 * @param tokens An iterator that yields tokens / code elements
 		 * @param line Targeted line (call-by-name)
@@ -644,7 +652,8 @@ object TestParser
 		 * @param line The read code line (call-by-name)
 		 * @return A new tokens iterator
 		 */
-		def apply(source: Iterator[Char], line: => String): TokensIterator = new _TokensIterator(source, line)
+		def apply(source: Iterator[Char], line: => String)(implicit paramRef: ParamRef): TokensIterator =
+			new _TokensIterator(source, line)
 		
 		private class TokensIteratorWrapper(wrapped: Iterator[CodeElement], _line: => String) extends TokensIterator
 		{
@@ -654,7 +663,8 @@ object TestParser
 			override def next(): CodeElement = wrapped.next()
 		}
 		
-		private class _TokensIterator(source: Iterator[Char], _line: => String) extends TokensIterator
+		private class _TokensIterator(source: Iterator[Char], _line: => String)(implicit paramRef: ParamRef)
+			extends TokensIterator
 		{
 			import TokensIterator.stopChars
 			
@@ -672,27 +682,33 @@ object TestParser
 			override def next(): CodeElement = cache.pop().getOrElse { source.next() } match {
 				// Case: Quote start => Consumes and wraps the whole quotation
 				case '"' => Quotation(text = source.takeWhile { _ != '"' }.mkString)
-				// Case: Array start => Consumes and wraps the whole array
+					// Case: Array start => Consumes and wraps the whole array
 				case '[' =>
-					CodeArray(new ListElementsIterator(new ParenthesesContentIterator(source, '[', ']'), _line)
+					CodeArray(new ListElementsIterator(
+						new ParenthesesContentIterator(source, '[', ']'), _line)
 						.toOptimizedSeq)
+					// Case: Parentheses start => Parses the parentheses contents as a single evaluation
+				case '(' =>
+					val contentIter = new _TokensIterator(new ParenthesesContentIterator(source, '(', ')'), _line)
+					ParsedEval(nextEval(expectLineEnd = true)(contentIter, paramRef))
+					
 				// Case: '=' => Expects a comparison or an assignment
 				case '=' =>
 					source.next() match {
 						// Case: Equality (==)
 						case '=' => Comparison(Equality)
-						// Case: Assignment (=)
+							// Case: Assignment (=)
 						case other =>
 							cache.setOne(other)
 							Assignment
 					}
-				// Case: Comparison operator => Determines the exact operator
+					// Case: Comparison operator => Determines the exact operator
 				case '<' => readComparisonOperator('<')
 				case '>' => readComparisonOperator('>')
 				case '&' => completeLogicalOperator('&', And)
 				case '|' => completeLogicalOperator('|', Or)
-				// Case: '!' => Expects an inequality or an inverted logical operator,
-				//              but also supports as an alias for negation (-)
+					// Case: '!' => Expects an inequality or an inverted logical operator,
+					//              but also supports as an alias for negation (-)
 				case '!' =>
 					source.next() match {
 						case '=' => Comparison(Inequality)
@@ -702,14 +718,14 @@ object TestParser
 							cache.setOne(other)
 							SignOperator(Negative)
 					}
-				// Case: Whitespace (should not, but might occur) => Ignores leading whitespaces
+					// Case: Whitespace (should not, but might occur) => Ignores leading whitespaces
 				case ' ' => next()
 				case other =>
 					// Checks for + and -
 					Sign.of(other) match {
 						// Case: + or - => Applies it as an operator
 						case Some(sign) => SignOperator(sign)
-						// Case: Other => Interprets it as a code element or a function call
+							// Case: Other => Interprets it as a code element or a function call
 						case None =>
 							// Reads input until a stop character or end-of-input is reached
 							val contentBuilder = new StringBuilder()
@@ -886,4 +902,25 @@ object TestParser
 				throw new IllegalStateException("next() called after no indented lines remain")
 		}
 	}
+	
+	private object ParamRef
+	{
+		// OTHER   -------------------------
+		
+		def apply(value: TestEvaluation): ParamRef = _ParamRef(value)
+		
+		
+		// NESTED   ------------------------
+		
+		case object NoParams extends ParamRef
+		{
+			override val value: Option[TestEvaluation] = None
+		}
+		
+		private case class _ParamRef(param: TestEvaluation) extends ParamRef
+		{
+			override val value: Option[TestEvaluation] = Some(param)
+		}
+	}
+	private trait ParamRef extends View[Option[TestEvaluation]]
 }

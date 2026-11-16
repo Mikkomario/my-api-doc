@@ -24,6 +24,14 @@ case class DetailedPossibleResponse(id: Int, data: PossibleResponseStatusData,
 	extends PossibleResponseLike[DetailedResponseBodySchema, DetailedPossibleResponse] with ClientModelConvertible
 		with StoredVersionedDocElementLike[PossibleResponseStatusData, DetailedPossibleResponse]
 {
+	// COMPUTED ----------------------------
+	
+	def sensitivePropertyNamesIterator =
+		body.flatMap { _.modelType }.iterator.flatMap { _.sensitivePropertyNamesIterator }
+	
+	
+	// IMPLEMENTED  ------------------------
+	
 	override def toModel = super.toModel + Constant("body", body)
 	override def toClientModel: Model = Model
 		.apply(Vector.concat(

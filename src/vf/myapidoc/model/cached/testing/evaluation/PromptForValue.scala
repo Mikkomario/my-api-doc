@@ -24,7 +24,7 @@ case class PromptForValue(getPrompt: TestEvaluation, hide: Boolean = false) exte
 		case Some(prompt) =>
 			StdIn.readNonEmptyLine(prompt) match {
 				case Some(input) =>
-					context.log(s"User passed `${ if (hide) input.map { _ => '*' } else input }`")
+					context.log(s"User passed: ${ if (hide) input.map { _ => '*' } else input }")
 					jsonParser.valueOf(input)
 				
 				case None =>

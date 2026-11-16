@@ -106,7 +106,7 @@ object TestCommands
 	 */
 	val pointer = testsP.map[Seq[Command]] { tests =>
 		if (tests.isDefined)
-			Vector(listC, runC, reloadC, testC)
+			Vector(listC, runC, reloadC, clearC, testC)
 		else
 			Single(testC)
 	}
@@ -264,7 +264,7 @@ object TestCommands
 		def list() = println(StringUtils.asciiTableFrom[Test](testsP.value.toOptimizedSeq,
 			Pair(
 				"Test" -> { _.name },
-				"Description" -> { _.description.splitToLinesIterator(80).mkString("\n") }
+				"Description" -> { _.description.splitToLinesIterator(70).mkString("\n") }
 			),
 			"Available tests"))
 		

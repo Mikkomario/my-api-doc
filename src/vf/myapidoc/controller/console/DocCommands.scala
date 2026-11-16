@@ -82,11 +82,13 @@ object DocCommands extends Extender[(String, Seq[Command])]
 							parseApiDoc(nodeFiles, modelFiles).foreach { case (nodes, models) =>
 								// Prints the parsed information as JSON
 								println(s"Parsed ${ nodes.iterator.map { _.nodes.size }.sum } API nodes:")
-								nodes.foreach { group => println(group.toJson) }
-								
+								nodes.foreach { group =>
+									println(s"- ${ group.name }")
+									group.nodes.foreach { node => println(s"\t- ${ node.name }") }
+								}
 								if (models.nonEmpty) {
 									println(s"\nParsed ${ models.size } named model types:")
-									models.foreach { model => println(model.toJson) }
+									models.foreach { model => println(s"- ${ model.name }") }
 								}
 								
 								// Verifies the output with the user
@@ -130,8 +132,15 @@ object DocCommands extends Extender[(String, Seq[Command])]
 				.flatMap { group =>
 					// Prints the API structure
 					val groupName = group.name.toLowerCase.replace(' ', '-')
-					val structResult = (directory/s"$apiName-structure-$groupName.ndjson").writeUsing { writer =>
-						group.rootNodes.foreach { node => writer.println(nodeTreeToModel(node).toJson) }
+					val structResult = group.rootNodes.oneOrMany match {
+						case Left(root) =>
+							(directory/s"$apiName-structure-$groupName.json").writeUsing { writer =>
+								writer.print(nodeTreeToModel(root).toJson)
+							}
+						case Right(roots) =>
+							(directory/s"$apiName-structure-$groupName.ndjson").writeUsing { writer =>
+								roots.foreach { node => writer.println(nodeTreeToModel(node).toJson) }
+							}
 					}
 					
 					// Prints full information about each node

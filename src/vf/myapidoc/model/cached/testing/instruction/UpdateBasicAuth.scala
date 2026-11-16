@@ -29,9 +29,9 @@ case class UpdateBasicAuth(getUser: TestEvaluation, getPassword: TestEvaluation)
 					
 				case Failure(error) =>
 					throw new IllegalStateException(
-						s"Couldn't resolve password for basic auth using `$getPassword`", error)
+						s"Couldn't resolve password for basic auth using: $getPassword", error)
 			}
 		case Failure(error) =>
-			throw new IllegalStateException(s"Couldn't resolve user for basic auth using `$getUser`", error)
+			throw new IllegalStateException(s"Couldn't resolve user for basic auth using: $getUser", error)
 	}
 }

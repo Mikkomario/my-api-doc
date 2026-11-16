@@ -28,6 +28,6 @@ case class Assign(key: String, getValue: TestEvaluation) extends TestInstruction
 			else
 				value.toJson
 		}
-		context.log(s"$key = `$getValue` = $valueStr")
+		context.log(s"$key = $getValue = $valueStr")
 	}
 }
