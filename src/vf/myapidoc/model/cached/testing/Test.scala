@@ -21,14 +21,16 @@ case class Test(name: String, code: TestInstruction, description: String = "")
 {
 	/**
 	 * Runs this test
+	 * @param nested Whether this test is run within another test
 	 * @param context Implicit test context
 	 * @throws TestFailedException If this test failed
 	 */
 	@throws[TestFailedException]("If this test failed")
-	def run()(implicit context: TestContext) =
+	def run(nested: Boolean = false)(implicit context: TestContext) =
 		Try
 			.apply {
-				context.markStarted(name)
+				if (!nested)
+					context.markStarted(name)
 				val descPart = if (description.isEmpty) "" else s": $description"
 				context.log(s"\nRunning \"$name\"$descPart")
 				code.execute()

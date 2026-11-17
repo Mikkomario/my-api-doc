@@ -11,13 +11,13 @@ import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
-import utopia.flow.generic.model.mutable.DataType.{PairType, VectorType}
+import utopia.flow.generic.model.mutable.DataType.{ModelType, PairType, VectorType}
 import utopia.flow.generic.model.mutable.MutableModel
 import utopia.flow.generic.model.template.HasPropertiesLike.HasProperties
 import utopia.flow.parse.BufferedPrintWriter
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.parse.file.KeptOpenWriter
-import utopia.flow.parse.string.Regex
+import utopia.flow.parse.string.{Regex, StringFrom}
 import utopia.flow.time.TimeExtensions._
 import utopia.flow.time.{Now, Today}
 import utopia.flow.util.EitherExtensions._
@@ -274,6 +274,27 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		}
 		else
 			throw new IllegalArgumentException("Path must contain at least one element")
+	}
+	
+	/**
+	 * Prints a value to the console and to the log.
+	 * Omits sensitive property values.
+	 * @param value Value to print
+	 * @param skipLog Whether this value should NOT be printed to the log
+	 */
+	def printValue(value: Value, skipLog: Boolean = false) = {
+		// Buffers the value representation into a string
+		StringFrom.writer { writer => logBodyValue(writer, value, sensitiveKeys, 0) } match {
+			case Success(valueStr) =>
+				// Prints the value to both stdout and the log
+				println(valueStr)
+				if (!skipLog)
+					log(valueStr)
+				
+			// Case: Failed to write the value into a string => Logs
+			case Failure(error) =>
+				scribe.in("print.value")(error, "Failed to write a value into a string")
+		}
 	}
 	
 	/**
@@ -602,12 +623,19 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	}
 	private def logBodyValue(writer: BufferedPrintWriter, value: Value, sensitivePropNames: Set[String],
 	                         indentation: Int): Unit =
-		value.model match {
-			// Case: Model value => Lists all its properties
-			case Some(model) =>
+	{
+		// Case: Empty value => Prints null
+		if (value.isEmpty)
+			writer.println("null")
+		// Case: Model value => Lists all its properties
+		else if (value.isOfType(ModelType)) {
+			val model = value.getModel
+			if (model.isEmpty)
+				writer.println("{ }")
+			else {
 				val indent = "\t" * (indentation + 1)
-				writer.println()
-				model.nonEmptyPropertiesIterator.foreach { prop =>
+				writer.println("{")
+				value.getModel.nonEmptyPropertiesIterator.foreach { prop =>
 					// Case: Sensitive property => Omit its value
 					if (prop.value.nonEmpty && sensitivePropNames.contains(prop.name.toLowerCase))
 						writer.println(s"$indent${ prop.name }: <omitted>")
@@ -617,21 +645,27 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 						writer.print(": ")
 						// Writes the value recursively
 						logBodyValue(writer, prop.value, sensitivePropNames, indentation + 1)
-						writer.println()
 					}
 				}
-			case None =>
-				// Case: Vector type value => Lists all its elements using recursion
-				if (value.isOfType(VectorType) || value.isOfType(PairType))
-					value.getVector.iterator.zipWithIndex.foreach { case (elem, index) =>
-						writer.print(s"\n${ "\t" * (indentation + 1) }${ index + 1 }. ")
-						logBodyValue(writer, elem, sensitivePropNames, indentation + 1)
-						writer.println()
-					}
-				// Case: Basic value => Prints it as a JSON value
-				else
-					writer.println(value.toJson)
+				writer.println(s"${ "\t" * indentation }}")
+			}
 		}
+		// Case: Vector type value => Lists all its elements using recursion
+		else if (value.isOfType(VectorType) || value.isOfType(PairType)) {
+			val values = value.getVector
+			if (values.isEmpty)
+				writer.println("[]")
+			else
+				values.iterator.zipWithIndex.foreach { case (elem, index) =>
+					writer.print(s"\n${ "\t" * (indentation + 1) }${ index + 1 }. ")
+					logBodyValue(writer, elem, sensitivePropNames, indentation + 1)
+					writer.println()
+				}
+		}
+		// Case: Basic value => Prints it as a JSON value
+		else
+			writer.println(value.toJson)
+	}
 	
 	private def recordResponse(nodeName: String, method: Method, statusCode: Int,
 	                           responseDoc: Option[DetailedPossibleResponse], responseBodyStr: String,

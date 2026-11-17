@@ -44,7 +44,8 @@ object TestParser
 			// Case: No + token found => Applies bearer token authorization
 			case None => UpdateAuth(firstPart)
 			// Case: + found, signifying that basic authorization is used => Parses the password part, also
-			case Some(SignOperator(Positive)) => UpdateBasicAuth(Pair(firstPart, lineRemainderAsEval))
+			case Some(SignOperator(Positive)) =>
+				UpdateBasicAuth(Pair(firstPart, lineRemainderAsEval), tokensIter.lineIndex)
 			// Case: Unexpected continuation => Fails compilation
 			case other =>
 				throw new SyntaxException(tokensIter.line, s"Unexpected authorization follow-up token: $other")
@@ -336,7 +337,7 @@ object TestParser
 				lazy val remainder = nextEval(expectLineEnd)
 				nextToken match {
 					case ParsedEval(eval) => eval
-					case Comparison(operator) => Compare(Pair(primary, remainder), operator)
+					case Comparison(operator) => Compare(tokensIter.lineIndex, Pair(primary, remainder), operator)
 					case SignOperator(sign) => Combine(Pair(primary, remainder), ValueOperation2(sign))
 					case LogicalOp(operator) => LogicalOperation(Pair(primary, remainder), operator)
 					case other =>
@@ -425,7 +426,7 @@ object TestParser
 						// Utilizes an ExistsFunction
 						val itemP = Pointer(Value.empty)
 						val collectionItemReference = ReadPointer(itemP)
-						val predicate = Compare(Pair(collectionItemReference, searched), Equality)
+						val predicate = Compare(tokensIter.lineIndex, Pair(collectionItemReference, searched), Equality)
 						ExistsFunction(coll, predicate, itemP)
 					
 					case None =>

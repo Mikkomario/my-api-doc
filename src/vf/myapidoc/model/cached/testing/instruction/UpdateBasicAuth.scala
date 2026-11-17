@@ -9,7 +9,8 @@ import scala.util.{Failure, Success}
 
 object UpdateBasicAuth
 {
-	def apply(parts: Pair[TestEvaluation]): UpdateBasicAuth = apply(parts.first, parts.second)
+	def apply(parts: Pair[TestEvaluation], lineIndex: Int): UpdateBasicAuth =
+		apply(parts.first, parts.second, lineIndex)
 }
 
 /**

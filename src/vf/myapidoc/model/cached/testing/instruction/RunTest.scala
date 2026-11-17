@@ -13,7 +13,7 @@ case class RunTest(testName: String, line: Int) extends TestInstruction
 	override def execute()(implicit context: TestContext) = context.getTest(testName) match {
 		case Some(test) =>
 			context.log(s"Calling test \"${ test.name }\"")
-			try { test.run() } catch {
+			try { test.run(nested = true) } catch {
 				case e: Exception =>
 					throw new TestFailedException(s"Failed to run nested test: \"$testName\"", line, cause = e)
 			}

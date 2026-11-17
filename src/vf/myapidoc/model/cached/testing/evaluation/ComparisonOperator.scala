@@ -1,10 +1,12 @@
 package vf.myapidoc.model.cached.testing.evaluation
 
+import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.Pair
 import utopia.flow.generic.model.immutable.Value
-import utopia.flow.operator.Reversible
+import utopia.flow.generic.model.mutable.DataType.DoubleType
 import utopia.flow.operator.enumeration.End
 import utopia.flow.operator.enumeration.End.{First, Last}
+import utopia.flow.util.UncertainBoolean
 
 /**
  * An operator for comparing two values
@@ -22,9 +24,9 @@ sealed trait ComparisonOperator
 	
 	/**
 	 * @param values Values to test
-	 * @return Whether this comparison holds true for those values
+	 * @return Whether this comparison holds true for those values. May be uncertain.
 	 */
-	def apply(values: Pair[Value]): Boolean
+	def apply(values: Pair[Value]): UncertainBoolean
 	
 	
 	// IMPLEMENTED  ----------------------
@@ -50,10 +52,27 @@ object ComparisonOperator
 	{
 		// IMPLEMENTED  ------------------
 		
-		override def apply(values: Pair[Value]): Boolean = {
-			val doubleValues = values.map { _.getDouble }
-			val evalResult = doubleValues(smallerEnd) < doubleValues(smallerEnd.opposite)
-			if (reverse) !evalResult else evalResult
+		override def apply(values: Pair[Value]): UncertainBoolean = {
+			// Casts the values to the same type
+			val sameTypeValues = {
+				if (values.isSymmetricBy { _.dataType })
+					Some(values)
+				else {
+					val originTypes = values
+						.flatMap { v => v.dataType.conversionCostTo(DoubleType).map { v.dataType -> _ } }
+						.sortBy { _._2 }.map { _._1 }
+					originTypes.findMap { t => values.findForBoth { _.castTo(t) } }
+				}
+			}
+			// Casts both values to doubles
+			sameTypeValues.flatMap { _.findForBoth { _.double } } match {
+				case Some(values) =>
+					// Compares the double values and yields the result
+					val evalResult = values(smallerEnd) < values(smallerEnd.opposite)
+					if (reverse) !evalResult else evalResult
+					
+				case None => UncertainBoolean
+			}
 		}
 	}
 	
@@ -64,13 +83,13 @@ object ComparisonOperator
 	{
 		override val code: String = "=="
 		
-		override def apply(values: Pair[Value]): Boolean = values.isSymmetricWith(Value.convertToEqual)
+		override def apply(values: Pair[Value]): UncertainBoolean = values.isSymmetricWith(Value.convertToEqual)
 	}
 	case object Inequality extends ComparisonOperator
 	{
 		override val code: String = "!="
 		
-		override def apply(values: Pair[Value]): Boolean = values.isAsymmetricWith(Value.convertToEqual)
+		override def apply(values: Pair[Value]): UncertainBoolean = values.isAsymmetricWith(Value.convertToEqual)
 	}
 	
 	case object Smaller extends SmallerLike()

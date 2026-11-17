@@ -1,7 +1,7 @@
 # Development tasks on MyApiDoc
 
 ## Bugs
-`if sessionToken == null || sessionExpires <= now` is interpreted as `if sessionToken == (null || sessionExpires <= now)`
+Persisting of context values doesn't work (we don't get property update events)
 
 ## Features
 Store API (doc) directories so that updates can be easier

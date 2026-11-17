@@ -123,7 +123,9 @@ object TestCommands
 					// Case: No code parameter => Starts code terminal mode
 					case None =>
 						println("\nWrite test code to execute. An empty line terminates this mode.")
-						val source = OptionsIterator.continually { StdIn.readNonEmptyLine("Next instruction:") }
+						val source = OptionsIterator.continually {
+							StdIn.readNonEmptyLine("Next instruction:").filterNot { _ ~== "exit" }
+						}
 						while (source.hasNext) {
 							Try { TestParser.parseAndExecute(source)(tests.context, tests.nodes) }.failure
 								.foreach { error =>
@@ -286,11 +288,13 @@ object TestCommands
 			tests.get(key) match {
 				case Some(test) => run(test)
 				case None =>
-					println("\nWhich test did you mean?")
-					StdIn.selectFrom(
-						tests.iterator.filter { _._1.contains(key) }.map { case (_, t) => t -> t.name }.toOptimizedSeq,
-						"tests", "run")
-						.foreach(run)
+					tests.iterator.filter { _._1.contains(key) }.map { _._2 }.toOptimizedSeq.emptyOneOrMany match {
+						case None => println(s"No test matches \"$testName\"")
+						case Some(Left(test)) => run(test)
+						case Some(Right(options)) =>
+							println("\nWhich test did you mean?")
+							StdIn.selectFrom(options.map { t => t -> t.name }, "tests", "run").foreach(run)
+					}
 			}
 		}
 		def run(test: Test): Unit = {
