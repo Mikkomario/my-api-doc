@@ -125,7 +125,7 @@ object DocCommands extends Extender[(String, Seq[Command])]
 	
 	// OTHER    -------------------------
 	
-	private def writeApiDoc(api: DetailedApi): Unit = Paths.get("out/docs").createDirectories() match {
+	private def writeApiDoc(api: DetailedApi): Unit = (outputDirectory/"docs").createDirectories() match {
 		case Success(directory) =>
 			val apiName = api.name.toLowerCase.replace(' ', '-')
 			api.nodeGroups.iterator

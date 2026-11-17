@@ -9,16 +9,16 @@ import vf.myapidoc.model.error.TestFailedException
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-case class TestAssertion(evaluation: TestEvaluation) extends TestInstruction
+case class TestAssertion(evaluation: TestEvaluation, line: Int) extends TestInstruction
 {
-	override def toString = s"Assert `$evaluation`"
+	override def toString = s"Assert: $evaluation"
 	
 	override def execute()(implicit context: TestContext) = {
 		val result = evaluation.run()
 		if (!result.getBoolean) {
-			val message = s"Assertion failed: Expected `$evaluation`, got $result"
+			val message = s"Assertion failed on line $line: Expected `$evaluation`, got: $result"
 			context.log(message)
-			throw new TestFailedException(message)
+			throw new TestFailedException(message, line)
 		}
 	}
 }

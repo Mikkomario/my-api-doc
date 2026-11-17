@@ -8,7 +8,7 @@ import vf.myapidoc.model.cached.testing.evaluation.TestEvaluation
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-case class ExecuteIf(condition: TestEvaluation, code: TestInstruction, alternative: Option[TestInstruction] = None)
+case class ExecuteIf(line: Int, condition: TestEvaluation, code: TestInstruction, alternative: Option[TestInstruction] = None)
 	extends TestInstruction
 {
 	override def toString = alternative match {
@@ -17,10 +17,12 @@ case class ExecuteIf(condition: TestEvaluation, code: TestInstruction, alternati
 	}
 	
 	override def execute()(implicit context: TestContext) = {
-		if (condition.run().getBoolean) {
+		// Case: If entered
+		if (condition.runExpectingBoolean(line)) {
 			context.log(s"Entered case: $condition")
 			code.execute()
 		}
+		// Case: If skipped => Applies "else", if appropriate
 		else
 			alternative match {
 				case Some(alt) =>

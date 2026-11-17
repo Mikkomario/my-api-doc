@@ -7,5 +7,5 @@ import utopia.flow.util.StringExtensions._
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-class SyntaxException(val line: String, message: String = "", cause: Throwable = null)
-	extends Exception(message.nonEmptyOrElse(s"Syntax error on line `$line`"), cause)
+class SyntaxException(val line: String, val message: String = "", cause: Throwable = null)
+	extends Exception(s"${ message.appendIfNotEmpty("; ") }$line", cause)

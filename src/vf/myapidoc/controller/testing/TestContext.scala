@@ -6,9 +6,9 @@ import utopia.access.model.enumeration.{Method, Status}
 import utopia.disciple.controller.Gateway
 import utopia.disciple.controller.parse.ResponseParser
 import utopia.disciple.model.request.{Request, StringBody, Timeout}
-import utopia.flow.error.ErrorExtensions._
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Empty, Pair, Single}
+import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.generic.model.mutable.DataType.{PairType, VectorType}
@@ -95,7 +95,7 @@ object TestContext
  * @param apiId ID of the tested API
  * @param apiName Name of the API that is being tested
  * @param apiRootUrl URL to the API root. Should NOT end with '/'.
- * @param testsView A view into named tests that may be run using [[run]]
+ * @param testsView A view into named tests callable in this context
  * @param sensitiveApiPropertyNames Names of properties documented as sensitive in the API.
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
@@ -132,7 +132,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 * Contains the names of properties persisted between sessions.
 	 * All keys are lower case.
 	 */
-	private var persistedKeys = Set[String]()
+	private var _persistedKeys = Set[String]()
 	/**
 	 * Contains names of properties that should be considered sensitive and not printed anywhere.
 	 * All keys are lower case.
@@ -167,6 +167,10 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		// Loads the previously persisted state
 		currentState = config
 		
+		config.nonEmptyPropertiesIterator.notEmpty.foreach { persistedPropsIter =>
+			println(s"Loaded previously persisted variables: [${ persistedPropsIter.map { _.name }.mkString(", ") }]")
+		}
+		
 		// Loads persisted sensitive keys
 		val sensitiveKeysInConfig = config("sensitiveKeys").getVector.iterator.flatMap { _.string }.toSet
 		if (sensitiveKeysInConfig.isEmpty) {
@@ -181,8 +185,19 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		
 		// Whenever a persisted property value changes, stores it in the AppConfig
 		state.addListener { e =>
-			if (persistedKeys.contains(e.property.name.toLowerCase))
+			val lowerPropName = e.property.name.toLowerCase
+			if (_persistedKeys.contains(lowerPropName)) {
 				config(e.property.name) = e.newValue
+				
+				// TODO: Possibly remove this debug log entry
+				val valueStr = {
+					if (sensitiveKeys.contains(lowerPropName))
+						"<omitted>"
+					else
+						e.newValue.toJson
+				}
+				log(s"Persisted ${ e.property.name } = $valueStr")
+			}
 		}
 	}
 	
@@ -204,6 +219,15 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	def currentState = state.immutableCopy
 	def currentState_=(state: HasProperties) = state.nonEmptyPropertiesIterator
 		.foreach { prop => update(prop.name, prop.value) }
+	
+	/**
+	 * @return Names of currently persisted properties.
+	 *         Persisted properties are loaded at the start of the next session.
+	 */
+	def persistedKeys = config match {
+		case Some(config) => config.nonEmptyPropertiesIterator.map { _.name }.toOptimizedSeq
+		case None => Empty
+	}
 	
 	
 	// OTHER    ---------------------------
@@ -275,8 +299,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 */
 	def persist(propertyName: String) = {
 		val lowerKey = propertyName.toLowerCase
-		if (!persistedKeys.contains(lowerKey)) {
-			persistedKeys += lowerKey
+		if (!_persistedKeys.contains(lowerKey)) {
+			_persistedKeys += lowerKey
 			// Persists the current value
 			config.foreach { _(propertyName) = state(propertyName) }
 		}
@@ -319,16 +343,16 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 * @param method Method to use
 	 * @param pathOrNode Targeted relative path or API node
 	 */
-	def request(method: Method, pathOrNode: Either[String, DetailedApiNode]) = {
+	def request(method: Method, pathOrNode: Either[String, DetailedApiNode], line: Int) = {
 		// Resolves the path parameters. Fails if all parameters can't be resolved.
-		val path = resolvePath(pathOrNode)
+		val path = resolvePath(pathOrNode, line)
 		// May include a request body from the current state
 		val body: Value = {
 			// Case: Body not supported by the used method => Skips body
 			if (method == Get || method == Delete)
 				Value.empty
 			else
-				resolveRequestBody(pathOrNode, method)
+				resolveRequestBody(pathOrNode, method, line)
 		}
 		log(s"\nSending $method $path")
 		logBody(body, sensitiveKeys)
@@ -393,25 +417,15 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	}
 	
 	/**
+	 * @param testName Name of the targeted test
+	 * @return Test that matches that name. None if not found.
+	 */
+	def getTest(testName: String) = testsMapView.value.get(standardizeRef(testName))
+	/**
 	 * Marks a test as started. Affects logging.
 	 * @param test The test that's about to start.
 	 */
 	def markStarted(test: String) = lastTestP.value = test
-	/**
-	 * Runs a named test (inside another test)
-	 * @param test Name of the test to run
-	 */
-	def run(test: String): Unit = testsMapView.value.get(standardizeRef(test)) match {
-		case Some(test) =>
-			log(s"Calling test \"${ test.name }\"")
-			if (!test.run()(this))
-				throw new TestFailedException(s"Test \"${ test.name }\" failed")
-		
-		case None =>
-			val message = s"Attempted to run a non-existing test: \"$test\""
-			log(s"Failure: $message")
-			throw new TestFailedException(message)
-	}
 	
 	/**
 	 * Fully clears / resets this test context, including all persisted values.
@@ -420,7 +434,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		lastTestP.value = ""
 		config.foreach { _.clear() }
 		state.propertiesIterator.foreach { _.value = Value.empty }
-		persistedKeys = Set()
+		_persistedKeys = Set()
 		sensitiveKeys = Set()
 		authP.value = Right("")
 		_lastResponseStatus = None
@@ -435,7 +449,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	def log(line: String): Unit = useLog { _.println(line) }
 	def useLog[A](f: BufferedPrintWriter => A) = eventLogP.value(f)
 	
-	private def resolvePath(pathOrNode: Either[String, DetailedApiNode]) = pathOrNode match {
+	private def resolvePath(pathOrNode: Either[String, DetailedApiNode], line: Int) = pathOrNode match {
 		// Case: Targeting a custom path => Resolves path parameters using a regular expression
 		case Left(relativePath) =>
 			pathParamR.divide(relativePath).iterator
@@ -445,7 +459,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 						case Failure(error) =>
 							val message = s"Couldn't resolve $param in $relativePath"
 							log(s"Failure: $message")
-							throw new TestFailedException(message, error)
+							throw new TestFailedException(message, line, cause = error)
 					}
 				} }
 				.mkString
@@ -469,8 +483,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 						apply(param.name).tryString match {
 							case Success(value) => Success(path.replace(s"{${ param.name }", value))
 							case Failure(error) =>
-								Failure(new IllegalStateException(s"Couldn't resolve path parameter: ${ param.name }",
-									error))
+								Failure(new TestFailedException(s"Couldn't resolve path parameter: ${ param.name }",
+									line, cause = error))
 						}
 					}
 				}
@@ -485,18 +499,20 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 				// Case: Failed to resolve the path => Throws
 				case Left(failures) =>
 					failures.emptyOneOrMany match {
-						case None => throw new TestFailedException(s"${ node.name } doesn't specify a request path")
+						case None =>
+							throw new TestFailedException(s"${ node.name } doesn't specify a request path", line)
 						case Some(Left(failure)) =>
-							throw new TestFailedException(s"Couldn't resolve ${ node.name }'s path parameters", failure)
+							throw new TestFailedException(s"Couldn't resolve ${ node.name }'s path parameters", line,
+								cause = failure)
 						case Some(Right(failures)) =>
 							failures.logWith("Failed to resolve path parameters", Model.from("node" -> node.name),
 								subContext = "resolve.path.multipleOptions.failed")
-							throw new TestFailedException(s"Failed to resolve ${ node.name }'s path parameters",
-								failures.head)
+							throw new TestFailedException(s"Failed to resolve ${ node.name }'s path parameters", line,
+								cause = failures.head)
 					}
 			}
 	}
-	private def resolveRequestBody(pathOrNode: Either[String, DetailedApiNode], method: Method): Value = {
+	private def resolveRequestBody(pathOrNode: Either[String, DetailedApiNode], method: Method, line: Int): Value = {
 		val customBody = apply("body")
 		pathOrNode.toOption match {
 			// Case: Targeting a documented API node
@@ -516,7 +532,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 								if (impl.requiresRequestBody && body.isEmpty) {
 									val message = "Required body not specified"
 									log(s"Failure: $message")
-									throw new TestFailedException(message)
+									throw new TestFailedException(message, line)
 								}
 								// Case: An array is requested => Attempts to convert the body into a vector
 								else if (bodySchema.isArray)
@@ -530,7 +546,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 								if (impl.requiresRequestBody && customBody.isEmpty) {
 									val message = s"$method ${ node.name }'s request body hasn't been documented"
 									log(s"Failure: $message")
-									throw new TestFailedException(message)
+									throw new TestFailedException(message, line)
 								}
 								else
 									customBody

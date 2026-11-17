@@ -1,5 +1,6 @@
 package vf.myapidoc.model.cached.testing.instruction
 
+import utopia.flow.util.StringExtensions._
 import vf.myapidoc.controller.testing.TestContext
 
 /**
@@ -9,5 +10,8 @@ import vf.myapidoc.controller.testing.TestContext
  */
 case class Persist(properties: Seq[String]) extends TestInstruction
 {
-	override def execute()(implicit context: TestContext): Unit = properties.foreach(context.persist)
+	override def execute()(implicit context: TestContext): Unit = {
+		context.log(s"Persists ${ properties.iterator.map { _.surroundedWith("`") }.mkString(" and ") }")
+		properties.foreach(context.persist)
+	}
 }

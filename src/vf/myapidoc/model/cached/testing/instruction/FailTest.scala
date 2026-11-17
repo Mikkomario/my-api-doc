@@ -10,11 +10,11 @@ import vf.myapidoc.model.error.TestFailedException
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-case class FailTest(getMessage: TestEvaluation = HardCodedValue.empty) extends TestInstruction
+case class FailTest(line: Int, getMessage: TestEvaluation = HardCodedValue.empty) extends TestInstruction
 {
 	override def execute()(implicit context: TestContext) = {
 		val message = getMessage.run().getString
-		context.log(if (message.isEmpty) "Failing test" else s"Failing test: $message")
-		throw new TestFailedException(message.nonEmptyOrElse("no message"))
+		context.log(if (message.isEmpty) s"Failing test on line $line" else s"Failing test: $line: $message")
+		throw new TestFailedException(message.nonEmptyOrElse("no message"), line)
 	}
 }

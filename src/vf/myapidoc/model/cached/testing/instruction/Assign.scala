@@ -5,6 +5,8 @@ import vf.myapidoc.model.cached.testing.evaluation.TestEvaluation
 
 /**
  * A test instruction that assigns a value to the context
+ * @param key Context variable where the information will be stored
+ * @param getValue A function for acquiring the value to store
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */

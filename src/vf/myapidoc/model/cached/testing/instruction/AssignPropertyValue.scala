@@ -8,9 +8,10 @@ import vf.myapidoc.model.cached.testing.evaluation.TestEvaluation
  * @author Mikko Hilpinen
  * @since 30.10.2026, v0.1
  */
+// WET WET
 case class AssignPropertyValue(path: Iterable[String], getValue: TestEvaluation) extends TestInstruction
 {
-	override def toString = s"${ path.mkString(".") } = `$getValue`"
+	override def toString = s"${ path.mkString(".") } = $getValue"
 	
 	override def execute()(implicit context: TestContext) = {
 		// Acquires the value

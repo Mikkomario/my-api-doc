@@ -17,11 +17,7 @@ case class ExecuteAll(instructions: Seq[TestInstruction]) extends TestInstructio
 		case None => "nothing"
 	}
 	
-	override def execute()(implicit context: TestContext) = instructions.foreach { line =>
-		try { line.execute() } catch {
-			case e: SyntaxException => throw new SyntaxException(e.line, s"Failed to execute `$line`", e)
-		}
-	}
+	override def execute()(implicit context: TestContext) = instructions.foreach { _.execute() }
 	
 	override def +(other: TestInstruction) = ExecuteAll(instructions :+ other)
 	override def +:(previous: TestInstruction) = ExecuteAll(previous +: instructions)

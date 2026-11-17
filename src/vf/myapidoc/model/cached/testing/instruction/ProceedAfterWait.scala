@@ -13,15 +13,15 @@ import scala.util.{Failure, Success}
  * @author Mikko Hilpinen
  * @since 01.11.2026, v0.1
  */
-case class ProceedAfterWait(getDuration: TestEvaluation) extends TestInstruction
+case class ProceedAfterWait(getDuration: TestEvaluation, line: Int) extends TestInstruction
 {
 	override def execute()(implicit context: TestContext) = getDuration.run().tryDuration match {
 		case Success(duration) =>
 			if (duration.isPositive) {
 				context.log(s"Waiting for ${ duration.description }")
 				if (!Wait(duration))
-					throw new TestFailedException("Test was interrupted")
+					throw new TestFailedException("Test was interrupted", line)
 			}
-		case Failure(error) => throw new IllegalArgumentException("Failed to acquire the wait duration", error)
+		case Failure(error) => throw new TestFailedException("Failed to acquire the wait duration", line, cause = error)
 	}
 }

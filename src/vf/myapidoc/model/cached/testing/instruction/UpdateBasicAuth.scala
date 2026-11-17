@@ -3,6 +3,7 @@ package vf.myapidoc.model.cached.testing.instruction
 import utopia.flow.collection.immutable.Pair
 import vf.myapidoc.controller.testing.TestContext
 import vf.myapidoc.model.cached.testing.evaluation.TestEvaluation
+import vf.myapidoc.model.error.TestFailedException
 
 import scala.util.{Failure, Success}
 
@@ -16,7 +17,7 @@ object UpdateBasicAuth
  * @author Mikko Hilpinen
  * @since 30.10.2026, v0.1
  */
-case class UpdateBasicAuth(getUser: TestEvaluation, getPassword: TestEvaluation) extends TestInstruction
+case class UpdateBasicAuth(getUser: TestEvaluation, getPassword: TestEvaluation, line: Int) extends TestInstruction
 {
 	override def toString = s"Basic authorization = `$getUser` + `$getPassword`"
 	
@@ -28,10 +29,10 @@ case class UpdateBasicAuth(getUser: TestEvaluation, getPassword: TestEvaluation)
 					context.log(s"Specified basic authorization using `$getUser` and `$getPassword`")
 					
 				case Failure(error) =>
-					throw new IllegalStateException(
-						s"Couldn't resolve password for basic auth using: $getPassword", error)
+					throw new TestFailedException(
+						s"Couldn't resolve password for basic auth using: $getPassword", line, cause = error)
 			}
 		case Failure(error) =>
-			throw new IllegalStateException(s"Couldn't resolve user for basic auth using: $getUser", error)
+			throw new TestFailedException(s"Couldn't resolve user for basic auth using: $getUser", line, cause = error)
 	}
 }

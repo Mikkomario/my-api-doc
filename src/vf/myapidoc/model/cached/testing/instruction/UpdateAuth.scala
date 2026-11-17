@@ -10,7 +10,7 @@ import vf.myapidoc.model.cached.testing.evaluation.TestEvaluation
  */
 case class UpdateAuth(getAuth: TestEvaluation) extends TestInstruction
 {
-	override def toString = s"Authorization = `$getAuth`"
+	override def toString = s"Authorization = $getAuth"
 	
 	override def execute()(implicit context: TestContext) = {
 		context.setAuth(getAuth.run().getString)

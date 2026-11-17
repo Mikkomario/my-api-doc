@@ -110,7 +110,7 @@ object TestParser
 	/**
 	 * Parses test from code
 	 * @param testName Name of this test. Call-by-name.
-	 * @param codeLines Lines of code that form this test.
+	 * @param codeLines Lines of code that form this test. Each entry contains the code and the line index.
 	 * @param description Description of this test. Call-by-name.
 	 * @param doc Implicit API nodes documentation
 	 * @return A new test. None if there was no code to parse.
@@ -119,11 +119,7 @@ object TestParser
 	             (implicit doc: Iterable[DetailedApiNode]): Option[Test] =
 	{
 		val codeBuilder = TestInstruction.newBuilder
-		parseCode(
-			codeLines.iterator
-				// Ignores empty code lines
-				.filterNot { _.forall { c => c == ' ' || c == '\t' } },
-			codeBuilder)
+		parseCode(codeLinesFrom(codeLines), codeBuilder)
 		// Case: Compilation succeeded => Prepares the test
 		codeBuilder.result().map { code => Test(testName, code, description = description) }
 	}
@@ -137,12 +133,16 @@ object TestParser
 	def parseAndExecute(lines: IterableOnce[String])
 	                   (implicit context: TestContext, doc: Iterable[DetailedApiNode]): Unit =
 	{
-		val linesIter = lines.iterator.filterNot { _.forall { c => c == ' ' || c == '\t' } }
+		val linesIter = codeLinesFrom(lines)
 		val codeBuilder = new ExecuteCodeBuilder()
 		while (linesIter.hasNext) {
 			parseCode(linesIter, codeBuilder)
 		}
 	}
+	
+	// Adds line-indices and ignores empty lines
+	private def codeLinesFrom(lines: IterableOnce[String]) =
+		lines.iterator.zipWithIndex.filterNot { _._1.forall { c => c == ' ' || c == '\t' } }
 	
 	/**
 	 * Parses a single code block
@@ -155,21 +155,21 @@ object TestParser
 	 * @param doc Implicit API nodes documentation
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def parseCode(linesIter: Iterator[String], builder: mutable.Growable[TestInstruction])
+	private def parseCode(linesIter: Iterator[(String, Int)], builder: mutable.Growable[TestInstruction])
 	                     (implicit doc: Iterable[DetailedApiNode]): Unit =
 	{
 		implicit val paramRef: ParamRef = ParamRef.NoParams
 		
 		// Attempts to parse the next code line
-		val line = linesIter.next()
-		def proceedAfter(line: String) = parseCode(Iterator.single(line) ++ linesIter, builder)
+		val (line, lineIndex) = linesIter.next()
+		def proceedAfter(line: (String, Int)) = parseCode(Iterator.single(line) ++ linesIter, builder)
 		
 		// Case: Comment line => Adds code that prints that comment to test logs
 		if (line.startsWith("//"))
 			builder += PrintComment(line)
 		else {
 			// Splits the line into tokens
-			implicit val tokensIter: TokensIterator = TokensIterator.fromLine(line)
+			implicit val tokensIter: TokensIterator = TokensIterator.fromLine(line, lineIndex)
 			// Expects the line to start with a code token (a keyword or a variable reference)
 			val firstToken = nextToken match {
 				case Code(code) => code
@@ -182,30 +182,30 @@ object TestParser
 					val (code, terminator) = parseIndentedCodeBlock(linesIter, line)
 					terminator match {
 						// Case: Code continues after the if block => Checks whether an else block follows
-						case Some(nextLine) =>
+						case Some((nextLine, nextLineIndex)) =>
 							// Case: Else block follows
 							//       => Parses the else code block and it to the if-sequence
 							if (nextLine.trim == "else") {
 								val (elseCode, terminator) = parseIndentedCodeBlock(linesIter, nextLine)
-								builder += ExecuteIf(condition, code, Some(elseCode))
+								builder += ExecuteIf(lineIndex, condition, code, Some(elseCode))
 								terminator.foreach(proceedAfter)
 							}
 							// Case: No else block => Finishes the if section and continues parsing
 							else {
-								builder += ExecuteIf(condition, code)
-								proceedAfter(nextLine)
+								builder += ExecuteIf(lineIndex, condition, code)
+								proceedAfter(nextLine -> nextLineIndex)
 							}
 						// Case: End of code => Finishes the if section
-						case None => builder += ExecuteIf(condition, code)
+						case None => builder += ExecuteIf(lineIndex, condition, code)
 					}
 				// Case: While statement => Parses the condition and the repeated code block
 				case "while" =>
 					val condition = lineRemainderAsEval
 					val (code, terminator) = parseIndentedCodeBlock(linesIter, line)
-					builder += ExecuteWhile(condition, code)
+					builder += ExecuteWhile(condition, code, lineIndex)
 					terminator.foreach(proceedAfter)
 				// Case: Assertion => Parses the asserted expression
-				case "assert" => builder += TestAssertion(lineRemainderAsEval)
+				case "assert" => builder += TestAssertion(lineRemainderAsEval, lineIndex)
 				// Case: Persist statement => Parses the persist target properties
 				case "persist" =>
 					nextToken match {
@@ -228,15 +228,15 @@ object TestParser
 							throw new SyntaxException(line, s"Expected code or array as a persist target, but got `$other`")
 					}
 				// Case: Prefer statement => Marks a request path element as preferred
-				case "prefer" => builder += PreferPathElement(lineRemainderAsEval)
+				case "prefer" => builder += PreferPathElement(lineRemainderAsEval, lineIndex)
 				// Case: Wait statement => Parses the wait duration
-				case "wait" => builder += ProceedAfterWait(lineRemainderAsEval)
+				case "wait" => builder += ProceedAfterWait(lineRemainderAsEval, lineIndex)
 				// Case: Use authorization statement => Parses an authorization change instruction
 				case "use" => builder += nextAuthInstruction
 				// Case: Run statement => Parses the code to run another test
 				case "run" =>
 					tokensIter.mkString(" ").ifNotEmpty match {
-						case Some(testName) => builder += RunTest(testName)
+						case Some(testName) => builder += RunTest(testName, lineIndex)
 						case None => throw new SyntaxException(line, "Expected a test name after `run`")
 					}
 				// Case: FAIL statement => Parses the code to fail the test
@@ -244,9 +244,9 @@ object TestParser
 					// The remaining part, if present, is included as a failure message
 					builder += {
 						if (tokensIter.hasNext)
-							FailTest(getMessage = lineRemainderAsEval)
+							FailTest(lineIndex, getMessage = lineRemainderAsEval)
 						else
-							FailTest()
+							FailTest(lineIndex)
 					}
 				// Case: Print => Parses the code to print a value to the console
 				case "print" => builder += PrintValue(lineRemainderAsEval)
@@ -259,13 +259,13 @@ object TestParser
 							val target = tokensIter.mkString(" ")
 							// Case: Target starts with "/" => Uses a custom path
 							if (target.startsWith("/"))
-								builder += ExecuteRequest(method, Left(target))
+								builder += ExecuteRequest(method, Left(target), lineIndex)
 							// Case: Not starting with "/" => Expects an API node name reference
 							else {
 								val standardizedTarget = target.filter { _.isLetterOrDigit }.toLowerCase
 								doc.find { _.name.filter { _.isLetterOrDigit }.toLowerCase == standardizedTarget } match {
 									// Case: API node found => Adds a request to that node
-									case Some(node) => builder += ExecuteRequest(method, Right(node))
+									case Some(node) => builder += ExecuteRequest(method, Right(node), lineIndex)
 									// Case: No API node found => Compilation fails
 									case None => throw new SyntaxException(line, s"Unknown request target `$target`")
 								}
@@ -302,8 +302,8 @@ object TestParser
 	 *         1. Next line, or None if the end of 'linesIter' was reached.
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def parseIndentedCodeBlock(linesIter: Iterator[String], openingLine: => String)
-	                                  (implicit doc: Iterable[DetailedApiNode]): (TestInstruction, Option[String]) =
+	private def parseIndentedCodeBlock(linesIter: Iterator[(String, Int)], openingLine: => String)
+	                                  (implicit doc: Iterable[DetailedApiNode]): (TestInstruction, Option[(String, Int)]) =
 	{
 		val conditionalCodeBuilder = TestInstruction.newBuilder
 		val indentedLinesIter = new IndentedLinesIter(linesIter)
@@ -368,7 +368,7 @@ object TestParser
 			case Quotation(text) => HardCodedValue.string(text)
 			// Case: Array => Yields an array of evaluations / expressions
 			case CodeArray(elements) =>
-				EvaluateArray(elements.map { evalFrom(_, tokensIter.line) })
+				EvaluateArray(elements.map { evalFrom(_, tokensIter.line, tokensIter.lineIndex) })
 			// Case: + or - => Potentially inverts the next element (assumes that this is a unary operator)
 			case SignOperator(sign) =>
 				val next = nextEvalElement()
@@ -384,7 +384,7 @@ object TestParser
 					// Case: Prompt command => Requests a value from the user when executed
 					case "prompt:" => parsePrompt()
 					// Case: CSV command => Reads CSV based on the following expression
-					case "csv:" => ReadCsv(nextEval())
+					case "csv:" => ReadCsv(nextEval(), tokensIter.lineIndex)
 					// Case: No custom command => Parses the element as a normal (code) evaluation
 					case _ => parseCodeReference(code, tokensIter.line)
 				}
@@ -395,7 +395,7 @@ object TestParser
 	                         (implicit tokensIter: TokensIterator, paramRef: ParamRef): TestEvaluation =
 	{
 		// Parses the parameters
-		lazy val paramsIter = params.iterator.map { evalFrom(_, tokensIter.line) }
+		lazy val paramsIter = params.iterator.map { evalFrom(_, tokensIter.line, tokensIter.lineIndex) }
 		def iterateCollection(createFunction: (TestEvaluation, TestEvaluation, Pointer[Value]) => TestEvaluation) = {
 			paramsIter.nextOption() match {
 				case Some(coll) =>
@@ -437,8 +437,9 @@ object TestParser
 		}
 	}
 	
-	private def evalFrom(elements: Seq[CodeElement], line: => String)(implicit paramRef: ParamRef): TestEvaluation =
-		nextEval(expectLineEnd = true)(TokensIterator.from(elements, line), paramRef)
+	private def evalFrom(elements: Seq[CodeElement], line: String, lineIndex: Int)
+	                    (implicit paramRef: ParamRef): TestEvaluation =
+		nextEval(expectLineEnd = true)(TokensIterator.from(elements, line, lineIndex), paramRef)
 	
 	@tailrec
 	private def parsePrompt(sensitive: Boolean = false)
@@ -625,13 +626,13 @@ object TestParser
 	}
 	
 	/**
-	 * Iterates over list elements, such as array elements or function parameters.
-	 * Splits by comma (,).
+	 * Iterates over list elements, such as array elements or function parameters. Splits by comma (,).
 	 * @param source An iterator that yields the characters to iterate over.
 	 *               Expects trimmed content that only and fully spans the list area.
 	 * @param line A line from which the parsed list is found. Used in debug logging.
 	 */
-	private class ListElementsIterator(source: Iterator[Char], line: => String)(implicit paramRef: ParamRef)
+	private class ListElementsIterator(source: Iterator[Char], line: String, lineIndex: Int)
+	                                  (implicit paramRef: ParamRef)
 		extends Iterator[Seq[CodeElement]]
 	{
 		// ATTRIBUTES   --------------------
@@ -645,7 +646,8 @@ object TestParser
 		
 		override def next(): Seq[CodeElement] = {
 			// Collects the next list item
-			val result = TokensIterator(cache.pop().iterator ++ source.takeWhile { _ != ',' }, line).toOptimizedSeq
+			val result = TokensIterator(cache.pop().iterator ++ source.takeWhile { _ != ',' }, line, lineIndex)
+				.toOptimizedSeq
 			// Trims the next list element
 			cache.value = source.find { _ != ' ' }
 			result
@@ -668,33 +670,34 @@ object TestParser
 		 * @param line A complete line of code
 		 * @return An iterator that yields all tokens / elements that appear on that line
 		 */
-		def fromLine(line: String)(implicit paramRef: ParamRef): TokensIterator =
-			new _TokensIterator(line.trim.iterator, line)
+		def fromLine(line: String, lineIndex: Int)(implicit paramRef: ParamRef): TokensIterator =
+			new _TokensIterator(line.trim.iterator, line, lineIndex)
 		/**
 		 * @param tokens An iterator that yields tokens / code elements
-		 * @param line Targeted line (call-by-name)
+		 * @param line Targeted line
 		 * @return A token iterator that wraps the specified iterator
 		 */
-		def from(tokens: IterableOnce[CodeElement], line: => String): TokensIterator =
-			new TokensIteratorWrapper(tokens.iterator, line)
+		def from(tokens: IterableOnce[CodeElement], line: String, lineIndex: Int): TokensIterator =
+			new TokensIteratorWrapper(tokens.iterator, line, lineIndex)
 		
 		/**
 		 * @param source An iterator that yields the characters to iterate over. Expected to be trimmed.
-		 * @param line The read code line (call-by-name)
+		 * @param line The read code line
 		 * @return A new tokens iterator
 		 */
-		def apply(source: Iterator[Char], line: => String)(implicit paramRef: ParamRef): TokensIterator =
-			new _TokensIterator(source, line)
+		def apply(source: Iterator[Char], line: String, lineIndex: Int)(implicit paramRef: ParamRef): TokensIterator =
+			new _TokensIterator(source, line, lineIndex)
 		
-		private class TokensIteratorWrapper(wrapped: Iterator[CodeElement], _line: => String) extends TokensIterator
+		private class TokensIteratorWrapper(wrapped: Iterator[CodeElement], override val line: String,
+		                                    override val lineIndex: Int)
+			extends TokensIterator
 		{
-			override def line: String = _line
 			override def hasNext: Boolean = wrapped.hasNext
-			
 			override def next(): CodeElement = wrapped.next()
 		}
 		
-		private class _TokensIterator(source: Iterator[Char], _line: => String)(implicit paramRef: ParamRef)
+		private class _TokensIterator(source: Iterator[Char], override val line: String, override val lineIndex: Int)
+		                             (implicit paramRef: ParamRef)
 			extends TokensIterator
 		{
 			import TokensIterator.stopChars
@@ -706,7 +709,6 @@ object TestParser
 			
 			// IMPLEMENTED  ---------------------
 			
-			override def line = _line
 			override def hasNext: Boolean = cache.nonEmpty || source.hasNext
 			
 			// Determines the type of the next element based on the next character
@@ -716,11 +718,12 @@ object TestParser
 					// Case: Array start => Consumes and wraps the whole array
 				case '[' =>
 					CodeArray(new ListElementsIterator(
-						new ParenthesesContentIterator(source, '[', ']'), _line)
+						new ParenthesesContentIterator(source, '[', ']'), line, lineIndex)
 						.toOptimizedSeq)
 					// Case: Parentheses start => Parses the parentheses contents as a single evaluation
 				case '(' =>
-					val contentIter = new _TokensIterator(new ParenthesesContentIterator(source, '(', ')'), _line)
+					val contentIter = new _TokensIterator(new ParenthesesContentIterator(source, '(', ')'),
+						line, lineIndex)
 					ParsedEval(nextEval(expectLineEnd = true)(contentIter, paramRef))
 					
 				// Case: '=' => Expects a comparison or an assignment
@@ -775,7 +778,7 @@ object TestParser
 							if (stop.contains('(')) {
 								val result = FunctionCall(function = contentBuilder.result(),
 									parameters = new ListElementsIterator(
-										new ParenthesesContentIterator(source, '(', ')'), _line)
+										new ParenthesesContentIterator(source, '(', ')'), line, lineIndex)
 										.toOptimizedSeq)
 								
 								// Skips whitespaces and : after function calls
@@ -823,6 +826,10 @@ object TestParser
 		 * @return The code line being iterated
 		 */
 		def line: String
+		/**
+		 * @return Index of the line that's being iterated
+		 */
+		def lineIndex: Int
 	}
 	
 	/**
@@ -875,18 +882,18 @@ object TestParser
 		override def next(): Char = cache.pop().getOrElse { source.next() }
 	}
 	
-	private class IndentedLinesIter(source: Iterator[String]) extends Iterator[String]
+	private class IndentedLinesIter(source: Iterator[(String, Int)]) extends Iterator[(String, Int)]
 	{
 		// ATTRIBUTES   ---------------------
 		
-		private val cache = Pointer.empty[String]
-		private var _terminator: Option[String] = None
+		private val cache = Pointer.empty[(String, Int)]
+		private var _terminator: Option[(String, Int)] = None
 		
 		
 		// COMPUTED -------------------------
 		
 		/**
-		 * @return Line that terminated this iteration (i.e. a line that's no longer indented).
+		 * @return Line and line index that terminated this iteration (i.e. a line that's no longer indented).
 		 *         None if the end of 'source' was reached, or if this iterator still has more elements.
 		 */
 		def terminator = _terminator
@@ -903,32 +910,32 @@ object TestParser
 				true
 			else
 				source.nextOption() match {
-					case Some(line) =>
+					case Some((line, lineIndex)) =>
 						// Case: Next line is intended using tabs => Prepares the next line
 						if (line.startsWith("\t")) {
-							cache.setOne(line.tail)
+							cache.setOne(line.tail -> lineIndex)
 							true
 						}
 						// Case: Next line is intended using spaces => Prepares the next line
 						else if (line.startsWith("  ")) {
-							cache.setOne(line.drop(2))
+							cache.setOne(line.drop(2) -> lineIndex)
 							true
 						}
 						// Case: Next line is not intended => Terminates
 						else {
-							_terminator = Some(line)
+							_terminator = Some(line -> lineIndex)
 							false
 						}
 					// Case: End of source => No more lines
 					case None => false
 				}
 		}
-		override def next(): String = cache.pop().getOrElse {
-			val line = source.next()
+		override def next(): (String, Int) = cache.pop().getOrElse {
+			val (line, index) = source.next()
 			if (line.startsWith("\t"))
-				line.tail
+				line.tail -> index
 			else if (line.startsWith("  "))
-				line.drop(2)
+				line.drop(2) -> index
 			else
 				throw new IllegalStateException("next() called after no indented lines remain")
 		}

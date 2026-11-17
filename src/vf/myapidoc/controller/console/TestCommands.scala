@@ -9,10 +9,10 @@ import utopia.flow.generic.model.immutable.{Model, Value}
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.StringExtensions._
-import utopia.flow.util.result.TryExtensions._
 import utopia.flow.util.StringUtils
 import utopia.flow.util.console.ConsoleExtensions._
 import utopia.flow.util.console.{ArgumentSchema, Command}
+import utopia.flow.util.result.TryExtensions._
 import utopia.flow.view.mutable.Pointer
 import utopia.scribe.core.controller.logging.Scribe
 import utopia.scribe.core.util.logging.ScribeTryExtensions._
@@ -134,6 +134,18 @@ object TestCommands
 				}
 			}
 	}
+	private val listPersistedC = Command.withoutArguments("context:persisted",
+		help = "Lists the currently persisted property names") {
+		testsP.value.foreach { tests =>
+			val keys = tests.context.persistedKeys
+			if (keys.isEmpty)
+				println("No variables are persisted at this time")
+			else {
+				println(s"Persisted variables:")
+				keys.foreach { key => println(s"- $key") }
+			}
+		}
+	}
 	private val clearC = Command.withoutArguments("context:clear",
 		help = "Clears the current test context, including persisted values") {
 		testsP.value.foreach { _.clearContext() } }
@@ -143,7 +155,7 @@ object TestCommands
 	 */
 	val pointer = testsP.map[Seq[Command]] { tests =>
 		if (tests.isDefined)
-			Vector(listC, runC, evalC, reloadC, clearC, testC)
+			Vector(listC, runC, evalC, listPersistedC, reloadC, clearC, testC)
 		else
 			Single(testC)
 	}
@@ -255,6 +267,8 @@ object TestCommands
 		// ATTRIBUTES   -----------------
 		
 		private val testsP = Pointer.eventful(initialTests)
+		private val mappedTestsP =
+			testsP.map { _.iterator.map { t => t.name.toLowerCase.filter { _.isLetterOrDigit }.mkString -> t }.toMap }
 		implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP,
 			sensitiveApiPropertyNames = nodes.iterator.flatMap { _.sensitivePropertyNamesIterator }.toSet)
 		
@@ -266,35 +280,37 @@ object TestCommands
 		
 		// OTHER    ---------------------
 		
-		// TODO: Ignore differences in whitespaces, etc.
-		def run(testName: String): Unit = testsP.value.find { _.name ~== testName } match {
-			case Some(test) => run(test)
-			case None =>
-				println(s"No test named \"$testName\" exists.")
-				list()
+		def run(testName: String): Unit = {
+			val key = testName.toLowerCase.filter { _.isLetterOrDigit }.mkString
+			val tests = mappedTestsP.value
+			tests.get(key) match {
+				case Some(test) => run(test)
+				case None =>
+					println("\nWhich test did you mean?")
+					StdIn.selectFrom(
+						tests.iterator.filter { _._1.contains(key) }.map { case (_, t) => t -> t.name }.toOptimizedSeq,
+						"tests", "run")
+						.foreach(run)
+			}
 		}
 		def run(test: Test): Unit = {
-			println(s"Running ${ test.name }...")
-			val succeeded = Try { test.run() } match {
-				case Success(_) => true
+			println(s"Running \"${ test.name }\"...")
+			Try { test.run() } match {
+				case Success(_) => println("Test passed successfully")
 				case Failure(error) =>
 					scribe.in("run").variant("test", test.name)(error, "Test failed")
-					// TODO: Print all messages involved
-					false
-			}
-			if (succeeded)
-				println(s"${ test.name } passed successfully")
-			else {
-				println(s"${ test.name } failed")
-				println("What do you want to do?")
-				StdIn.selectFrom(Vector(1 -> "Try again", 2 -> "Reload tests", 3 -> "Move on (default)")).foreach {
-					case 1 => run(test)
-					case 2 =>
-						if (reload())
-							run(test.name)
+					println(s"\nTest failed with: ${ error.getMessage }")
+					error.causesIterator.foreach { e => println(s"Cause: ${ e.getMessage }") }
+					
+					println("\nWhat do you want to do?")
+					StdIn.selectFrom(Vector(1 -> "Try again", 2 -> "Reload tests", 3 -> "End test (default)")).foreach {
+						case 1 => run(test)
+						case 2 =>
+							if (reload())
+								run(test.name)
 						
-					case _ => ()
-				}
+						case _ => ()
+					}
 			}
 		}
 		

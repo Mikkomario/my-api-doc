@@ -5,7 +5,7 @@ import utopia.flow.generic.model.immutable.Model
 import utopia.flow.util.result.TryExtensions._
 import vf.myapidoc.controller.testing.TestContext
 import vf.myapidoc.model.cached.testing.instruction.TestInstruction
-import vf.myapidoc.model.error.{SyntaxException, TestFailedException}
+import vf.myapidoc.model.error.TestFailedException
 
 import scala.util.Try
 
@@ -22,8 +22,9 @@ case class Test(name: String, code: TestInstruction, description: String = "")
 	/**
 	 * Runs this test
 	 * @param context Implicit test context
-	 * @return Whether this test succeeded
+	 * @throws TestFailedException If this test failed
 	 */
+	@throws[TestFailedException]("If this test failed")
 	def run()(implicit context: TestContext) =
 		Try
 			.apply {
@@ -32,15 +33,11 @@ case class Test(name: String, code: TestInstruction, description: String = "")
 				context.log(s"\nRunning \"$name\"$descPart")
 				code.execute()
 				context.log(s"\"$name\" succeeded\n")
-				true
 			}
 			.getOrMap {
-				case e: SyntaxException =>
-					context.scribe(e, "Test failed", Model.from("test" -> name, "line" -> e.line))
-					false
-				case e: TestFailedException => throw e
+				case e: TestFailedException => throw e.inTest(name)
 				case e =>
 					context.scribe(e, "Unexpected failure while running a test", Model.from("test" -> name))
-					false
+					throw new TestFailedException("Unexpected failure while running the test", -1, name, e)
 			}
 }

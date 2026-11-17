@@ -11,21 +11,19 @@ import vf.myapidoc.model.cached.testing.evaluation.TestEvaluation
  * @author Mikko Hilpinen
  * @since 16.11.2026, v0.1
  */
-case class PreferPathElement(getElem: TestEvaluation) extends TestInstruction
+case class PreferPathElement(getElem: TestEvaluation, line: Int) extends TestInstruction
 {
 	// IMPLEMENTED  -----------------------
 	
 	override def toString: String = s"prefer `$getElem`"
 	
-	override def execute()(implicit context: TestContext): Unit = {
-		getElem.run().string match {
-			case Some(elem) =>
-				context.preferPathElement(elem)
-				if (!getElem.sensitive)
-					context.log(s"Prefers path element: \"$elem\"")
-			case None =>
-				context.scribe.in("prefer.element.resolve").warning("No preferred element was found",
-					Model.from("eval" -> getElem.toString))
-		}
+	override def execute()(implicit context: TestContext): Unit = getElem.run().string match {
+		case Some(elem) =>
+			context.preferPathElement(elem)
+			if (!getElem.sensitive)
+				context.log(s"Prefers path element: \"$elem\"")
+		case None =>
+			context.scribe.in("prefer.element.resolve").warning("No preferred element was found",
+				Model.from("line" -> line, "eval" -> getElem.toString))
 	}
 }

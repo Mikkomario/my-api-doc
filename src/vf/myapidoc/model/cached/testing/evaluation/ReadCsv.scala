@@ -17,7 +17,7 @@ import scala.util.{Failure, Success}
  * @author Mikko Hilpinen
  * @since 29.10.2026, v0.1
  */
-case class ReadCsv(getPath: TestEvaluation) extends TestEvaluation
+case class ReadCsv(getPath: TestEvaluation, line: Int) extends TestEvaluation
 {
 	// IMPLEMENTED  ----------------------
 	
@@ -47,13 +47,13 @@ case class ReadCsv(getPath: TestEvaluation) extends TestEvaluation
 					case Failure(error) =>
 						val message = s"Failure while parsing CSV from `$getPath`"
 						context.scribe(error, message)
-						throw new TestFailedException(message, error)
+						throw new TestFailedException(message, line, cause = error)
 				}
 			
 			// Case: No valid path or value acquired => Fails
 			case Failure(error) =>
 				context.scribe.in("read.CSV.resolvePath")(error, "Couldn't resolve the CSV file path to read",
 					Model.from("getPath" -> getPath.toString))
-				throw new TestFailedException(s"Couldn't resolve CSV path using `$getPath`", error)
+				throw new TestFailedException(s"Couldn't resolve CSV path using `$getPath`", line, cause = error)
 		}
 }
