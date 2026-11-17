@@ -279,9 +279,9 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		StringFrom.writer { writer => logBodyValue(writer, value, sensitiveKeys, 0) } match {
 			case Success(valueStr) =>
 				// Prints the value to both stdout and the log
-				println(valueStr)
+				print(valueStr)
 				if (!skipLog)
-					log(valueStr)
+					useLog { _.print(valueStr) }
 				
 			// Case: Failed to write the value into a string => Logs
 			case Failure(error) =>
@@ -494,7 +494,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 				params.foldLeft[Try[String]](Success(path)) { (path, param) =>
 					path.flatMap { path =>
 						apply(param.name).tryString match {
-							case Success(value) => Success(path.replace(s"{${ param.name }", value))
+							case Success(value) => Success(path.replace(s"{${ param.name }}", value))
 							case Failure(error) =>
 								Failure(new TestFailedException(s"Couldn't resolve path parameter: ${ param.name }",
 									line, cause = error))
@@ -647,12 +647,15 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 			val values = value.getVector
 			if (values.isEmpty)
 				writer.println("[]")
-			else
+			else {
+				writer.print('[')
+				val indent = "\t" * indentation
 				values.iterator.zipWithIndex.foreach { case (elem, index) =>
-					writer.print(s"\n${ "\t" * (indentation + 1) }${ index + 1 }. ")
+					writer.print(s"\n$indent\t${ index + 1 }. ")
 					logBodyValue(writer, elem, sensitivePropNames, indentation + 1)
-					writer.println()
 				}
+				writer.println(s"$indent]")
+			}
 		}
 		// Case: Basic value => Prints it as a JSON value
 		else

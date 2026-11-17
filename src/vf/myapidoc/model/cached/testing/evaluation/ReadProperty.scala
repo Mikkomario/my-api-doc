@@ -24,6 +24,7 @@ case class ReadProperty(from: TestEvaluation, key: String) extends TestEvaluatio
 		// Case: No property value specified => Checks for a custom key
 		else
 			key.toLowerCase match {
+				// TODO: Also handle empty arrays, strings, etc.
 				case "isempty" | "empty" => origin.isEmpty
 				case "nonempty" | "isdefined" | "defined" => origin.nonEmpty
 				case "size" => origin.getVector.size

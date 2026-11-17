@@ -49,15 +49,18 @@ case class LastResponseValue(key: String) extends TestEvaluation
 		if (valueFromContext.nonEmpty)
 			valueFromContext
 		// Case: No value was read => Checks for custom keys
+		// TODO: Delegate some logic to ReadProperty
 		else
 			key.toLowerCase match {
 				case "status" | "statuscode" | "status.code" => context.lastResponseStatus.map { _.code }
 				case "body" | "value" => context.lastResponseBody
 				case "succeeded" | "success" => context.lastResponseStatus.exists { _.isSuccess }
 				case "failed" | "failure" => context.lastResponseStatus.forall { _.isFailure }
+				// TODO: Also handle empty arrays, strings, etc.
 				case "isempty" | "empty" => context.lastResponseBody.isEmpty
 				case "nonempty" => context.lastResponseBody.nonEmpty
 				case "size" | "count" => context.lastResponseBody.getVector.size
+				case "head" | "first" => context.lastResponseBody.getVector.headOption
 				// Case: No custom key => Yields an empty value
 				case _ => valueFromContext
 			}
