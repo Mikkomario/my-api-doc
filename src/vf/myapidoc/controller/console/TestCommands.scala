@@ -325,15 +325,17 @@ object TestCommands
 			),
 			"Available tests"))
 		
-		def reload() = TestParser(path) match {
-			case Success(tests) =>
+		def reload() = {
+			val tests = parseTests(path)
+			if (tests.isEmpty) {
+				println("Failed to reload tests")
+				false
+			}
+			else {
 				testsP.value = tests
 				println("Tests reloaded")
 				true
-			case Failure(error) =>
-				scribe.in("Tests.reload").recoverable(error, "Failed to reload tests",
-					Model.from("path" -> path.toJson))
-				false
+			}
 		}
 		def clearContext() = {
 			context.clear()

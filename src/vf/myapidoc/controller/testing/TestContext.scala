@@ -168,7 +168,9 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		currentState = config
 		
 		config.nonEmptyPropertiesIterator.notEmpty.foreach { persistedPropsIter =>
-			println(s"Loaded previously persisted variables: [${ persistedPropsIter.map { _.name }.mkString(", ") }]")
+			val persistedPropNames = persistedPropsIter.map { _.name }.toOptimizedSeq
+			_persistedKeys = persistedPropNames.iterator.map { _.toLowerCase }.toSet
+			println(s"Loaded previously persisted variables: [${ persistedPropNames.mkString(", ") }]")
 		}
 		
 		// Loads persisted sensitive keys
@@ -186,18 +188,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		// Whenever a persisted property value changes, stores it in the AppConfig
 		state.addListener { e =>
 			val lowerPropName = e.property.name.toLowerCase
-			if (_persistedKeys.contains(lowerPropName)) {
+			if (_persistedKeys.contains(lowerPropName))
 				config(e.property.name) = e.newValue
-				
-				// TODO: Possibly remove this debug log entry
-				val valueStr = {
-					if (sensitiveKeys.contains(lowerPropName))
-						"<omitted>"
-					else
-						e.newValue.toJson
-				}
-				log(s"Persisted ${ e.property.name } = $valueStr")
-			}
 		}
 	}
 	
