@@ -6,6 +6,7 @@ import utopia.flow.collection.mutable.iterator.OptionsIterator
 import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.{Model, Value}
+import utopia.flow.operator.Identity
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.util.StringExtensions._
@@ -137,17 +138,36 @@ object TestCommands
 				}
 			}
 	}
-	private val listPersistedC = Command.withoutArguments("context:persisted",
-		help = "Lists the currently persisted property names") {
+	
+	private val printContextC = Command.withoutArguments("context:print", "show",
+		help = "Prints the current test context") {
+		testsP.value.foreach { tests => tests.context.printValue(tests.context.currentState, skipLog = true) }
+	}
+	private val listPersistedC = Command("context:persisted", help = "Lists the currently persisted property names")(
+		ArgumentSchema.flag("values", "V", help = "Whether values should also be displayed")) { args =>
 		testsP.value.foreach { tests =>
 			val keys = tests.context.persistedKeys
 			if (keys.isEmpty)
 				println("No variables are persisted at this time")
 			else {
-				println(s"Persisted variables:")
-				keys.foreach { key => println(s"- $key") }
+				if (args("values").getBoolean) {
+					println(StringUtils.asciiTableFrom[String](keys,
+						Pair(
+							"Variable" -> Identity,
+							"Value" -> { k => tests.context(k).toJson }
+						),
+						"Persisted variables"))
+				}
+				else {
+					println(s"Persisted variables:")
+					keys.foreach { key => println(s"- $key") }
+				}
 			}
 		}
+	}
+	private val resetC = Command.withoutArguments("context:reset",
+		help = "Resets the context to a state matching program startup") {
+		testsP.value.foreach { _.resetContext() }
 	}
 	private val clearC = Command.withoutArguments("context:clear",
 		help = "Clears the current test context, including persisted values") {
@@ -158,7 +178,7 @@ object TestCommands
 	 */
 	val pointer = testsP.map[Seq[Command]] { tests =>
 		if (tests.isDefined)
-			Vector(listC, runC, evalC, listPersistedC, reloadC, clearC, testC)
+			Vector(listC, runC, evalC, printContextC, listPersistedC, reloadC, resetC, clearC, testC)
 		else
 			Single(testC)
 	}
@@ -337,6 +357,10 @@ object TestCommands
 				println("Tests reloaded")
 				true
 			}
+		}
+		def resetContext() = {
+			context.reset()
+			println("Context reset")
 		}
 		def clearContext() = {
 			context.clear()

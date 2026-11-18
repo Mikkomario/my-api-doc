@@ -444,11 +444,22 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 * Fully clears / resets this test context, including all persisted values.
 	 */
 	def clear() = {
-		lastTestP.value = ""
+		_reset()
 		config.foreach { _.clear() }
 		state.propertiesIterator.foreach { _.value = Value.empty }
-		_persistedKeys = Set()
-		sensitiveKeys = Set()
+	}
+	/**
+	 * Resets this context into a state where only persisted properties are present.
+	 */
+	def reset() = {
+		_reset()
+		state.propertiesIterator.foreach { prop =>
+			if (!_persistedKeys.contains(prop.name.toLowerCase))
+				prop.value = Value.empty
+		}
+	}
+	private def _reset() = {
+		lastTestP.value = ""
 		authP.value = Right("")
 		_lastResponseStatus = None
 		_lastResponseBody = Value.empty
