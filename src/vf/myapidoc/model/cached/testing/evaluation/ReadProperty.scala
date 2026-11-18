@@ -2,6 +2,7 @@ package vf.myapidoc.model.cached.testing.evaluation
 
 import utopia.flow.generic.casting.ValueConversions._
 import utopia.flow.generic.model.immutable.Value
+import utopia.flow.generic.model.mutable.DataType.{ModelType, PairType, StringType, VectorType}
 import vf.myapidoc.controller.testing.TestContext
 
 /**
@@ -11,6 +12,8 @@ import vf.myapidoc.controller.testing.TestContext
  */
 case class ReadProperty(from: TestEvaluation, key: String) extends TestEvaluation
 {
+	// IMPLEMENTED	--------------------
+	
 	override def toString = s"$from.$key"
 	
 	override def sensitive(implicit context: TestContext): Boolean = from.sensitive || context.isSensitive(key)
@@ -24,10 +27,9 @@ case class ReadProperty(from: TestEvaluation, key: String) extends TestEvaluatio
 		// Case: No property value specified => Checks for a custom key
 		else
 			key.toLowerCase match {
-				// TODO: Also handle empty arrays, strings, etc.
-				case "isempty" | "empty" => origin.isEmpty
-				case "nonempty" | "isdefined" | "defined" => origin.nonEmpty
-				case "size" => origin.getVector.size
+				case "isempty" | "empty" => valueIsEmpty(origin)
+				case "nonempty" | "isdefined" | "defined" => !valueIsEmpty(origin)
+				case "size" | "length" => origin.getVector.size
 				case "head" | "first" => origin.getVector.headOption
 				case other =>
 					other.int match {
@@ -36,4 +38,15 @@ case class ReadProperty(from: TestEvaluation, key: String) extends TestEvaluatio
 					}
 			}
 	}
+	
+	
+	// OTHER    --------------------------
+	
+	private def valueIsEmpty(value: Value) = value.isEmpty || (value.dataType match {
+		case StringType => value.getString.isEmpty
+		case VectorType => value.getVector.isEmpty
+		case PairType => value.getPair.isEmpty
+		case ModelType => !value.getModel.nonEmptyPropertiesIterator.hasNext
+		case _ => false
+	})
 }

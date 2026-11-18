@@ -648,10 +648,10 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 			if (values.isEmpty)
 				writer.println("[]")
 			else {
-				writer.print('[')
+				writer.println("[")
 				val indent = "\t" * indentation
 				values.iterator.zipWithIndex.foreach { case (elem, index) =>
-					writer.print(s"\n$indent\t${ index + 1 }. ")
+					writer.print(s"$indent\t${ index + 1 }. ")
 					logBodyValue(writer, elem, sensitivePropNames, indentation + 1)
 				}
 				writer.println(s"$indent]")

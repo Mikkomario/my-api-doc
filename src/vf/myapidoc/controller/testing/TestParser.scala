@@ -6,6 +6,7 @@ import utopia.flow.collection.immutable.{Pair, Single}
 import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.model.enumeration.ValueOperation2
 import utopia.flow.generic.model.immutable.Value
+import utopia.flow.generic.model.mutable.DataType.StringType
 import utopia.flow.operator.enumeration.LogicalOperator
 import utopia.flow.operator.enumeration.LogicalOperator.{And, Nor, NotBoth, Or}
 import utopia.flow.operator.sign.Sign
@@ -213,13 +214,18 @@ object TestParser
 						// Case: Targets specified as an array
 						//       => Persists each element, but only if each consists of a single code element
 						case CodeArray(elements) =>
-							val persistTargets = elements.map { parts =>
-								parts.only match {
-									case Some(Code(target)) => target
-									case _ =>
+							val persistTargets = elements.map {
+								case ReadValue(key) => key
+								case HardCodedValue(value) =>
+									if (value.isOfType(StringType))
+										value.string.getOrElse {
+											throw new SyntaxException(line, "Expected a persist target, but got null")
+										}
+									else
 										throw new SyntaxException(line,
-											s"Malformed persist target `${ parts.mkString(" ") }`")
-								}
+											s"Expected a persist target, but got ${value.valueDescription}")
+								case other =>
+									throw new SyntaxException(line, s"Expected a persist target, but got: $other")
 							}
 							builder += Persist(persistTargets)
 						// Case: Code element => Persists that element, assuming it's a variable reference
@@ -368,8 +374,7 @@ object TestParser
 			// Case: Quotation => Yields a hard-coded string value
 			case Quotation(text) => HardCodedValue.string(text)
 			// Case: Array => Yields an array of evaluations / expressions
-			case CodeArray(elements) =>
-				EvaluateArray(elements.map { evalFrom(_, tokensIter.line, tokensIter.lineIndex) })
+			case CodeArray(elements) => EvaluateArray(elements)
 			// Case: + or - => Potentially inverts the next element (assumes that this is a unary operator)
 			case SignOperator(sign) =>
 				val next = nextEvalElement()
@@ -396,15 +401,23 @@ object TestParser
 	                         (implicit tokensIter: TokensIterator, paramRef: ParamRef): TestEvaluation =
 	{
 		// Parses the parameters
-		lazy val paramsIter = params.iterator.map { evalFrom(_, tokensIter.line, tokensIter.lineIndex) }
+		lazy val paramsIter = params.iterator
+		def testEmptyParams() = {
+			if (paramsIter.hasNext)
+				throw new SyntaxException(tokensIter.line, s"Expected unexpected parameters in `$function`: [${
+					paramsIter.mkString(", ") }]")
+		}
 		def iterateCollection(createFunction: (TestEvaluation, TestEvaluation, Pointer[Value]) => TestEvaluation) = {
 			paramsIter.nextOption() match {
-				case Some(coll) =>
+				case Some(collElems) =>
+					val coll = evalFrom(collElems, tokensIter.line, tokensIter.lineIndex)
 					val itemP = Pointer(Value.empty)
 					val collectionItemReference = ParamRef(ReadPointer(itemP))
 					val predicate = nextEval()(tokensIter, collectionItemReference)
 					
-					createFunction(coll, predicate, itemP)
+					val result = createFunction(coll, predicate, itemP)
+					testEmptyParams()
+					result
 				
 				case None =>
 					throw new SyntaxException(tokensIter.line, s"Expected a collection parameter in `$function`")
@@ -420,14 +433,20 @@ object TestParser
 			//       => Iterates over the parameter to see whether any value is equal to the searched element
 			case "contains" =>
 				paramsIter.nextOption() match {
-					case Some(coll) =>
+					case Some(collElems) =>
+						val coll = evalFrom(collElems, tokensIter.line, tokensIter.lineIndex)
 						// The searched element is either the second parameter, or the following evaluation
-						val searched = paramsIter.nextOption().getOrElse { nextEval() }
+						val searched = paramsIter.nextOption() match {
+							case Some(searchedElems) => evalFrom(searchedElems, tokensIter.line, tokensIter.lineIndex)
+							case None => nextEval()
+						}
 						// Utilizes an ExistsFunction
 						val itemP = Pointer(Value.empty)
 						val collectionItemReference = ReadPointer(itemP)
 						val predicate = Compare(tokensIter.lineIndex, Pair(collectionItemReference, searched), Equality)
-						ExistsFunction(coll, predicate, itemP)
+						val result = ExistsFunction(coll, predicate, itemP)
+						testEmptyParams()
+						result
 					
 					case None =>
 						throw new SyntaxException(tokensIter.line, s"Expected collection parameter in `$function`")
@@ -559,9 +578,16 @@ object TestParser
 	 * Represents an array of other elements
 	 * @param elements The elements in this array. Each entry may consist of multiple tokens
 	 */
-	private case class CodeArray(elements: Seq[Seq[CodeElement]]) extends CodeElement
+	private case class CodeArray(elements: Seq[TestEvaluation]) extends CodeElement
 	{
-		override def toString: String = s"[${ elements.iterator.map { _.mkString }.mkString(", ") }]"
+		override def toString: String = s"[${ elements.mkString(", ") }]"
+	}
+	/**
+	 * Represents a separation between two consecutive list elements
+	 */
+	private case object ListSeparator extends CodeElement
+	{
+		override def toString: String = ","
 	}
 	
 	/**
@@ -606,7 +632,7 @@ object TestParser
 	 */
 	private case class FunctionCall(function: String, parameters: Seq[Seq[CodeElement]]) extends CodeElement
 	{
-		override def toString: String = s"$function(${ parameters.iterator.map { _.mkString }.mkString(", ") })"
+		override def toString: String = s"$function(${ parameters.iterator.map { _.mkString(" ") }.mkString(", ") })"
 	}
 	
 	/**
@@ -628,31 +654,24 @@ object TestParser
 	
 	/**
 	 * Iterates over list elements, such as array elements or function parameters. Splits by comma (,).
-	 * @param source An iterator that yields the characters to iterate over.
-	 *               Expects trimmed content that only and fully spans the list area.
-	 * @param line A line from which the parsed list is found. Used in debug logging.
+	 * @param source An iterator that yields the tokens to iterate over.
+	 *               Expects the source to only and fully span the targeted list's length.
 	 */
-	private class ListElementsIterator(source: Iterator[Char], line: String, lineIndex: Int)
-	                                  (implicit paramRef: ParamRef)
-		extends Iterator[Seq[CodeElement]]
+	private class ListEvalsIterator(source: TokensIterator)(implicit paramRef: ParamRef)
+		extends Iterator[TestEvaluation]
 	{
-		// ATTRIBUTES   --------------------
-		
-		private val cache = Pointer.empty[Char]
-		
-		
 		// IMPLEMENTED  --------------------
 		
-		override def hasNext: Boolean = cache.nonEmpty || source.hasNext
+		override def hasNext: Boolean = source.hasNext
 		
-		override def next(): Seq[CodeElement] = {
-			// Collects the next list item
-			val result = TokensIterator(cache.pop().iterator ++ source.takeWhile { _ != ',' }, line, lineIndex)
-				.toOptimizedSeq
-			// Trims the next list element
-			cache.value = source.find { _ != ' ' }
-			result
-		}
+		override def next(): TestEvaluation =
+			source.untilNext { _ == ListSeparator } { implicit source => nextEval(expectLineEnd = true) }
+	}
+	private class ListTokensIterator(source: TokensIterator) extends Iterator[Seq[CodeElement]]
+	{
+		override def hasNext: Boolean = source.hasNext
+		
+		override def next(): Seq[CodeElement] = source.takeWhile { _ != ListSeparator }.toOptimizedSeq
 	}
 	
 	private object TokensIterator
@@ -662,7 +681,7 @@ object TestParser
 		/**
 		 * Characters that terminate [[Code]] and function name elements (exclusive)
 		 */
-		private val stopChars = Set(' ', '[', '"', '<', '>', '=', '-', '+', '&', '|', '!', '(')
+		private val stopChars = Set(' ', '[', '"', '<', '>', '=', '-', '+', '&', '|', '!', '(', ',')
 		
 		
 		// OTHER   -------------------------
@@ -716,17 +735,21 @@ object TestParser
 			override def next(): CodeElement = cache.pop().getOrElse { source.next() } match {
 				// Case: Quote start => Consumes and wraps the whole quotation
 				case '"' => Quotation(text = source.takeWhile { _ != '"' }.mkString)
-					// Case: Array start => Consumes and wraps the whole array
+				// Case: Comma => Evaluates it as a list separator
+				case ',' =>
+					// Also removes any trailing whitespace
+					cache.value = source.nextOption().filterNot { _ == ' ' }
+					ListSeparator
+                // Case: Array start => Consumes and wraps the whole array
 				case '[' =>
-					CodeArray(new ListElementsIterator(
-						new ParenthesesContentIterator(source, '[', ']'), line, lineIndex)
+					CodeArray(new ListEvalsIterator(
+						TokensIterator(new ParenthesesContentIterator(source, '[', ']'), line, lineIndex))
 						.toOptimizedSeq)
-					// Case: Parentheses start => Parses the parentheses contents as a single evaluation
+				// Case: Parentheses start => Parses the parentheses contents as a single evaluation
 				case '(' =>
 					val contentIter = new _TokensIterator(new ParenthesesContentIterator(source, '(', ')'),
 						line, lineIndex)
 					ParsedEval(nextEval(expectLineEnd = true)(contentIter, paramRef))
-					
 				// Case: '=' => Expects a comparison or an assignment
 				case '=' =>
 					source.next() match {
@@ -737,13 +760,13 @@ object TestParser
 							cache.setOne(other)
 							Assignment
 					}
-					// Case: Comparison operator => Determines the exact operator
+				// Case: Comparison operator => Determines the exact operator
 				case '<' => readComparisonOperator('<')
 				case '>' => readComparisonOperator('>')
 				case '&' => completeLogicalOperator('&', And)
 				case '|' => completeLogicalOperator('|', Or)
-					// Case: '!' => Expects an inequality or an inverted logical operator,
-					//              but also supports as an alias for negation (-)
+				// Case: '!' => Expects an inequality or an inverted logical operator,
+				//              but also supports as an alias for negation (-)
 				case '!' =>
 					source.next() match {
 						case '=' => Comparison(Inequality)
@@ -753,7 +776,7 @@ object TestParser
 							cache.setOne(other)
 							SignOperator(Negative)
 					}
-					// Case: Whitespace (should not, but might occur) => Ignores leading whitespaces
+				// Case: Whitespace (should not, but might occur) => Ignores leading whitespaces
 				case ' ' => next()
 				case other =>
 					// Checks for + and -
@@ -778,8 +801,9 @@ object TestParser
 							//       => Extracts the list and yields a function call
 							if (stop.contains('(')) {
 								val result = FunctionCall(function = contentBuilder.result(),
-									parameters = new ListElementsIterator(
-										new ParenthesesContentIterator(source, '(', ')'), line, lineIndex)
+									parameters = new ListTokensIterator(
+										TokensIterator(new ParenthesesContentIterator(source, '(', ')'),
+											line, lineIndex))
 										.toOptimizedSeq)
 								
 								// Skips whitespaces and : after function calls
@@ -823,6 +847,8 @@ object TestParser
 	}
 	private trait TokensIterator extends Iterator[CodeElement]
 	{
+		// ABSTRACT -----------------------
+		
 		/**
 		 * @return The code line being iterated
 		 */
@@ -831,6 +857,20 @@ object TestParser
 		 * @return Index of the line that's being iterated
 		 */
 		def lineIndex: Int
+		
+		
+		// OTHER    -----------------------
+		
+		/**
+		 * Collects the next elements until the stop condition is met
+		 * @param stopCondition A condition that marks the first excluded element.
+		 *                      Note: The excluded element is then discarded.
+		 * @param consume A function that consumes the limited version of this iterator
+		 * @tparam A Type of 'consume' results
+		 * @return 'consume' results
+		 */
+		def untilNext[A](stopCondition: CodeElement => Boolean)(consume: TokensIterator => A) =
+			consume(TokensIterator.from(takeWhile { !stopCondition(_) }, line, lineIndex))
 	}
 	
 	/**
