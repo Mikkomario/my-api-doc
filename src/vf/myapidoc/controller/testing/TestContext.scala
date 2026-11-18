@@ -1,6 +1,6 @@
 package vf.myapidoc.controller.testing
 
-import utopia.access.model.Headers
+import utopia.access.model.{ContentType, Headers}
 import utopia.access.model.enumeration.Method.{Delete, Get}
 import utopia.access.model.enumeration.{Method, Status}
 import utopia.disciple.controller.Gateway
@@ -412,7 +412,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 									.flatMap { _.sensitivePropertyNamesIterator.map { _.toLowerCase } })
 								pathOrNode.toOption.foreach { node =>
 									recordResponse(node.name, method, response.status.code, statusDoc, bodyStr,
-										bodyValue)
+										bodyValue, response.headers.contentType)
 								}
 							}
 						case Failure(error) =>
@@ -664,13 +664,14 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	
 	private def recordResponse(nodeName: String, method: Method, statusCode: Int,
 	                           responseDoc: Option[DetailedPossibleResponse], responseBodyStr: String,
-	                           responseBodyValue: Value): Unit =
+	                           responseBodyValue: Value, contentType: Option[ContentType]): Unit =
 		responseDoc match {
 			// Case: Documentation exists => Records the response to the DB
 			case Some(doc) =>
 				cPool.logging { implicit c =>
 					implicit val updateId: DocUpdateId = DocUpdateId.latest(apiId)
-					ExamplesDb.storeResponseExample(nodeName, method, doc, responseBodyValue, responseBodyStr)
+					ExamplesDb.storeResponseExample(nodeName, method, doc, responseBodyValue, responseBodyStr,
+						contentType)
 				}
 			// Case: No documentation => Records a local file containing the received response
 			case None =>

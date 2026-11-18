@@ -37,6 +37,7 @@ import scala.util.{Failure, Success, Try}
  * @author Mikko Hilpinen
  * @since 30.10.2026, v0.1
  */
+// TODO: Add reset context command and print context command
 object TestCommands
 {
 	// ATTRIBUTES   -------------------------

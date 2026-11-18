@@ -1,9 +1,12 @@
 package vf.myapidoc.database.store
 
+import utopia.access.model.ContentType
+import utopia.access.model.enumeration.ContentCategory.{Application, Text}
 import utopia.access.model.enumeration.Method
 import utopia.flow.collection.CollectionExtensions._
-import utopia.flow.collection.immutable.{Empty, Single}
+import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.generic.model.immutable.{Constant, Model, Value}
+import utopia.flow.generic.model.mutable.DataType.{ModelType, PairType, VectorType}
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.time.Today
@@ -42,6 +45,7 @@ object ExamplesDb
 	 * @param doc Matching response documentation (same node, same method, same status code)
 	 * @param body Received response body as a value
 	 * @param rawBody Received response body as a string. May be written into a local file.
+	 * @param contentType Content type listed in the response headers, if applicable
 	 * @param connection Implicit DB connection
 	 * @param docId Implicit latest documentation version ID.
 	 * @return Returns either:
@@ -50,7 +54,7 @@ object ExamplesDb
 	 *         - Failure if failed to write the response body into a local file
 	 */
 	def storeResponseExample(nodeName: => String, method: => Method, doc: DetailedPossibleResponse, body: Value,
-	                         rawBody: => String)
+	                         rawBody: => String, contentType: => Option[ContentType])
 	                        (implicit connection: Connection, docId: DocUpdateId) =
 	{
 		// Matches the received properties with the expected model schema
@@ -198,7 +202,7 @@ object ExamplesDb
 		//       => Records the new response example and the selected property examples
 		if (examplesToAddIter.hasNext || missingRecordsIter.hasNext || newUnexpectedValuesIter.hasNext ||
 			AccessExampleResponses.matchingStatus(doc.id).size < 3)
-			insertResponseExample(nodeName, method, doc, rawBody).map { storedExample =>
+			insertResponseExample(nodeName, method, doc, rawBody, body, contentType).map { storedExample =>
 				val storedPropExamples = ExamplePropertyValueDbModel.insert(
 					(examplesToAddIter.map { case (propId, value) =>
 						ExamplePropertyValueData(storedExample.id, propId, value, matchedDocumentation = true)
@@ -219,14 +223,55 @@ object ExamplesDb
 			Success(None)
 	}
 	
-	private def insertResponseExample(nodeName: => String, method: => Method, doc: DetailedPossibleResponse,
-	                                  rawBody: String)
+	private def insertResponseExample(nodeName: String, method: Method, doc: DetailedPossibleResponse, rawBody: String,
+	                                  parsedBody: Value, contentType: Option[ContentType])
 	                                 (implicit connection: Connection, docId: DocUpdateId) =
 	{
-		val relativePath: Path =
-			(s"responses/${ nodeName.toLowerCase.replace(" ", "-") }/$method-${ doc.statusCode }-$Today.json": Path)
-				.unique
-		(examplesDirectory/relativePath).write(rawBody).map { _ =>
+		// Determines the file type used
+		val fileType = contentType match {
+			case Some(cType) =>
+				if (cType == Application.ndJson)
+					"ndjson"
+				else if (cType == Application.xml)
+					"xml"
+				else if (cType == Text.html)
+					"html"
+				else if (cType == Text.csv)
+					"csv"
+				else if (cType.category == Text)
+					"txt"
+				else
+					"json"
+			case None => "json"
+		}
+		val isJson = fileType == "json" || fileType == "ndjson"
+		
+		// Finds a unique path
+		val basePath = s"responses/${ nodeName.toLowerCase.replace(" ", "-") }/$method-${ doc.statusCode }-$Today"
+		val (relativePath, path) = Iterator.iterate(1) { _ + 1 }
+			.map { i =>
+				val relativePath = s"$basePath-$i.$fileType"
+				val path = examplesDirectory/relativePath
+				relativePath -> path
+			}
+			.find { _._2.notExists }.get
+		
+		// Omits sensitive information
+		val sensitiveProps = doc.sensitivePropertyNamesIterator.toSet
+		val contentToWrite = {
+			if (sensitiveProps.isEmpty)
+				rawBody
+			else {
+				val placeholder = if (isJson) "\"<omitted>\"" else if (fileType == "xml") "omitted" else "<omitted>"
+				propertiesIteratorFrom(parsedBody).filter { prop => sensitiveProps.contains(prop.name) }
+					.map { _.value }.filter { _.nonEmpty }
+					.map { value => if (isJson) value.toJson else value.getString }
+					.foldLeft(rawBody) { _.replace(_, placeholder) }
+			}
+		}
+		
+		// Writes the example file and stores the DB entry
+		path.write(contentToWrite).map { _ =>
 			ExampleResponseDbModel.insert(ExampleResponseData(docId.connectedValue, doc.id, relativePath))
 		}
 	}
@@ -321,4 +366,17 @@ object ExamplesDb
 				case None => Single((schema, None, prop)).filter { _._3.toJson.length <= maxValueLength }
 			}
 		}
+		
+	private def propertiesIteratorFrom(value: Value): Iterator[Constant] = {
+		if (value.isEmpty)
+			Iterator.empty
+		else if (value.isOfType(ModelType))
+			value.getModel.propertiesIterator.flatMap { prop =>
+				Iterator.single(prop) ++ propertiesIteratorFrom(prop.value)
+			}
+		else if (value.isOfType(VectorType) || value.isOfType(PairType))
+			value.getVector.iterator.flatMap(propertiesIteratorFrom)
+		else
+			Iterator.empty
+	}
 }

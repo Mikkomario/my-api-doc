@@ -1,9 +1,10 @@
 # Development tasks on MyApiDoc
 
 ## Bugs
-Persisting of context values doesn't work (we don't get property update events)
 
 ## Features
+Add print context and reset context commands
+
 Store API (doc) directories so that updates can be easier
 
 ## Other
