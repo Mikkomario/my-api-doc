@@ -14,7 +14,7 @@ object TestParsingTest extends App
 	private implicit val nodes: Seq[DetailedApiNode] = Empty
 	
 	private val testCode = "if adminKey == null\n  adminKey = prompt: \"Enter the admin API key\"\n  persist adminKey\n  if adminKey == null\n    FAIL \"No admin API key was specified => Can't continue testing\"\nuse adminKey"
-	private val code = TestParser.parseCode("TEST", testCode.linesIterator).get
+	private val code = TestParser.parseCode("TEST", testCode.linesIterator.toVector).get
 	
 	println("Parsing succeeded!")
 }

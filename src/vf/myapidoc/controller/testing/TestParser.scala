@@ -95,7 +95,7 @@ object TestParser
 							println(s"\tParsing: $name")
 							parseCode(name,
 								codeLines = lines.view.drop(codeBlockIndex + 1).iterator
-									.takeWhile { !_.startsWith("```") },
+									.takeWhile { !_.startsWith("```") }.toOptimizedSeq,
 								description = lines.view.take(codeBlockIndex).dropRightWhile { _.isEmpty }
 									.mkString("\n"))
 						}
@@ -112,18 +112,18 @@ object TestParser
 	/**
 	 * Parses test from code
 	 * @param testName Name of this test. Call-by-name.
-	 * @param codeLines Lines of code that form this test. Each entry contains the code and the line index.
+	 * @param codeLines Lines of code that form this test.
 	 * @param description Description of this test. Call-by-name.
 	 * @param doc Implicit API nodes documentation
 	 * @return A new test. None if there was no code to parse.
 	 */
-	def parseCode(testName: => String, codeLines: IterableOnce[String], description: => String = "")
+	def parseCode(testName: => String, codeLines: Seq[String], description: => String = "")
 	             (implicit doc: Iterable[DetailedApiNode]): Option[Test] =
 	{
 		val codeBuilder = TestInstruction.newBuilder
 		parseCode(codeLinesFrom(codeLines), codeBuilder)
 		// Case: Compilation succeeded => Prepares the test
-		codeBuilder.result().map { code => Test(testName, code, description = description) }
+		codeBuilder.result().map { code => Test(testName, code, codeLines, description = description) }
 	}
 	
 	/**

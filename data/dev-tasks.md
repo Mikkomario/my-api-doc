@@ -3,7 +3,7 @@
 ## Bugs
 
 ## Features
-Add print context and reset context commands
+Add support for for-loops
 
 Store API (doc) directories so that updates can be easier
 

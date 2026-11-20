@@ -13,11 +13,12 @@ import scala.util.Try
  * Represents a test that may be run
  * @param name Name of this test
  * @param code Code to execute in this test
+ * @param lines Lines of code that make up this test
  * @param description A description of this test
  * @author Mikko Hilpinen
  * @since 30.10.2026, v0.1
  */
-case class Test(name: String, code: TestInstruction, description: String = "")
+case class Test(name: String, code: TestInstruction, lines: Seq[String], description: String = "")
 {
 	/**
 	 * Runs this test

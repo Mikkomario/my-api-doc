@@ -5,7 +5,7 @@ import utopia.flow.collection.immutable.{Empty, Pair, Single}
 import utopia.flow.collection.mutable.iterator.OptionsIterator
 import utopia.flow.error.ErrorExtensions._
 import utopia.flow.generic.casting.ValueConversions._
-import utopia.flow.generic.model.immutable.{Model, Value}
+import utopia.flow.generic.model.immutable.{Constant, Model, Value}
 import utopia.flow.operator.Identity
 import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.parse.file.FileExtensions._
@@ -25,7 +25,7 @@ import vf.myapidoc.database.access.test.url.AccessTestUrls
 import vf.myapidoc.database.store.TestsDb
 import vf.myapidoc.model.cached.testing.Test
 import vf.myapidoc.model.combined.api.DetailedApiNode
-import vf.myapidoc.model.error.SyntaxException
+import vf.myapidoc.model.error.{SyntaxException, TestFailedException}
 import vf.myapidoc.model.stored.api.Api
 import vf.myapidoc.util.Common._
 
@@ -38,7 +38,6 @@ import scala.util.{Failure, Success, Try}
  * @author Mikko Hilpinen
  * @since 30.10.2026, v0.1
  */
-// TODO: Add reset context command and print context command
 object TestCommands
 {
 	// ATTRIBUTES   -------------------------
@@ -83,8 +82,25 @@ object TestCommands
 	
 	// The following commands assume that testsP has been defined
 	
-	private val listC = Command.withoutArguments("list", "ls", help = "Lists all tests") {
+	private val listTestsC = Command.withoutArguments("list", "ls", help = "Lists all tests") {
 		testsP.value.foreach { _.list() }
+	}
+	private val showTestC = Command("show", help = "Shows a tests's code")(
+		ArgumentSchema("test-name", "test", help = "Name of the test to show", defaultDescription = "Select")) {
+		args =>
+			testsP.value.foreach { tests =>
+				val test = args("test-name").string match {
+					case Some(testName) => tests.resolveTest(testName)
+					case None =>
+						println("\nWhich test do you want to show?")
+						StdIn.selectFrom(tests.all.view.map { t => t -> t.name }.toVector, "Tests")
+				}
+				test.foreach { test =>
+					println(s"\n${ test.name }")
+					println("-" * test.name.length)
+					test.lines.foreach(println)
+				}
+			}
 	}
 	private val runC = Command("run", help = "Runs a test")(
 		ArgumentSchema("test-name", "test", help = "Name of the test to run", defaultDescription = "Select")) { args =>
@@ -123,25 +139,30 @@ object TestCommands
 								error.causesIterator.foreach { e => println(e.getMessage) }
 							}
 					// Case: No code parameter => Starts code terminal mode
-					case None =>
-						println("\nWrite test code to execute. An empty line terminates this mode.")
-						val source = OptionsIterator.continually {
-							StdIn.readNonEmptyLine("Next instruction:").filterNot { _ ~== "exit" }
-						}
-						while (source.hasNext) {
-							Try { TestParser.parseAndExecute(source)(tests.context, tests.nodes) }.failure
-								.foreach { error =>
-									println(s"Failure: ${ error.getMessage }")
-									error.causesIterator.foreach { e => println(e.getMessage) }
-								}
-						}
+					case None => tests.evalMode()
 				}
 			}
 	}
 	
-	private val printContextC = Command.withoutArguments("context:print", "show",
-		help = "Prints the current test context") {
-		testsP.value.foreach { tests => tests.context.printValue(tests.context.currentState, skipLog = true) }
+	private val printContextC = Command("context:print", "show", help = "Prints the current test context")(
+		ArgumentSchema.flag("showSensitive", "S", help = "Whether to show sensitive values")) {
+		args =>
+			testsP.value.foreach { tests =>
+				val showSensitive = args("showSensitive").getBoolean
+				val context = tests.context
+				println(StringUtils.asciiTableFrom[Constant](context.currentState.nonEmptyProperties.sortBy { _.name },
+					Pair(
+						"Variable" -> { _.name },
+						"Value" -> { prop =>
+							if (showSensitive || prop.value.isEmpty || !context.isSensitive(prop.name))
+								prop.value.toJson.splitToLinesIterator(60).mkString("\n")
+							else
+								"*" * prop.value.getString.length
+						}
+					),
+					"Context")
+				)
+			}
 	}
 	private val listPersistedC = Command("context:persisted", help = "Lists the currently persisted property names")(
 		ArgumentSchema.flag("values", "V", help = "Whether values should also be displayed")) { args =>
@@ -178,7 +199,7 @@ object TestCommands
 	 */
 	val pointer = testsP.map[Seq[Command]] { tests =>
 		if (tests.isDefined)
-			Vector(listC, runC, evalC, printContextC, listPersistedC, reloadC, resetC, clearC, testC)
+			Vector(listTestsC, showTestC, runC, evalC, printContextC, listPersistedC, reloadC, resetC, clearC, testC)
 		else
 			Single(testC)
 	}
@@ -291,7 +312,7 @@ object TestCommands
 		
 		private val testsP = Pointer.eventful(initialTests)
 		private val mappedTestsP =
-			testsP.map { _.iterator.map { t => t.name.toLowerCase.filter { _.isLetterOrDigit }.mkString -> t }.toMap }
+			testsP.map { _.iterator.map { t => standardize(t.name) -> t }.toMap }
 		implicit val context: TestContext = new TestContext(apiId, apiName, apiRootUrl, testsP,
 			sensitiveApiPropertyNames = nodes.iterator.flatMap { _.sensitivePropertyNamesIterator }.toSet)
 		
@@ -303,21 +324,7 @@ object TestCommands
 		
 		// OTHER    ---------------------
 		
-		def run(testName: String): Unit = {
-			val key = testName.toLowerCase.filter { _.isLetterOrDigit }.mkString
-			val tests = mappedTestsP.value
-			tests.get(key) match {
-				case Some(test) => run(test)
-				case None =>
-					tests.iterator.filter { _._1.contains(key) }.map { _._2 }.toOptimizedSeq.emptyOneOrMany match {
-						case None => println(s"No test matches \"$testName\"")
-						case Some(Left(test)) => run(test)
-						case Some(Right(options)) =>
-							println("\nWhich test did you mean?")
-							StdIn.selectFrom(options.map { t => t -> t.name }, "tests", "run").foreach(run)
-					}
-			}
-		}
+		def run(testName: String): Unit = resolveTest(testName).foreach(run)
 		def run(test: Test): Unit = {
 			println(s"Running \"${ test.name }\"...")
 			Try { test.run() } match {
@@ -327,22 +334,49 @@ object TestCommands
 					println(s"\nTest failed with: ${ error.getMessage }")
 					error.causesIterator.foreach { e => println(s"Cause: ${ e.getMessage }") }
 					
-					println("\nWhat do you want to do?")
-					StdIn.selectFrom(Vector(1 -> "Try again", 2 -> "Reload tests", 3 -> "End test (default)")).foreach {
-						case 1 => run(test)
-						case 2 =>
-							if (reload())
-								run(test.name)
-						
+					// Writes the failed code
+					error match {
+						case e: TestFailedException => writeFailedCode(e)
 						case _ => ()
 					}
+					
+					chooseNextAction(test)
+			}
+		}
+		
+		def resolveTest(testName: String) = {
+			val key = standardize(testName)
+			val tests = mappedTestsP.value
+			tests.get(key).orElse {
+				tests.iterator.filter { _._1.contains(key) }.map { _._2 }.toOptimizedSeq.emptyOneOrMany match {
+					case None =>
+						println(s"No test matches \"$testName\"")
+						None
+					case Some(Left(test)) => Some(test)
+					case Some(Right(options)) =>
+						println("\nWhich test did you mean?")
+						StdIn.selectFrom(options.map { t => t -> t.name }, "tests")
+				}
+			}
+		}
+		
+		def evalMode() = {
+			println("\nWrite test code to execute. An empty line terminates this mode.")
+			val source = OptionsIterator.continually {
+				StdIn.readNonEmptyLine("Next instruction:").filterNot { _ ~== "exit" }
+			}
+			while (source.hasNext) {
+				Try { TestParser.parseAndExecute(source) }.failure.foreach { error =>
+					println(s"Failure: ${ error.getMessage }")
+					error.causesIterator.foreach { e => println(e.getMessage) }
+				}
 			}
 		}
 		
 		def list() = println(StringUtils.asciiTableFrom[Test](testsP.value.toOptimizedSeq,
 			Pair(
 				"Test" -> { _.name },
-				"Description" -> { _.description.splitToLinesIterator(70).mkString("\n") }
+				"Description" -> { _.description.splitToLinesIterator(60).mkString("\n") }
 			),
 			"Available tests"))
 		
@@ -366,5 +400,43 @@ object TestCommands
 			context.clear()
 			println("Context cleared")
 		}
+		
+		private def writeFailedCode(error: TestFailedException): Unit = {
+			if (error.line >= 0)
+				error.test.ifNotEmpty.flatMap { t => mappedTestsP.value.get(standardize(t)) }.foreach { test =>
+					println(s"\n${ test.name }\n${ "-" * test.name.length }")
+					test.lines.take(error.line + 1).foreach(println)
+					test.lines.lift(error.line).foreach { lastLine =>
+						println("^" * lastLine.length)
+						println(error.message)
+					}
+				}
+			
+			Option(error.getCause)
+				.flatMap {
+					case e: TestFailedException => Some(e)
+					case _ => None
+				}
+				.foreach(writeFailedCode)
+		}
+		
+		private def chooseNextAction(test: Test): Unit = {
+			println("\nWhat do you want to do?")
+			StdIn.selectFrom(Vector(
+				1 -> "Try again", 2 -> "Reload tests", 3 -> "Open code terminal", 4 -> "End test (default)"))
+				.foreach {
+					case 1 => run(test)
+					case 2 =>
+						if (reload())
+							run(test.name)
+					case 3 =>
+						evalMode()
+						chooseNextAction(test)
+					
+					case _ => ()
+				}
+		}
+		
+		private def standardize(str: String) = str.toLowerCase.filter { _.isLetterOrDigit }.mkString
 	}
 }
