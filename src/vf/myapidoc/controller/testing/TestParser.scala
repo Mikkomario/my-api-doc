@@ -4,6 +4,7 @@ import utopia.access.model.enumeration.Method
 import utopia.flow.collection.CollectionExtensions._
 import utopia.flow.collection.immutable.{Pair, Single}
 import utopia.flow.error.ErrorExtensions._
+import utopia.flow.operator.equality.EqualsExtensions._
 import utopia.flow.generic.model.enumeration.ValueOperation2
 import utopia.flow.generic.model.immutable.Value
 import utopia.flow.generic.model.mutable.DataType.StringType
@@ -120,6 +121,7 @@ object TestParser
 	def parseCode(testName: => String, codeLines: Seq[String], description: => String = "")
 	             (implicit doc: Iterable[DetailedApiNode]): Option[Test] =
 	{
+		implicit val paramRef: ParamRef = ParamRef.NoParams
 		val codeBuilder = TestInstruction.newBuilder
 		parseCode(codeLinesFrom(codeLines), codeBuilder)
 		// Case: Compilation succeeded => Prepares the test
@@ -135,6 +137,7 @@ object TestParser
 	def parseAndExecute(lines: IterableOnce[String])
 	                   (implicit context: TestContext, doc: Iterable[DetailedApiNode]): Unit =
 	{
+		implicit val paramRef: ParamRef = ParamRef.NoParams
 		val linesIter = codeLinesFrom(lines)
 		val codeBuilder = new ExecuteCodeBuilder()
 		while (linesIter.hasNext) {
@@ -158,10 +161,8 @@ object TestParser
 	 */
 	@throws[SyntaxException]("If parsing failed")
 	private def parseCode(linesIter: Iterator[(String, Int)], builder: mutable.Growable[TestInstruction])
-	                     (implicit doc: Iterable[DetailedApiNode]): Unit =
+	                     (implicit doc: Iterable[DetailedApiNode], paramRef: ParamRef): Unit =
 	{
-		implicit val paramRef: ParamRef = ParamRef.NoParams
-		
 		// Attempts to parse the next code line
 		val (line, lineIndex) = linesIter.next()
 		def proceedAfter(line: (String, Int)) = parseCode(Iterator.single(line) ++ linesIter, builder)
@@ -205,6 +206,54 @@ object TestParser
 					val condition = lineRemainderAsEval
 					val (code, terminator) = parseIndentedCodeBlock(linesIter, line)
 					builder += ExecuteWhile(condition, code, lineIndex)
+					terminator.foreach(proceedAfter)
+				// Case: For loop => Determines the collection and variable references,
+				//                   and parses the repeated code from the indented block
+				case "for" =>
+					val (coll, varName) = nextToken match {
+						// Case: for [...] => Iterates over the collection without a named variable
+						case CodeArray(elements) => EvaluateArray(elements) -> ""
+						// Case: for (...) => Iterates over whatever's referenced inside the parentheses
+						case ParsedEval(eval) => eval -> ""
+						// Case: for X => Checks whether it's "for X in Y" or just "for X"
+						case Code(code) =>
+							// Case: for X in Y expected => Looks for "in"
+							if (tokensIter.hasNext)
+								tokensIter.next() match {
+									case Code(code) if code ~== "in" =>
+										nextToken match {
+											// Case: For X in [...]
+											case CodeArray(elements) => EvaluateArray(elements) -> code
+											// Case: For X in (...)
+											case ParsedEval(eval) => eval -> code
+											// Case: For X in Y => Assumes that Y is (also) a variable reference
+											case Code(code) => ReadValue(code) -> code
+											case other =>
+												throw new SyntaxException(line,
+													s"Expected a collection reference after `in`, but got $other")
+										}
+									case other =>
+										throw new SyntaxException(line, s"Expected `in` after `$code`, but got $other")
+								}
+							// Case: For X => Interprets X as a variable reference to the iterated collection
+							else
+								ReadValue(code) -> ""
+						case other =>
+							throw new SyntaxException(line,
+								s"Expected a variable name or a collection reference, but got $other")
+					}
+					// If a named variable is not used, constructs a pointer-based parameter reference instead
+					val (forLoopParamRef, iteratedValueP) = {
+						if (varName.isEmpty)
+							paramRef -> None
+						else {
+							val iteratedValueP = Pointer(Value.empty)
+							ParamRef(ReadPointer(iteratedValueP)) -> Some(iteratedValueP)
+						}
+					}
+					// Parses the indented code block
+					val (code, terminator) = parseIndentedCodeBlock(linesIter, line)(doc, forLoopParamRef)
+					builder += ForLoop(coll, iteratedValueP.toRight(varName), code)
 					terminator.foreach(proceedAfter)
 				// Case: Assertion => Parses the asserted expression
 				case "assert" => builder += TestAssertion(lineRemainderAsEval, lineIndex)
@@ -304,13 +353,15 @@ object TestParser
 	 * @param linesIter An iterator that yields the remaining code lines.
 	 * @param openingLine Line that appears right before this block. Used in error logging.
 	 * @param doc Implicit API nodes documentation
+	 * @param paramRef Reference to the contextual _ parameter
 	 * @return Returns two values:
 	 *         1. Parsed code block
 	 *         1. Next line, or None if the end of 'linesIter' was reached.
 	 */
 	@throws[SyntaxException]("If parsing failed")
 	private def parseIndentedCodeBlock(linesIter: Iterator[(String, Int)], openingLine: => String)
-	                                  (implicit doc: Iterable[DetailedApiNode]): (TestInstruction, Option[(String, Int)]) =
+	                                  (implicit doc: Iterable[DetailedApiNode],
+	                                   paramRef: ParamRef): (TestInstruction, Option[(String, Int)]) =
 	{
 		val conditionalCodeBuilder = TestInstruction.newBuilder
 		val indentedLinesIter = new IndentedLinesIter(linesIter)
