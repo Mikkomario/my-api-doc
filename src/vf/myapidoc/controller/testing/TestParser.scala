@@ -381,7 +381,7 @@ object TestParser
 	 */
 	@throws[SyntaxException]("If parsing failed")
 	private def lineRemainderAsEval()(implicit tokensIter: TokensIterator, paramRef: ParamRef) =
-		nextEval2(expectLineEnd = true)._1
+		nextEval(expectLineEnd = true)._1
 	/**
 	 * Extracts an expression from the remaining line source
 	 * @param operatorChainPriority Binary operator priority level that this function may automatically
@@ -391,21 +391,21 @@ object TestParser
 	 * @return Parsed evaluation
 	 */
 	@throws[SyntaxException]("If parsing failed")
-	private def nextEval2(operatorChainPriority: Int = 100, expectLineEnd: Boolean = false)
+	private def nextEval(operatorChainPriority: Int = 100, expectLineEnd: Boolean = false)
 	                     (implicit tokensIter: TokensIterator, paramRef: ParamRef): (TestEvaluation, Option[CodeElement]) =
 	{
 		// Parses the primary element
 		var (eval, secondElem) = nextEvalElement()
 		
 		// Looks for a binary operator that may be attached to the primary element
-		var cached: Option[CodeElement] = secondElem
+		val cache = Pointer.optional(secondElem)
 		var stopElem: Option[CodeElement] = None
-		while (stopElem.isEmpty && (cached.isDefined || tokensIter.hasNext)) {
-			cached.getOrElse { tokensIter.next() } match {
+		while (stopElem.isEmpty && (cache.isDefined || tokensIter.hasNext)) {
+			cache.pop().getOrElse { tokensIter.next() } match {
 				// Case: Chainable binary operator found => Parses the second party in the operation
 				case op: BinaryOp if op.priority <= operatorChainPriority =>
 					// Can't chain operators with higher or equal priority to the current operator
-					val (second, following) = nextEval2(op.priority - 1)
+					val (second, following) = nextEval(op.priority - 1)
 					// Forms the operation by combining the two values
 					op match {
 						// Case: + or -
@@ -418,7 +418,7 @@ object TestParser
 					// Checks the stop value from the recursive call
 					following.foreach {
 						// Case: Chainable operator found => Prepares to apply it next
-						case op: BinaryOp if op.priority <= operatorChainPriority => cached = Some(op)
+						case op: BinaryOp if op.priority <= operatorChainPriority => cache.setOne(op)
 						// Case: Other element => Prepares to stop
 						case other => stopElem = Some(other)
 					}
@@ -428,12 +428,12 @@ object TestParser
 		}
 		
 		// Makes sure the line's been exhausted, if required
-		if (expectLineEnd && (cached.isDefined || stopElem.isDefined || tokensIter.hasNext))
+		if (expectLineEnd && (cache.isDefined || stopElem.isDefined || tokensIter.hasNext))
 			throw new SyntaxException(tokensIter.line, s"Expected end of line, got ${
-				cached.getOrElse { stopElem.getOrElse { tokensIter.next() } } }")
+				cache.pop().getOrElse { stopElem.getOrElse { tokensIter.next() } } }")
 		// Case: Ready to finish => Returns the parsed evaluation and the encountered stop element
 		else
-			eval -> cached.orElse(stopElem)
+			eval -> cache.pop().orElse(stopElem)
 	}
 	
 	/**
@@ -466,7 +466,7 @@ object TestParser
 					case "prompt:" => parsePrompt()
 					// Case: CSV command => Reads CSV based on the following expression
 					case "csv:" =>
-						val (path, following) = nextEval2()
+						val (path, following) = nextEval()
 						ReadCsv(path, tokensIter.lineIndex) -> following
 					// Case: No custom command => Parses the element as a normal (code) evaluation
 					case _ => parseCodeReference(code, tokensIter.line) -> None
@@ -490,7 +490,7 @@ object TestParser
 					val coll = evalFrom(collElems, tokensIter.line, tokensIter.lineIndex)
 					val itemP = Pointer(Value.empty)
 					val collectionItemReference = ParamRef(ReadPointer(itemP))
-					val (functionBody, nextElem) = nextEval2()(tokensIter, collectionItemReference)
+					val (functionBody, nextElem) = nextEval()(tokensIter, collectionItemReference)
 					
 					val result = createFunction(coll, functionBody, itemP)
 					testEmptyParams()
@@ -516,7 +516,7 @@ object TestParser
 						val (searched, nextElem) = paramsIter.nextOption() match {
 							case Some(searchedElems) =>
 								evalFrom(searchedElems, tokensIter.line, tokensIter.lineIndex) -> None
-							case None => nextEval2()
+							case None => nextEval()
 						}
 						// Utilizes an ExistsFunction
 						val itemP = Pointer(Value.empty)
@@ -550,7 +550,7 @@ object TestParser
 				if (!sensitive && code.startsWithIgnoreCase("sensitive:"))
 					parsePrompt(sensitive = true)
 				else {
-					val (prompt, following) = nextEval2()
+					val (prompt, following) = nextEval()
 					PromptForValue(prompt, sensitive) -> following
 				}
 				
