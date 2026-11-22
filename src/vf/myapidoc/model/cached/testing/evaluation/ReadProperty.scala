@@ -29,8 +29,16 @@ case class ReadProperty(from: TestEvaluation, key: String) extends TestEvaluatio
 			key.toLowerCase match {
 				case "isempty" | "empty" => valueIsEmpty(origin)
 				case "nonempty" | "isdefined" | "defined" => !valueIsEmpty(origin)
-				case "size" | "length" => origin.getVector.size
-				case "head" | "first" => origin.getVector.headOption
+				case "size" | "length" =>
+					if (origin.isOfType(StringType))
+						origin.getString.length
+					else
+						origin.getVector.size
+				case "head" | "first" =>
+					if (origin.isOfType(StringType))
+						origin.getString.take(1)
+					else
+						origin.getVector.headOption
 				case other =>
 					other.int match {
 						case Some(index) => origin.getVector.lift(index).getOrElse(Value.empty)

@@ -107,11 +107,12 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	
 	private val altScribe = newScribe("testing.Context").variant("api", apiName)
 	private val lastTestP = Pointer.eventful("")(altScribe)
+	private val eventLogPathP = lastTestP.map { test =>
+		Paths.get(s"log/test-runs/$Today${ test.toLowerCase.replace(' ', '-').prependIfNotEmpty("-") }-run.txt")
+			.unique
+	}
 	private val eventLogP = altScribe.in("writer").use { implicit scribe =>
-		lastTestP.map { test =>
-			KeptOpenWriter(30.seconds).logging.to(Paths.get(
-				s"log/test-runs/$Today${ test.toLowerCase.replace(' ', '-').prependIfNotEmpty("-") }-run-1.txt").unique)
-		}
+		eventLogPathP.map { path => KeptOpenWriter(30.seconds).logging.to(path) }
 	}
 	/**
 	 * Logging interface to use during testing
@@ -472,6 +473,18 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 	 */
 	def log(line: String): Unit = useLog { _.println(line) }
 	def useLog[A](f: BufferedPrintWriter => A) = eventLogP.value(f)
+	
+	/**
+	 * Opens the test event log file in the associated application
+	 */
+	def openEventLog() = {
+		val logPath = eventLogPathP.value
+		logPath.openInDesktop().failure.foreach { error =>
+			altScribe.in("open.eventLog").recoverable(error, "Failed to open the event log")
+			logPath.openDirectory().logWith("Failed to open event log directory",
+				Model.from("path" -> logPath.parent.toJson))
+		}
+	}
 	
 	private def resolvePath(pathOrNode: Either[String, DetailedApiNode], line: Int) = pathOrNode match {
 		// Case: Targeting a custom path => Resolves path parameters using a regular expression

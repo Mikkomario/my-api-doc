@@ -16,7 +16,7 @@ case class TestAssertion(evaluation: TestEvaluation, line: Int) extends TestInst
 	override def execute()(implicit context: TestContext) = {
 		val result = evaluation.run()
 		if (!result.getBoolean) {
-			val message = s"Assertion failed on line $line: Expected `$evaluation`, got: $result"
+			val message = s"Assertion failed on line $line: Expected `$evaluation`, got: ${ result.toJson }"
 			context.log(message)
 			throw new TestFailedException(message, line)
 		}

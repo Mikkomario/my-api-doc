@@ -361,6 +361,8 @@ object TestCommands
 		}
 		
 		def evalMode() = {
+			context.log("\nEval mode started\n")
+			
 			println("\nWrite test code to execute. An empty line terminates this mode.")
 			val source = OptionsIterator.continually {
 				StdIn.readNonEmptyLine("Next instruction:").filterNot { _ ~== "exit" }
@@ -371,6 +373,8 @@ object TestCommands
 					error.causesIterator.foreach { e => println(e.getMessage) }
 				}
 			}
+			
+			context.log("\nEval mode ended\n")
 		}
 		
 		def list() = println(StringUtils.asciiTableFrom[Test](testsP.value.toOptimizedSeq,
@@ -413,17 +417,23 @@ object TestCommands
 				}
 			
 			Option(error.getCause)
-				.flatMap {
-					case e: TestFailedException => Some(e)
-					case _ => None
+				.map {
+					case e: TestFailedException => Right(e)
+					case e => Left(e)
 				}
-				.foreach(writeFailedCode)
+				.foreach {
+					case Right(e) => writeFailedCode(e)
+					case Left(e) =>
+						println(e.getMessage)
+						e.causesIterator.foreach { e => println(e.getMessage) }
+				}
 		}
 		
 		private def chooseNextAction(test: Test): Unit = {
 			println("\nWhat do you want to do?")
 			StdIn.selectFrom(Vector(
-				1 -> "Try again", 2 -> "Reload tests", 3 -> "Open code terminal", 4 -> "End test (default)"))
+				1 -> "Try again", 2 -> "Reload tests", 3 -> "Open code terminal", 4 -> "Open event log",
+					4 -> "End test (default)"))
 				.foreach {
 					case 1 => run(test)
 					case 2 =>
@@ -432,6 +442,7 @@ object TestCommands
 					case 3 =>
 						evalMode()
 						chooseNextAction(test)
+					case 4 => context.openEventLog()
 					
 					case _ => ()
 				}
