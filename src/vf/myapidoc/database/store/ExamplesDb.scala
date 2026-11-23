@@ -96,7 +96,10 @@ object ExamplesDb
 				}
 			}
 			// If no documentation existed, yields placeholder values
-			.getOrElse { Map[Int, Seq[Value]]().withDefaultValue(Empty) -> Map() }
+			.getOrElse {
+				Map[Int, Seq[Value]]().withDefaultValue(Empty) ->
+					Map[(Int, Either[String, Int]), IndexedSeq[Value]]()
+			}
 		
 		// Finds properties that could benefit from the additional values
 		val examplesToAddIter = {

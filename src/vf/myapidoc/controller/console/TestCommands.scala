@@ -160,7 +160,7 @@ object TestCommands
 								"*" * prop.value.getString.length
 						}
 					),
-					"Context")
+					"Context", skipLineSeparators = true)
 				)
 			}
 	}
@@ -177,7 +177,7 @@ object TestCommands
 							"Variable" -> Identity,
 							"Value" -> { k => tests.context(k).toJson }
 						),
-						"Persisted variables"))
+						"Persisted variables", skipLineSeparators = true))
 				}
 				else {
 					println(s"Persisted variables:")
@@ -442,8 +442,10 @@ object TestCommands
 					case 3 =>
 						evalMode()
 						chooseNextAction(test)
-					case 4 => context.openEventLog()
-					
+					case 4 =>
+						context.openEventLog()
+						chooseNextAction(test)
+						
 					case _ => ()
 				}
 		}

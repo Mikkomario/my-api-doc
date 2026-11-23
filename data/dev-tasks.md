@@ -1,6 +1,8 @@
 # Development tasks on MyApiDoc
 
 ## Bugs
+Some log entries are unnecessarily long (e.g. in for loops and assignments)
+
 ```
 Next instruction: print "asd".length
 Failure: Expected end of line, got .length; print "asd".length
