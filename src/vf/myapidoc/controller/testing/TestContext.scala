@@ -18,6 +18,7 @@ import utopia.flow.parse.BufferedPrintWriter
 import utopia.flow.parse.file.FileExtensions._
 import utopia.flow.parse.file.KeptOpenWriter
 import utopia.flow.parse.string.{Regex, StringFrom}
+import utopia.flow.parse.xml.XmlReader
 import utopia.flow.time.TimeExtensions._
 import utopia.flow.time.{Now, Today}
 import utopia.flow.util.EitherExtensions._
@@ -385,7 +386,33 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 							if (bodyStr.isEmpty)
 								_lastResponseBody = Value.empty
 							else {
-								val bodyValue = jsonParser.valueOf(bodyStr)
+								// Parses the response body
+								// Assumes JSON content by default, but also handles XML and NDJSON
+								val bodyValue: Value = response.headers.contentType match {
+									case Some(cType) =>
+										if (cType.subType ~== "xml")
+											XmlReader.parseString(bodyStr) match {
+												case Success(xml) => xml.toSimpleModel
+												case Failure(error) =>
+													scribe.in("request.parse.response.XML")(error,
+														"Failed to parse the response body")
+													Value.empty
+											}
+										else if (cType.subType ~== "ndjson") {
+											bodyStr.linesIterator.filter { _.nonEmpty }.map(jsonParser.apply)
+												.toTryCatch
+												.logWith("Failed to parse the response body",
+													subContext = "request.parse.response.ndJSON") match
+											{
+												case Some(entries) => entries: Value
+												case None => Value.emptyVector
+											}
+										}
+										else
+											jsonParser.valueOf(bodyStr)
+									
+									case None => jsonParser.valueOf(bodyStr)
+								}
 								_lastResponseBody = bodyValue
 								
 								// Checks whether the expected response has been documented
