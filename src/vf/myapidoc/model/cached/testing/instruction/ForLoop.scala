@@ -42,7 +42,17 @@ case class ForLoop(getColl: TestEvaluation, itemRef: Either[String, Pointer[Valu
 								pointer.value = value
 								""
 						}
-						val valueStr = if (sensitive) "<omitted>" else value.toJson
+						val valueStr = {
+							if (sensitive)
+								"<omitted>"
+							else {
+								val str = value.toJson
+								if (str.length > 27)
+									s"${str.take(12)}...${str.takeRight(12)}"
+								else
+									str
+							}
+						}
 						context.log(s"${ index + 1 }/$count: $varStr$valueStr")
 						code.execute()
 					}

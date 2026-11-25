@@ -362,12 +362,15 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		// Resolves the path parameters. Fails if all parameters can't be resolved.
 		val path = resolvePath(pathOrNode, line)
 		// May include a request body from the current state
-		val body: Value = {
+		val (body, queryParams) = {
 			// Case: Body not supported by the used method => Skips body
 			if (method == Get || method == Delete)
-				Value.empty
+				Value.empty -> apply("query").modelOr {
+					pathOrNode.toOption.flatMap { _.get(method).flatMap { _.queryParams }.flatMap(constructModel) }
+						.getOrElse(Model.empty)
+				}
 			else
-				resolveRequestBody(pathOrNode, method, line)
+				resolveRequestParams(pathOrNode, method, line)
 		}
 		log(s"\nSending $method $path")
 		logBody(body, sensitiveKeys)
@@ -376,7 +379,8 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 		gateway
 			.makeBlockingRequest(
 				Request(s"$apiRootUrl${ path.startingWith("/") }", method,
-					body = if (body.isEmpty) None else Some(StringBody.json(body.toJson)), headers = headersP.value)) {
+					body = if (body.isEmpty) None else Some(StringBody.json(body.toJson)), params = queryParams,
+					headers = headersP.value)) {
 				response =>
 					// Handles and records the received response
 					_lastResponseStatus = Some(response.status)
@@ -576,8 +580,9 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 					}
 			}
 	}
-	private def resolveRequestBody(pathOrNode: Either[String, DetailedApiNode], method: Method, line: Int): Value = {
+	private def resolveRequestParams(pathOrNode: Either[String, DetailedApiNode], method: Method, line: Int): (Value, Model) = {
 		val customBody = apply("body")
+		val customQueryParams = apply("query")
 		pathOrNode.toOption match {
 			// Case: Targeting a documented API node
 			//       => Uses the custom body or constructs a body using contextual information
@@ -585,7 +590,7 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 				node.get(method) match {
 					case Some(impl) =>
 						// Uses the first defined request body schema
-						impl.requestBodyOptions.headOption match {
+						val body: Value = impl.requestBodyOptions.headOption match {
 							// Case: Request body documentation found
 							case Some(bodySchema) =>
 								val body = customBody.nonEmptyOrElse {
@@ -615,14 +620,20 @@ class TestContext(apiId: Int, apiName: String, apiRootUrl: String, testsView: Vi
 								else
 									customBody
 						}
+						// Constructs the query parameters
+						val queryParams = customQueryParams.model.getOrElse {
+							impl.queryParams.flatMap(constructModel).getOrElse(Model.empty)
+						}
+						body -> queryParams
+						
 					// Case: Undocumented method implementation
 					//       => Logs a warning and applies the custom body, if specified
 					case None =>
 						log(s"Warning: No documentation exists for $method ${ node.name }")
-						customBody
+						customBody -> customQueryParams.getModel
 				}
 			// Case: Custom request => Applies the custom body, if specified
-			case None => customBody
+			case None => customBody -> customQueryParams.getModel
 		}
 	}
 	

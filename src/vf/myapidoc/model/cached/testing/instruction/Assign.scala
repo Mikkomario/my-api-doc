@@ -27,8 +27,13 @@ case class Assign(key: String, getValue: TestEvaluation) extends TestInstruction
 		val valueStr = {
 			if (context.isSensitive(key))
 				"<omitted>"
-			else
-				value.toJson
+			else {
+				val str = value.toJson
+				if (str.length > 27)
+					s"${str.take(12)}...${str.takeRight(12)}"
+				else
+					str
+			}
 		}
 		context.log(s"$key = $getValue = $valueStr")
 	}
